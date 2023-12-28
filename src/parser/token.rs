@@ -1,4 +1,4 @@
-use std::{fmt::Debug, task::Wake};
+use std::fmt::Debug;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenType {
@@ -32,23 +32,25 @@ pub enum TokenType {
     // Literal
     Number,
     Identifier,
+
+    EOF,
 }
 
 impl TokenType {
     fn requires_lexeme(&self) -> bool {
         match self {
             TokenType::Number | TokenType::Identifier => true,
-            _ => false
+            _ => false,
         }
     }
 }
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Token {
-    token_type: TokenType,
-    line: usize,
-    col: usize,
-    lexeme: Option<String>,
+    pub token_type: TokenType,
+    pub line: usize,
+    pub col: usize,
+    pub lexeme: Option<String>,
 }
 
 impl Token {
@@ -74,6 +76,15 @@ impl Token {
             line,
             col,
             lexeme: Some(lexeme),
+        }
+    }
+
+    pub fn eof() -> Token {
+        Token {
+            token_type: TokenType::EOF,
+            line: 0,
+            col: 0,
+            lexeme: None,
         }
     }
 }
