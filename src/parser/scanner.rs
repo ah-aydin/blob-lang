@@ -2,47 +2,54 @@ use super::token::{Token, TokenType};
 use std::{iter::Peekable, str::Chars};
 
 pub struct Scanner<'a> {
-    source_lines: Peekable<Chars<'a>>,
+    source_chunk: Peekable<Chars<'a>>,
     current_index: usize,
     start_index: usize,
-    last_processed_index: usize,
     line: usize,
     col: usize,
+    /// ```
+    /// (last_in_progress_lexeme: String, last_in_progress_token_type: TokenType)
+    /// ```
+    last_in_progress: Option<(String, TokenType)>,
 }
 
 impl<'a> Scanner<'a> {
     pub fn new() -> Scanner<'a> {
         Scanner {
-            source_lines: "".chars().peekable(),
+            source_chunk: "".chars().peekable(),
             current_index: 0,
             start_index: 0,
-            last_processed_index: 0,
             line: 1,
             col: 1,
+            last_in_progress: None,
         }
     }
 
-    /// Given source must contains lines seperated with '\n' and end with '\n'
-    pub fn scan(&mut self, source_lines: &'a str) -> Vec<Token> {
-        assert_eq!(source_lines.chars().last(), Some('\n'));
-
-        self.source_lines = source_lines.chars().peekable();
+    pub fn scan(&mut self, source_chunk: &'a str) -> Vec<Token> {
+        self.source_chunk = source_chunk.chars().peekable();
         self.current_index = 0;
         self.start_index = 0;
-        self.last_processed_index = 0;
         let mut tokens = vec![];
 
-        while let Some(c) = self.source_lines.next() {
+        // Process the token that is in seperate chunks
+        if let Some(token) = match self.last_in_progress {
+            Some((_, TokenType::Number)) => self.number('1'),
+            Some((_, TokenType::Identifier)) => self.identifier('a'),
+            _ => None,
+        } {
+            tokens.push(token);
+        }
+        self.last_in_progress = None;
+
+        while let Some(c) = self.source_chunk.next() {
             self.start_index = self.current_index;
             match c {
                 // Whitespaces and comments
                 ' ' | '\r' | '\t' => {
                     self.new_char();
-                    self.save_last_processed_index();
                 }
                 '\n' => {
                     self.new_line();
-                    self.save_last_processed_index();
                 }
                 '#' => self.comment(),
 
@@ -60,44 +67,44 @@ impl<'a> Scanner<'a> {
                 '}' => tokens.push(self.build_single_char_token(TokenType::RightBrace)),
 
                 // Single and double character tokens
-                '=' => match self.source_lines.peek() {
+                '=' => match self.source_chunk.peek() {
                     Some('=') => {
-                        self.source_lines.next();
+                        self.source_chunk.next();
                         tokens.push(self.build_double_char_token(TokenType::EqualEqual));
                     }
                     _ => tokens.push(self.build_single_char_token(TokenType::Equal)),
                 },
-                '>' => match self.source_lines.peek() {
+                '>' => match self.source_chunk.peek() {
                     Some('=') => {
-                        self.source_lines.next();
+                        self.source_chunk.next();
                         tokens.push(self.build_double_char_token(TokenType::GreaterEqual));
                     }
                     _ => tokens.push(self.build_single_char_token(TokenType::Greater)),
                 },
-                '<' => match self.source_lines.peek() {
+                '<' => match self.source_chunk.peek() {
                     Some('=') => {
-                        self.source_lines.next();
+                        self.source_chunk.next();
                         tokens.push(self.build_double_char_token(TokenType::LessEqual));
                     }
                     _ => tokens.push(self.build_single_char_token(TokenType::Less)),
                 },
-                '!' => match self.source_lines.peek() {
+                '!' => match self.source_chunk.peek() {
                     Some('=') => {
-                        self.source_lines.next();
+                        self.source_chunk.next();
                         tokens.push(self.build_double_char_token(TokenType::BangEqual));
                     }
                     _ => tokens.push(self.build_single_char_token(TokenType::Bang)),
                 },
-                '|' => match self.source_lines.peek() {
+                '|' => match self.source_chunk.peek() {
                     Some('|') => {
-                        self.source_lines.next();
+                        self.source_chunk.next();
                         tokens.push(self.build_double_char_token(TokenType::PipePipe));
                     }
                     _ => tokens.push(self.build_single_char_token(TokenType::Pipe)),
                 },
-                '&' => match self.source_lines.peek() {
+                '&' => match self.source_chunk.peek() {
                     Some('&') => {
-                        self.source_lines.next();
+                        self.source_chunk.next();
                         tokens.push(self.build_double_char_token(TokenType::AmpersandAmpersand));
                     }
                     _ => tokens.push(self.build_single_char_token(TokenType::Ampersand)),
@@ -119,16 +126,15 @@ impl<'a> Scanner<'a> {
 
     fn comment(&mut self) {
         self.new_char();
-        while let Some(c) = self.source_lines.peek() {
+        while let Some(c) = self.source_chunk.peek() {
             if *c == '\n' {
                 self.new_line();
-                self.source_lines.next();
+                self.source_chunk.next();
                 break;
             }
             self.new_char();
-            self.source_lines.next();
+            self.source_chunk.next();
         }
-        self.save_last_processed_index();
     }
 
     fn number(&mut self, c: char) -> Option<Token> {
@@ -136,16 +142,31 @@ impl<'a> Scanner<'a> {
             return None;
         }
         let mut lexeme = String::with_capacity(32);
-        lexeme.push(c);
-        while let Some(c) = self.source_lines.peek() {
+        let mut is_end_of_source = true;
+        if self.last_in_progress.is_none() {
+            lexeme.push(c);
+        }
+
+        while let Some(c) = self.source_chunk.peek() {
             let c = c.clone();
             if !c.is_numeric() {
+                is_end_of_source = false;
                 break;
             }
-            self.source_lines.next();
+            self.source_chunk.next();
             self.new_char();
             lexeme.push(c);
         }
+
+        if is_end_of_source {
+            self.last_in_progress = Some((lexeme, TokenType::Number));
+            println!("Setting in progress to {:?}", self.last_in_progress);
+            return None;
+        }
+        if let Some((last_lexeme, _)) = &self.last_in_progress {
+            lexeme = String::from(last_lexeme) + &lexeme;
+        }
+
         Some(self.build_token_with_lexeme(TokenType::Number, lexeme))
     }
 
@@ -154,16 +175,31 @@ impl<'a> Scanner<'a> {
             return None;
         }
         let mut lexeme = String::with_capacity(32);
-        lexeme.push(c);
-        while let Some(c) = self.source_lines.peek() {
+        let mut is_end_of_source = true;
+        if self.last_in_progress.is_none() {
+            lexeme.push(c);
+        }
+
+        while let Some(c) = self.source_chunk.peek() {
             let c = c.clone();
             if !c.is_ascii_alphabetic() && c != '_' && !c.is_numeric() {
+                is_end_of_source = false;
                 break;
             }
-            self.source_lines.next();
+            self.source_chunk.next();
             self.new_char();
             lexeme.push(c);
         }
+
+        if is_end_of_source {
+            self.last_in_progress = Some((lexeme, TokenType::Identifier));
+            println!("Setting in progress to {:?}", self.last_in_progress);
+            return None;
+        }
+        if let Some((last_lexeme, _)) = &self.last_in_progress {
+            lexeme = String::from(last_lexeme) + &lexeme;
+        }
+
         Some(self.build_token_with_lexeme(TokenType::Identifier, lexeme))
     }
 
@@ -178,16 +214,30 @@ impl<'a> Scanner<'a> {
         self.current_index += 1;
     }
 
-    fn save_last_processed_index(&mut self) {
-        self.last_processed_index = self.current_index;
-    }
-
     fn build_token(&mut self, token_type: TokenType) -> Token {
-        self.save_last_processed_index();
+        let offset;
+        match &self.last_in_progress {
+            Some((lexeme, _)) => offset = lexeme.len(),
+            None => offset = 0,
+        };
         Token::new(
             token_type,
             self.line,
-            self.col - (self.current_index - self.start_index),
+            self.col - (self.current_index - self.start_index) - offset,
+        )
+    }
+
+    fn build_token_with_lexeme(&mut self, token_type: TokenType, lexeme: String) -> Token {
+        let offset;
+        match &self.last_in_progress {
+            Some((lexeme, _)) => offset = lexeme.len(),
+            None => offset = 0,
+        };
+        Token::new_with_lexeme(
+            token_type,
+            self.line,
+            self.col - (self.current_index - self.start_index) - offset,
+            lexeme,
         )
     }
 
@@ -201,16 +251,6 @@ impl<'a> Scanner<'a> {
         self.new_char();
         self.build_token(token_type)
     }
-
-    fn build_token_with_lexeme(&mut self, token_type: TokenType, lexeme: String) -> Token {
-        self.save_last_processed_index();
-        Token::new_with_lexeme(
-            token_type,
-            self.line,
-            self.col - (self.current_index - self.start_index),
-            lexeme,
-        )
-    }
 }
 
 #[cfg(test)]
@@ -220,14 +260,15 @@ mod test {
     #[test]
     fn math_tokens() {
         let mut scanner = Scanner::new();
-        let code = "45 + 3\n";
+        let code = "45 + 3;";
         let tokens = scanner.scan(code);
         assert_eq!(
             tokens,
             vec![
                 Token::new_with_lexeme(TokenType::Number, 1, 1, String::from("45")),
-                Token::new(TokenType::Plus, 1, 4,),
-                Token::new_with_lexeme(TokenType::Number, 1, 6, String::from("3"))
+                Token::new(TokenType::Plus, 1, 4),
+                Token::new_with_lexeme(TokenType::Number, 1, 6, String::from("3")),
+                Token::new(TokenType::Semicolon, 1, 7),
             ]
         );
     }
@@ -236,7 +277,7 @@ mod test {
     fn multi_line_math_tokens() {
         let mut scanner = Scanner::new();
         let code = "45 + 3;\n\
-        55 + 44;\n";
+        55 + 44;";
         let tokens = scanner.scan(code);
         assert_eq!(
             tokens,
@@ -257,7 +298,7 @@ mod test {
     fn comments() {
         let mut scanner = Scanner::new();
         let code = "45 + 3;#Some comment\n\
-        55 + 44; #Some other comment\n";
+        55 + 44; #Some other comment";
         let tokens = scanner.scan(code);
         assert_eq!(
             tokens,
@@ -278,7 +319,7 @@ mod test {
     fn comments_end_of_chunk() {
         let mut scanner = Scanner::new();
         let code = "45 + 3;# Some comment\n\
-        55 + 44; # Some other comment\n";
+        55 + 44; # Some other comment";
         let tokens = scanner.scan(code);
         assert_eq!(
             tokens,
@@ -316,7 +357,7 @@ mod test {
         );
 
         let code_chunk_2 = "22 - 4;\n\
-        77 *66;\n";
+        77 *66;";
         let tokens = scanner.scan(code_chunk_2);
         assert_eq!(
             tokens,
@@ -336,7 +377,7 @@ mod test {
     #[test]
     fn double_character_tokens() {
         let mut scanner = Scanner::new();
-        let code = "(var1 <= var2 && var2 >= theotherone || var5 < 5)\n";
+        let code = "(var1 <= var2 && var2 >= theotherone || var5 < 5)";
         let tokens = scanner.scan(code);
         assert_eq!(
             tokens,
@@ -354,6 +395,62 @@ mod test {
                 Token::new(TokenType::Less, 1, 46),
                 Token::new_with_lexeme(TokenType::Number, 1, 48, String::from("5")),
                 Token::new(TokenType::RightParen, 1, 49),
+            ]
+        );
+    }
+
+    #[test]
+    fn token_at_end_of_chunk() {
+        let mut scanner = Scanner::new();
+        let code_chunk1 = "var1 + var2"; // var2 should be present in the next batch of tokens
+        let tokens = scanner.scan(code_chunk1);
+        assert_eq!(
+            tokens,
+            vec![
+                Token::new_with_lexeme(TokenType::Identifier, 1, 1, String::from("var1")),
+                Token::new(TokenType::Plus, 1, 6),
+            ]
+        );
+
+        let code_chunk2 = "; var4 + var3;";
+        let tokens = scanner.scan(code_chunk2);
+        assert_eq!(
+            tokens,
+            vec![
+                Token::new_with_lexeme(TokenType::Identifier, 1, 8, String::from("var2")),
+                Token::new(TokenType::Semicolon, 1, 12),
+                Token::new_with_lexeme(TokenType::Identifier, 1, 14, String::from("var4")),
+                Token::new(TokenType::Plus, 1, 19),
+                Token::new_with_lexeme(TokenType::Identifier, 1, 21, String::from("var3")),
+                Token::new(TokenType::Semicolon, 1, 25),
+            ]
+        );
+    }
+
+    #[test]
+    fn token_split_in_2_chunks() {
+        let mut scanner = Scanner::new();
+        let code_chunk1 = "var1 + va"; // var2 should be present in the next batch of tokens
+        let tokens = scanner.scan(code_chunk1);
+        assert_eq!(
+            tokens,
+            vec![
+                Token::new_with_lexeme(TokenType::Identifier, 1, 1, String::from("var1")),
+                Token::new(TokenType::Plus, 1, 6),
+            ]
+        );
+
+        let code_chunk2 = "; var4 + var3;";
+        let tokens = scanner.scan(code_chunk2);
+        assert_eq!(
+            tokens,
+            vec![
+                Token::new_with_lexeme(TokenType::Identifier, 1, 8, String::from("var2")),
+                Token::new(TokenType::Semicolon, 1, 12),
+                Token::new_with_lexeme(TokenType::Identifier, 1, 14, String::from("var4")),
+                Token::new(TokenType::Plus, 1, 19),
+                Token::new_with_lexeme(TokenType::Identifier, 1, 21, String::from("var3")),
+                Token::new(TokenType::Semicolon, 1, 25),
             ]
         );
     }
