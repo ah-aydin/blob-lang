@@ -61,7 +61,7 @@ impl Parser {
         Ok(Parser {
             scanner: Scanner::new(),
             reader: BufReader::new(File::open(file_path)?),
-            tokens: Vec::with_capacity(INTIAL_TOKEN_CAPACITY), 
+            tokens: Vec::with_capacity(INTIAL_TOKEN_CAPACITY),
             token_index: 0,
         })
     }
@@ -260,29 +260,7 @@ impl Parser {
 
     fn peek_token(&mut self) -> Result<&Token, ParserError> {
         if self.token_index >= self.tokens.len() {
-            let mut chunk: Vec<u8> = vec![0; CHUNK_SIZE];
-            return match self.reader.read(&mut chunk) {
-                Ok(bytes_read) => {
-                    if bytes_read == 0 {
-                        self.tokens.push(Token::eof());
-                        return Ok(self.tokens.last().unwrap());
-                    }
-
-                    self.tokens = self
-                        .scanner
-                        .scan(&String::from_utf8_lossy(&chunk[..bytes_read]));
-                    self.token_index = 0;
-                    return Ok(self.tokens.get(self.token_index).unwrap());
-                }
-                Err(_) => Err(ParserError::IOError(
-                    String::from("Failed to read next chunk from line"),
-                    self.tokens
-                        .last()
-                        .unwrap_or(&Token::eof())
-                        .file_coords
-                        .clone(),
-                )),
-            };
+            return self.read_next_chunk();
         }
 
         Ok(self.tokens.get(self.token_index).unwrap())
@@ -290,32 +268,36 @@ impl Parser {
 
     fn next_token(&mut self) -> Result<&Token, ParserError> {
         if self.token_index >= self.tokens.len() {
-            let mut chunk: Vec<u8> = vec![0; CHUNK_SIZE];
-            return match self.reader.read(&mut chunk) {
-                Ok(bytes_read) => {
-                    if bytes_read == 0 {
-                        self.tokens.push(Token::eof());
-                        return Ok(self.tokens.last().unwrap());
-                    }
-
-                    self.tokens = self
-                        .scanner
-                        .scan(&String::from_utf8_lossy(&chunk[..bytes_read]));
-                    self.token_index = 0;
-                    return Ok(self.tokens.get(self.token_index).unwrap());
-                }
-                Err(_) => Err(ParserError::IOError(
-                    String::from("Failed to read next chunk from line"),
-                    self.tokens
-                        .last()
-                        .unwrap_or(&Token::eof())
-                        .file_coords
-                        .clone(),
-                )),
-            };
+            return self.read_next_chunk();
         }
         let token = self.tokens.get(self.token_index).unwrap();
         self.token_index += 1;
         Ok(token)
+    }
+
+    fn read_next_chunk(&mut self) -> Result<&Token, ParserError> {
+        let mut chunk: Vec<u8> = vec![0; CHUNK_SIZE];
+        return match self.reader.read(&mut chunk) {
+            Ok(bytes_read) => {
+                if bytes_read == 0 {
+                    self.tokens.push(Token::eof());
+                    return Ok(self.tokens.last().unwrap());
+                }
+
+                self.tokens = self
+                    .scanner
+                    .scan(&String::from_utf8_lossy(&chunk[..bytes_read]));
+                self.token_index = 0;
+                return Ok(self.tokens.get(self.token_index).unwrap());
+            }
+            Err(_) => Err(ParserError::IOError(
+                String::from("Failed to read next chunk from line"),
+                self.tokens
+                    .last()
+                    .unwrap_or(&Token::eof())
+                    .file_coords
+                    .clone(),
+            )),
+        };
     }
 }
