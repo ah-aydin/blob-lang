@@ -8,26 +8,28 @@ pub enum Stmt {
     Return(Expr),
 
     /// ```rust
-    /// (name: String, arg_names: Vec<String>, body: Stmt::Block)
+    /// (name, arg_names, body)
     /// ```
     FunctionDecl(String, Vec<String>, Box<Stmt>),
 
     /// ```rust
-    /// (condition: Expr, if_clause: Box<Stmt>)
+    /// (condition, if_clause)
     /// ```
     If(Expr, Box<Stmt>),
     /// ```rust
-    /// (condition: Expr, if_clause: Box<Stmt>, else_clause: Box<Stmt>)
+    /// (condition, if_clause, else_clause)
     /// ```
     IfElse(Expr, Box<Stmt>, Box<Stmt>),
 
     /// ```rust
-    /// (name: Expr, expr: Expr)
+    /// (name, expr)
     /// ```
     VarDecl(String, Expr),
 
     /// ```rust
-    /// (condition: Expr, Body: Box<Stmt>)
+    /// (condition, Body)
     /// ```
     While(Expr, Box<Stmt>),
+
+    Empty,
 }

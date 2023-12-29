@@ -8,6 +8,7 @@ use crate::{
 use std::{
     fs::File,
     io::{BufReader, Read},
+    task::Wake,
 };
 
 use self::{
@@ -20,12 +21,12 @@ const INTIAL_TOKEN_CAPACITY: usize = 1024;
 
 type StmtResult = Result<Stmt, ParserError>;
 type ExprResult = Result<Expr, ParserError>;
+type TokenRefResult<'a> = Result<&'a Token, ParserError>;
 
 #[derive(Debug)]
 pub enum ParserError {
     IOError(String, FileCoords),
-    MissingToken(String, FileCoords),
-    RequiresIdent(String, FileCoords),
+    WrongToken(String, Token),
     EOF,
 }
 
@@ -34,6 +35,10 @@ pub enum ParserError {
 /// Parsing rules
 /// ```
 /// // Statement grammar
+/// stmt -> var_decl_stmt / while_stmt / expr_stmt
+/// var_decl_stmt -> "var" IDENTIFIER  "=" logic_or ";"
+/// while_stmt -> "while" "(" logic_or  ")" block_stmt
+/// block_stmt -> "{" expr_stmt* "}"
 /// expr_stmt-> exrp ";"
 ///
 /// // Expression grammar
@@ -72,9 +77,60 @@ impl Parser {
             if self.peek_token()?.token_type == TokenType::EOF {
                 break;
             }
-            stmts.push(self.expr_stmt()?);
+            stmts.push(self.stmt()?);
         }
         Ok(stmts)
+    }
+
+    fn stmt(&mut self) -> StmtResult {
+        match self.match_token(vec![TokenType::Var, TokenType::While])? {
+            Some(TokenType::Var) => self.var_decl_stmt(),
+            Some(TokenType::While) => self.while_stmt(),
+            Some(_) | None => self.expr_stmt(),
+        }
+    }
+
+    fn var_decl_stmt(&mut self) -> StmtResult {
+        let lexeme = self
+            .consume(
+                TokenType::Identifier,
+                "Expected an identifier for var declaration",
+            )?
+            .lexeme
+            .as_ref()
+            .unwrap()
+            .clone();
+        self.consume(
+            TokenType::Equal,
+            "Must give an intial value for var declaration",
+        )?;
+        let expr = self.logic_or()?;
+        self.consume(TokenType::Semicolon, "Expected ';'")?;
+        Ok(Stmt::VarDecl(lexeme.clone(), expr))
+    }
+
+    fn while_stmt(&mut self) -> StmtResult {
+        self.consume(TokenType::LeftParen, "Expected opening '(' for while condition")?;
+        if self.peek_token()?.token_type == TokenType::RightParen {
+            return Err(ParserError::WrongToken(
+                String::from("Expected while condition"),
+                self.next_token()?.clone(),
+            ));
+        }
+        let condition = self.logic_or()?;
+        self.consume(TokenType::RightParen, "Expected closing')' for while conditon")?;
+        self.consume(TokenType::LeftBrace, "Expected opening '{' for while body")?;
+        let block = self.block()?;
+        Ok(Stmt::While(condition, Box::new(block)))
+    }
+
+    fn block(&mut self) -> StmtResult {
+        let mut block_stmts = Vec::new();
+        while self.peek_token()?.token_type != TokenType::RightBrace {
+            block_stmts.push(self.stmt()?);
+        }
+        self.consume(TokenType::RightBrace, "Expected closing'}' for block")?;
+        Ok(Stmt::Block(block_stmts))
     }
 
     fn expr_stmt(&mut self) -> StmtResult {
@@ -194,9 +250,9 @@ impl Parser {
                 let args = self.arguments()?;
                 return Ok(Expr::Call(ident, args));
             }
-            return Err(ParserError::RequiresIdent(
+            return Err(ParserError::WrongToken(
                 String::from("Call expression requires an identifier"),
-                self.peek_token()?.file_coords.clone(),
+                self.peek_token()?.clone(),
             ));
         }
         Ok(possible_callee)
@@ -229,28 +285,32 @@ impl Parser {
                 Ok(expr)
             }
             TokenType::EOF => Err(ParserError::EOF),
-            _ => unreachable!("Got an unexpected token in `primary` {:?}", token),
+            _ => Err(ParserError::WrongToken(
+                String::from("Unexpected token"),
+                token.clone(),
+            )),
         }
     }
 
     /// Iterates to the next token and returns an error if it is not of the given type
-    fn consume(&mut self, token_type: TokenType, msg: &str) -> Result<(), ParserError> {
+    fn consume(&mut self, token_type: TokenType, msg: &str) -> TokenRefResult {
         let token = self.next_token()?;
         if token.token_type != token_type {
-            return Err(ParserError::MissingToken(
-                String::from(msg),
-                token.file_coords.clone(),
-            ));
+            return Err(ParserError::WrongToken(String::from(msg), token.clone()));
         }
-        Ok(())
+        Ok(token)
     }
 
+    /// Iterates to the next token if token is in the given types.
+    /// Returns an `Option<TokenType>` for the found token and iterates
+    /// to the next one if a match is found.
     fn match_token(
         &mut self,
         token_types: Vec<TokenType>,
     ) -> Result<Option<TokenType>, ParserError> {
+        let peek_token_type = self.peek_token()?.token_type.clone();
         for token_type in token_types {
-            if self.peek_token()?.token_type == token_type {
+            if peek_token_type == token_type {
                 let _ = self.next_token()?;
                 return Ok(Some(token_type));
             }
@@ -258,7 +318,8 @@ impl Parser {
         Ok(None)
     }
 
-    fn peek_token(&mut self) -> Result<&Token, ParserError> {
+    /// Returns the next token in the iteration, does not iterate to the next one
+    fn peek_token(&mut self) -> TokenRefResult {
         if self.token_index >= self.tokens.len() {
             return self.read_next_chunk();
         }
@@ -266,7 +327,8 @@ impl Parser {
         Ok(self.tokens.get(self.token_index).unwrap())
     }
 
-    fn next_token(&mut self) -> Result<&Token, ParserError> {
+    /// Returns the next token in the iteration, iterate to the next one
+    fn next_token(&mut self) -> TokenRefResult {
         if self.token_index >= self.tokens.len() {
             return self.read_next_chunk();
         }
@@ -275,7 +337,7 @@ impl Parser {
         Ok(token)
     }
 
-    fn read_next_chunk(&mut self) -> Result<&Token, ParserError> {
+    fn read_next_chunk(&mut self) -> TokenRefResult {
         let mut chunk: Vec<u8> = vec![0; CHUNK_SIZE];
         return match self.reader.read(&mut chunk) {
             Ok(bytes_read) => {
