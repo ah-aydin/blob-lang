@@ -144,27 +144,57 @@ impl Scanner {
     }
 
     fn equal(&mut self, chunk_iterator: &mut Peekable<Chars>) -> Option<Token> {
-        self.single_or_double_character_token(chunk_iterator, '=', TokenType::Equal, TokenType::EqualEqual)
+        self.single_or_double_character_token(
+            chunk_iterator,
+            '=',
+            TokenType::Equal,
+            TokenType::EqualEqual,
+        )
     }
 
     fn greater(&mut self, chunk_iterator: &mut Peekable<Chars>) -> Option<Token> {
-        self.single_or_double_character_token(chunk_iterator, '=', TokenType::Greater, TokenType::GreaterEqual)
+        self.single_or_double_character_token(
+            chunk_iterator,
+            '=',
+            TokenType::Greater,
+            TokenType::GreaterEqual,
+        )
     }
 
     fn less(&mut self, chunk_iterator: &mut Peekable<Chars>) -> Option<Token> {
-        self.single_or_double_character_token(chunk_iterator, '=', TokenType::Less, TokenType::LessEqual)
+        self.single_or_double_character_token(
+            chunk_iterator,
+            '=',
+            TokenType::Less,
+            TokenType::LessEqual,
+        )
     }
 
     fn bang(&mut self, chunk_iterator: &mut Peekable<Chars>) -> Option<Token> {
-        self.single_or_double_character_token(chunk_iterator, '=', TokenType::Bang, TokenType::BangEqual)
+        self.single_or_double_character_token(
+            chunk_iterator,
+            '=',
+            TokenType::Bang,
+            TokenType::BangEqual,
+        )
     }
 
     fn pipe(&mut self, chunk_iterator: &mut Peekable<Chars>) -> Option<Token> {
-        self.single_or_double_character_token(chunk_iterator, '|', TokenType::Pipe, TokenType::PipePipe)
+        self.single_or_double_character_token(
+            chunk_iterator,
+            '|',
+            TokenType::Pipe,
+            TokenType::PipePipe,
+        )
     }
 
     fn ampersand(&mut self, chunk_iterator: &mut Peekable<Chars>) -> Option<Token> {
-        self.single_or_double_character_token(chunk_iterator, '&', TokenType::Ampersand, TokenType::AmpersandAmpersand)
+        self.single_or_double_character_token(
+            chunk_iterator,
+            '&',
+            TokenType::Ampersand,
+            TokenType::AmpersandAmpersand,
+        )
     }
 
     fn single_or_double_character_token(
