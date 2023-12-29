@@ -146,6 +146,7 @@ impl Scanner {
     fn equal(&mut self, chunk_iterator: &mut Peekable<Chars>) -> Option<Token> {
         self.single_or_double_character_token(chunk_iterator, '=', TokenType::Equal, TokenType::EqualEqual)
     }
+
     fn greater(&mut self, chunk_iterator: &mut Peekable<Chars>) -> Option<Token> {
         self.single_or_double_character_token(chunk_iterator, '=', TokenType::Greater, TokenType::GreaterEqual)
     }
