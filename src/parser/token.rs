@@ -33,6 +33,12 @@ pub enum TokenType {
     Number,
     Identifier,
 
+    // Keywords
+    While,
+    If,
+    Else,
+    Func,
+
     EOF,
 }
 
