@@ -1,6 +1,6 @@
 use super::token::{Token, TokenType};
 use lazy_static::lazy_static;
-use std::{collections::HashMap, iter::Peekable, str::Chars};
+use std::{collections::HashMap, iter::Peekable, str::Chars, task::Wake};
 
 lazy_static! {
     static ref KEYWORDS: HashMap<&'static str, TokenType> = {
@@ -47,6 +47,12 @@ impl Scanner {
         if let Some(token) = match self.last_in_progress {
             Some((_, TokenType::Number)) => self.number(&mut chunk_iterator, '1'),
             Some((_, TokenType::Identifier)) => self.identifier(&mut chunk_iterator, 'a'),
+            Some((_, TokenType::Equal)) => self.equal(&mut chunk_iterator),
+            Some((_, TokenType::Greater)) => self.greater(&mut chunk_iterator),
+            Some((_, TokenType::Less)) => self.less(&mut chunk_iterator),
+            Some((_, TokenType::Bang)) => self.bang(&mut chunk_iterator),
+            Some((_, TokenType::Pipe)) => self.pipe(&mut chunk_iterator),
+            Some((_, TokenType::Ampersand)) => self.ampersand(&mut chunk_iterator),
             _ => None,
         } {
             tokens.push(token);
@@ -77,51 +83,40 @@ impl Scanner {
                 ']' => tokens.push(self.build_single_char_token(TokenType::RightBracket)),
                 '{' => tokens.push(self.build_single_char_token(TokenType::LeftBrace)),
                 '}' => tokens.push(self.build_single_char_token(TokenType::RightBrace)),
+                ',' => tokens.push(self.build_single_char_token(TokenType::Comma)),
 
                 // Single and double character tokens
-                '=' => match chunk_iterator.peek() {
-                    Some('=') => {
-                        chunk_iterator.next();
-                        tokens.push(self.build_double_char_token(TokenType::EqualEqual));
+                // TODO solve bug when these are at the end of the buffer
+                '=' => {
+                    if let Some(token) = self.equal(&mut chunk_iterator) {
+                        tokens.push(token);
                     }
-                    _ => tokens.push(self.build_single_char_token(TokenType::Equal)),
-                },
-                '>' => match chunk_iterator.peek() {
-                    Some('=') => {
-                        chunk_iterator.next();
-                        tokens.push(self.build_double_char_token(TokenType::GreaterEqual));
+                }
+                '>' => {
+                    if let Some(token) = self.greater(&mut chunk_iterator) {
+                        tokens.push(token)
                     }
-                    _ => tokens.push(self.build_single_char_token(TokenType::Greater)),
-                },
-                '<' => match chunk_iterator.peek() {
-                    Some('=') => {
-                        chunk_iterator.next();
-                        tokens.push(self.build_double_char_token(TokenType::LessEqual));
+                }
+                '<' => {
+                    if let Some(token) = self.less(&mut chunk_iterator) {
+                        tokens.push(token)
                     }
-                    _ => tokens.push(self.build_single_char_token(TokenType::Less)),
-                },
-                '!' => match chunk_iterator.peek() {
-                    Some('=') => {
-                        chunk_iterator.next();
-                        tokens.push(self.build_double_char_token(TokenType::BangEqual));
+                }
+                '!' => {
+                    if let Some(token) = self.bang(&mut chunk_iterator) {
+                        tokens.push(token)
                     }
-                    _ => tokens.push(self.build_single_char_token(TokenType::Bang)),
-                },
-                '|' => match chunk_iterator.peek() {
-                    Some('|') => {
-                        chunk_iterator.next();
-                        tokens.push(self.build_double_char_token(TokenType::PipePipe));
+                }
+                '|' => {
+                    if let Some(token) = self.pipe(&mut chunk_iterator) {
+                        tokens.push(token)
                     }
-                    _ => tokens.push(self.build_single_char_token(TokenType::Pipe)),
-                },
-                '&' => match chunk_iterator.peek() {
-                    Some('&') => {
-                        chunk_iterator.next();
-                        tokens.push(self.build_double_char_token(TokenType::AmpersandAmpersand));
+                }
+                '&' => {
+                    if let Some(token) = self.ampersand(&mut chunk_iterator) {
+                        tokens.push(token)
                     }
-                    _ => tokens.push(self.build_single_char_token(TokenType::Ampersand)),
-                },
-
+                }
                 _ => {
                     self.new_char();
                     if let Some(token) = self.number(&mut chunk_iterator, c) {
@@ -146,6 +141,89 @@ impl Scanner {
             }
             self.new_char();
             chunk_iterator.next();
+        }
+    }
+
+    fn equal(&mut self, chunk_iterator: &mut Peekable<Chars>) -> Option<Token> {
+        match chunk_iterator.peek() {
+            Some('=') => {
+                chunk_iterator.next();
+                Some(self.build_double_char_token(TokenType::EqualEqual))
+            }
+            Some(_) => Some(self.build_single_char_token(TokenType::Equal)),
+            None => {
+                self.last_in_progress = Some((String::from("="), TokenType::Equal));
+                None
+            }
+        }
+    }
+    fn greater(&mut self, chunk_iterator: &mut Peekable<Chars>) -> Option<Token> {
+        match chunk_iterator.peek() {
+            Some('=') => {
+                chunk_iterator.next();
+                Some(self.build_double_char_token(TokenType::GreaterEqual))
+            }
+            Some(_) => Some(self.build_single_char_token(TokenType::Greater)),
+            None => {
+                self.last_in_progress = Some((String::from("="), TokenType::Greater));
+                None
+            }
+        }
+    }
+
+    fn less(&mut self, chunk_iterator: &mut Peekable<Chars>) -> Option<Token> {
+        match chunk_iterator.peek() {
+            Some('=') => {
+                chunk_iterator.next();
+                Some(self.build_double_char_token(TokenType::LessEqual))
+            }
+            Some(_) => Some(self.build_single_char_token(TokenType::Less)),
+            None => {
+                self.last_in_progress = Some((String::from("="), TokenType::Less));
+                None
+            }
+        }
+    }
+
+    fn bang(&mut self, chunk_iterator: &mut Peekable<Chars>) -> Option<Token> {
+        match chunk_iterator.peek() {
+            Some('=') => {
+                chunk_iterator.next();
+                Some(self.build_double_char_token(TokenType::BangEqual))
+            }
+            Some(_) => Some(self.build_single_char_token(TokenType::Bang)),
+            None => {
+                self.last_in_progress = Some((String::from("="), TokenType::Bang));
+                None
+            }
+        }
+    }
+
+    fn pipe(&mut self, chunk_iterator: &mut Peekable<Chars>) -> Option<Token> {
+        match chunk_iterator.peek() {
+            Some('|') => {
+                chunk_iterator.next();
+                Some(self.build_double_char_token(TokenType::PipePipe))
+            }
+            Some(_) => Some(self.build_single_char_token(TokenType::Pipe)),
+            None => {
+                self.last_in_progress = Some((String::from("="), TokenType::Pipe));
+                None
+            }
+        }
+    }
+
+    fn ampersand(&mut self, chunk_iterator: &mut Peekable<Chars>) -> Option<Token> {
+        match chunk_iterator.peek() {
+            Some('&') => {
+                chunk_iterator.next();
+                Some(self.build_double_char_token(TokenType::AmpersandAmpersand))
+            }
+            Some(_) => Some(self.build_single_char_token(TokenType::Ampersand)),
+            None => {
+                self.last_in_progress = Some((String::from("="), TokenType::Ampersand));
+                None
+            }
         }
     }
 
@@ -466,6 +544,54 @@ mod test {
                 Token::new(TokenType::Plus, 1, 19),
                 Token::new_with_lexeme(TokenType::Identifier, 1, 21, String::from("var3")),
                 Token::new(TokenType::Semicolon, 1, 25),
+            ]
+        );
+    }
+
+    #[test]
+    fn single_character_that_can_be_2_at_end_of_chunk() {
+        let mut scanner = Scanner::new();
+        let code_chunk1 = "var1 + ="; // var2 should be present in the next batch of tokens
+        let tokens = scanner.scan(code_chunk1);
+        assert_eq!(
+            tokens,
+            vec![
+                Token::new_with_lexeme(TokenType::Identifier, 1, 1, String::from("var1")),
+                Token::new(TokenType::Plus, 1, 6),
+            ]
+        );
+
+        let code_chunk2 = ";";
+        let tokens = scanner.scan(code_chunk2);
+        assert_eq!(
+            tokens,
+            vec![
+                Token::new(TokenType::Equal, 1, 7),
+                Token::new(TokenType::Semicolon, 1, 9),
+            ]
+        );
+    }
+
+    #[test]
+    fn double_character_token_in_2_chunks() {
+        let mut scanner = Scanner::new();
+        let code_chunk1 = "var1 + ="; // var2 should be present in the next batch of tokens
+        let tokens = scanner.scan(code_chunk1);
+        assert_eq!(
+            tokens,
+            vec![
+                Token::new_with_lexeme(TokenType::Identifier, 1, 1, String::from("var1")),
+                Token::new(TokenType::Plus, 1, 6),
+            ]
+        );
+
+        let code_chunk2 = "=;";
+        let tokens = scanner.scan(code_chunk2);
+        assert_eq!(
+            tokens,
+            vec![
+                Token::new(TokenType::EqualEqual, 1, 7),
+                Token::new(TokenType::Semicolon, 1, 10),
             ]
         );
     }

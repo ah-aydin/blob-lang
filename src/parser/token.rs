@@ -22,6 +22,7 @@ pub enum TokenType {
     RightBracket,
     LeftBrace,
     RightBrace,
+    Comma,
 
     // Double character
     EqualEqual,

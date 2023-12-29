@@ -17,7 +17,7 @@ pub enum Expr {
     /// ```rust
     /// (CalleeName: String, Args: Vec<Expr>)
     /// ```
-    Call(Box<Expr>, Vec<Expr>),
+    Call(String, Vec<Expr>),
 
     /// ```rust
     /// (name: Expr, expr: Expr)

@@ -15,7 +15,8 @@ use self::{
     token::{FileCoords, Token},
 };
 
-const CHUNK_SIZE: usize = 0x1000;
+const CHUNK_SIZE: usize = 4096;
+const INTIAL_TOKEN_CAPACITY: usize = 1024;
 
 type StmtResult = Result<Stmt, ParserError>;
 type ExprResult = Result<Expr, ParserError>;
@@ -24,6 +25,7 @@ type ExprResult = Result<Expr, ParserError>;
 pub enum ParserError {
     IOError(String, FileCoords),
     MissingToken(String, FileCoords),
+    RequiresIdent(String, FileCoords),
     EOF,
 }
 
@@ -59,7 +61,7 @@ impl Parser {
         Ok(Parser {
             scanner: Scanner::new(),
             reader: BufReader::new(File::open(file_path)?),
-            tokens: vec![],
+            tokens: Vec::with_capacity(INTIAL_TOKEN_CAPACITY), 
             token_index: 0,
         })
     }
@@ -187,16 +189,31 @@ impl Parser {
     fn call(&mut self) -> ExprResult {
         let possible_callee = self.primary()?;
         if self.peek_token()?.token_type == TokenType::LeftParen {
-            self.consume(TokenType::LeftParen, "Expected opening '('")?;
-            let args = self.arguments()?;
-            self.consume(TokenType::RightParen, "Expected closing ')'")?;
-            return Ok(Expr::Call(Box::new(possible_callee), args));
+            if let Expr::Identifier(ident) = possible_callee {
+                self.consume(TokenType::LeftParen, "Expected opening '('")?;
+                let args = self.arguments()?;
+                return Ok(Expr::Call(ident, args));
+            }
+            return Err(ParserError::RequiresIdent(
+                String::from("Call expression requires an identifier"),
+                self.peek_token()?.file_coords.clone(),
+            ));
         }
         Ok(possible_callee)
     }
 
     fn arguments(&mut self) -> Result<Vec<Expr>, ParserError> {
-        todo!("arguments")
+        let mut args = Vec::new();
+        let mut first_pass = true;
+        while self.peek_token()?.token_type != TokenType::RightParen {
+            if !first_pass {
+                self.consume(TokenType::Comma, "Expecting ',' to seperate call arguments")?;
+            }
+            args.push(self.logic_or()?);
+            first_pass = false;
+        }
+        self.consume(TokenType::RightParen, "Expected closing ')'")?;
+        Ok(args)
     }
 
     fn primary(&mut self) -> ExprResult {
