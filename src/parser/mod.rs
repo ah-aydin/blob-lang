@@ -8,7 +8,6 @@ use crate::{
 use std::{
     fs::File,
     io::{BufReader, Read},
-    task::Wake,
 };
 
 use self::{
@@ -35,15 +34,14 @@ pub enum ParserError {
 /// Parsing rules
 /// ```
 /// // Statement grammar
-/// stmt -> var_decl_stmt / while_stmt / expr_stmt
-/// var_decl_stmt -> "var" IDENTIFIER  "=" logic_or ";"
-/// while_stmt -> "while" "(" logic_or  ")" block_stmt
-/// block_stmt -> "{" expr_stmt* "}"
-/// expr_stmt-> exrp ";"
+/// stmt -> var_decl_stmt / while_stmt / block_stmt / assignment_stmt
+/// var_decl_stmt -> "var" IDENTIFIER  "=" expr ";"
+/// while_stmt -> "while" "(" expr ")" block_stmt
+/// block_stmt -> "{" stmt* "}"
+/// assignment_stmt -> ((IDENTIFIER "=")? expr | IDENTIFIER) ";"
 ///
 /// // Expression grammar
-/// expr -> assignemnt
-/// assignment -> IDENTIFIER "=" logic_or | logic_or
+/// expr -> logic_or
 /// logic_or -> logic_and ("||" logic_and)?
 /// logic_and -> comparison("&&" comparison)?
 /// comparison -> term (("<" | ">" | "<=" | ">=" | "==" | "!=") term)?
@@ -51,9 +49,9 @@ pub enum ParserError {
 /// factor -> unary (("*" | "/") unary)*
 /// unary -> ("!" | "-") unary | call
 /// call -> primary ("(" arguments? ")")?
-/// arguments -> logic_or ("," logic_or)*
+/// arguments -> expr ("," expr )*
 /// primary -> NUMBER | IDENTIFIER | "(" expression ")"
-// ```
+/// ```
 pub struct Parser {
     scanner: Scanner,
     reader: BufReader<File>,
@@ -83,10 +81,11 @@ impl Parser {
     }
 
     fn stmt(&mut self) -> StmtResult {
-        match self.match_token(vec![TokenType::Var, TokenType::While])? {
+        match self.match_token(vec![TokenType::Var, TokenType::While, TokenType::LeftBrace])? {
             Some(TokenType::Var) => self.var_decl_stmt(),
             Some(TokenType::While) => self.while_stmt(),
-            Some(_) | None => self.expr_stmt(),
+            Some(TokenType::LeftBrace) => self.block_stmt(),
+            Some(_) | None => self.assignment_stmt(),
         }
     }
 
@@ -104,27 +103,33 @@ impl Parser {
             TokenType::Equal,
             "Must give an intial value for var declaration",
         )?;
-        let expr = self.logic_or()?;
+        let expr = self.expr()?;
         self.consume(TokenType::Semicolon, "Expected ';'")?;
         Ok(Stmt::VarDecl(lexeme.clone(), expr))
     }
 
     fn while_stmt(&mut self) -> StmtResult {
-        self.consume(TokenType::LeftParen, "Expected opening '(' for while condition")?;
+        self.consume(
+            TokenType::LeftParen,
+            "Expected opening '(' for while condition",
+        )?;
         if self.peek_token()?.token_type == TokenType::RightParen {
             return Err(ParserError::WrongToken(
                 String::from("Expected while condition"),
                 self.next_token()?.clone(),
             ));
         }
-        let condition = self.logic_or()?;
-        self.consume(TokenType::RightParen, "Expected closing')' for while conditon")?;
+        let condition = self.expr()?;
+        self.consume(
+            TokenType::RightParen,
+            "Expected closing')' for while conditon",
+        )?;
         self.consume(TokenType::LeftBrace, "Expected opening '{' for while body")?;
-        let block = self.block()?;
+        let block = self.block_stmt()?;
         Ok(Stmt::While(condition, Box::new(block)))
     }
 
-    fn block(&mut self) -> StmtResult {
+    fn block_stmt(&mut self) -> StmtResult {
         let mut block_stmts = Vec::new();
         while self.peek_token()?.token_type != TokenType::RightBrace {
             block_stmts.push(self.stmt()?);
@@ -133,28 +138,27 @@ impl Parser {
         Ok(Stmt::Block(block_stmts))
     }
 
-    fn expr_stmt(&mut self) -> StmtResult {
-        let expr = self.expr()?;
-        self.consume(TokenType::Semicolon, "Expected ';' after expression")?;
-        Ok(Stmt::ExprStmt(expr))
-    }
-
-    fn expr(&mut self) -> ExprResult {
-        self.assignment()
-    }
-
-    fn assignment(&mut self) -> ExprResult {
-        match self.logic_or()? {
+    fn assignment_stmt(&mut self) -> StmtResult {
+        match self.expr()? {
             Expr::Identifier(ident) => {
                 if self.peek_token()?.token_type == TokenType::Equal {
                     self.consume(TokenType::Equal, "Expected '='")?;
-                    let to_expr = self.logic_or()?;
-                    return Ok(Expr::Assign(ident, Box::new(to_expr)));
+                    let to_expr = self.expr()?;
+                    self.consume(TokenType::Semicolon, "Expected ';' after expression")?;
+                    return Ok(Stmt::Assign(ident, to_expr));
                 }
-                Ok(Expr::Identifier(ident))
+                self.consume(TokenType::Semicolon, "Expected ';' after expression")?;
+                Ok(Stmt::ExprStmt(Expr::Identifier(ident)))
             }
-            other => Ok(other),
+            other => {
+                self.consume(TokenType::Semicolon, "Expected ';' after expression")?;
+                Ok(Stmt::ExprStmt(other))
+            }
         }
+    }
+
+    fn expr(&mut self) -> ExprResult {
+        self.logic_or()
     }
 
     fn logic_or(&mut self) -> ExprResult {
@@ -265,7 +269,7 @@ impl Parser {
             if !first_pass {
                 self.consume(TokenType::Comma, "Expecting ',' to seperate call arguments")?;
             }
-            args.push(self.logic_or()?);
+            args.push(self.expr()?);
             first_pass = false;
         }
         self.consume(TokenType::RightParen, "Expected closing ')'")?;

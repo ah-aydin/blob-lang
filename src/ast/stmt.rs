@@ -26,6 +26,12 @@ pub enum Stmt {
     /// ```
     VarDecl(String, Expr),
 
+
+    /// ```rust
+    /// (name, expr)
+    /// ```
+    Assign(String, Expr),
+
     /// ```rust
     /// (condition, Body)
     /// ```

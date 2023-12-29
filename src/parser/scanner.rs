@@ -1,6 +1,6 @@
 use super::token::{Token, TokenType};
 use lazy_static::lazy_static;
-use std::{collections::HashMap, iter::Peekable, str::Chars, task::Wake};
+use std::{collections::HashMap, iter::Peekable, str::Chars};
 
 lazy_static! {
     static ref KEYWORDS: HashMap<&'static str, TokenType> = {
