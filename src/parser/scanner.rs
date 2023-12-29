@@ -5,10 +5,12 @@ use std::{collections::HashMap, iter::Peekable, str::Chars};
 lazy_static! {
     static ref KEYWORDS: HashMap<&'static str, TokenType> = {
         let mut map = HashMap::new();
-        map.insert("while", TokenType::While);
-        map.insert("if", TokenType::If);
         map.insert("else", TokenType::Else);
         map.insert("func", TokenType::Func);
+        map.insert("if", TokenType::If);
+        map.insert("return", TokenType::Return);
+        map.insert("var", TokenType::Var);
+        map.insert("while", TokenType::While);
         map
     };
 }
@@ -170,7 +172,6 @@ impl Scanner {
 
         if is_end_of_source {
             self.last_in_progress = Some((lexeme, TokenType::Number));
-            println!("Setting in progress to {:?}", self.last_in_progress);
             return None;
         }
         if let Some((last_lexeme, _)) = &self.last_in_progress {
@@ -203,7 +204,6 @@ impl Scanner {
 
         if is_end_of_source {
             self.last_in_progress = Some((lexeme, TokenType::Identifier));
-            println!("Setting in progress to {:?}", self.last_in_progress);
             return None;
         }
         if let Some((last_lexeme, _)) = &self.last_in_progress {
@@ -473,21 +473,21 @@ mod test {
     #[test]
     fn keywords() {
         let mut scanner = Scanner::new();
-        let code_chunk = "while (var < 2) if else 44;";
+        let code_chunk = "while (var1 < 2) if else 44;";
         let tokens = scanner.scan(code_chunk);
         assert_eq!(
             tokens,
             vec![
                 Token::new(TokenType::While, 1, 1),
                 Token::new(TokenType::LeftParen, 1, 7),
-                Token::new_with_lexeme(TokenType::Identifier, 1, 8, String::from("var")),
-                Token::new(TokenType::Less, 1, 12),
-                Token::new_with_lexeme(TokenType::Number, 1, 14, String::from("2")),
-                Token::new(TokenType::RightParen, 1, 15),
-                Token::new(TokenType::If, 1, 17),
-                Token::new(TokenType::Else, 1, 20),
-                Token::new_with_lexeme(TokenType::Number, 1, 25, String::from("44")),
-                Token::new(TokenType::Semicolon, 1, 27),
+                Token::new_with_lexeme(TokenType::Identifier, 1, 8, String::from("var1")),
+                Token::new(TokenType::Less, 1, 13),
+                Token::new_with_lexeme(TokenType::Number, 1, 15, String::from("2")),
+                Token::new(TokenType::RightParen, 1, 16),
+                Token::new(TokenType::If, 1, 18),
+                Token::new(TokenType::Else, 1, 21),
+                Token::new_with_lexeme(TokenType::Number, 1, 26, String::from("44")),
+                Token::new(TokenType::Semicolon, 1, 28),
             ]
         );
     }

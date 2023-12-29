@@ -11,5 +11,8 @@ fn main() {
         return;
     }
     let mut parser = Parser::new(args.get(1).unwrap()).unwrap();
-    let _ = parser.parse();
+    match parser.parse() {
+        Ok(stmts) => stmts.iter().for_each(|stmt| println!("{:?}", stmt)),
+        Err(err) => eprintln!("{:?}", err),
+    };
 }

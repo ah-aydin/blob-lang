@@ -25,10 +25,6 @@ pub enum Stmt {
     /// (name: Expr, expr: Expr)
     /// ```
     VarDecl(String, Expr),
-    /// ```rust
-    /// (name: Expr, expr: Expr)
-    /// ```
-    Assign(String, Expr),
 
     /// ```rust
     /// (condition: Expr, Body: Box<Stmt>)

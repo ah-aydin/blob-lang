@@ -2,11 +2,11 @@ use super::op_type::{BinaryOpType, UnaryOpType};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {
-    I64(i32),
+    I32(i32),
     Identifier(String),
 
     /// ```rust
-    /// (Op: BinaryOpType, Term: Box<Expr>)
+    /// (Op: UnaryOpType, Term: Box<Expr>)
     /// ```
     UnaryOp(UnaryOpType, Box<Expr>),
     /// ```rust
@@ -17,5 +17,10 @@ pub enum Expr {
     /// ```rust
     /// (CalleeName: String, Args: Vec<Expr>)
     /// ```
-    Call(String, Vec<Expr>),
+    Call(Box<Expr>, Vec<Expr>),
+
+    /// ```rust
+    /// (name: Expr, expr: Expr)
+    /// ```
+    Assign(String, Box<Expr>),
 }
