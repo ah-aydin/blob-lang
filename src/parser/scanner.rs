@@ -86,7 +86,6 @@ impl Scanner {
                 ',' => tokens.push(self.build_single_char_token(TokenType::Comma)),
 
                 // Single and double character tokens
-                // TODO solve bug when these are at the end of the buffer
                 '=' => {
                     if let Some(token) = self.equal(&mut chunk_iterator) {
                         tokens.push(token);
@@ -145,83 +144,43 @@ impl Scanner {
     }
 
     fn equal(&mut self, chunk_iterator: &mut Peekable<Chars>) -> Option<Token> {
-        match chunk_iterator.peek() {
-            Some('=') => {
-                chunk_iterator.next();
-                Some(self.build_double_char_token(TokenType::EqualEqual))
-            }
-            Some(_) => Some(self.build_single_char_token(TokenType::Equal)),
-            None => {
-                self.last_in_progress = Some((String::from("="), TokenType::Equal));
-                None
-            }
-        }
+        self.single_or_double_character_token(chunk_iterator, '=', TokenType::Equal, TokenType::EqualEqual)
     }
     fn greater(&mut self, chunk_iterator: &mut Peekable<Chars>) -> Option<Token> {
-        match chunk_iterator.peek() {
-            Some('=') => {
-                chunk_iterator.next();
-                Some(self.build_double_char_token(TokenType::GreaterEqual))
-            }
-            Some(_) => Some(self.build_single_char_token(TokenType::Greater)),
-            None => {
-                self.last_in_progress = Some((String::from("="), TokenType::Greater));
-                None
-            }
-        }
+        self.single_or_double_character_token(chunk_iterator, '=', TokenType::Greater, TokenType::GreaterEqual)
     }
 
     fn less(&mut self, chunk_iterator: &mut Peekable<Chars>) -> Option<Token> {
-        match chunk_iterator.peek() {
-            Some('=') => {
-                chunk_iterator.next();
-                Some(self.build_double_char_token(TokenType::LessEqual))
-            }
-            Some(_) => Some(self.build_single_char_token(TokenType::Less)),
-            None => {
-                self.last_in_progress = Some((String::from("="), TokenType::Less));
-                None
-            }
-        }
+        self.single_or_double_character_token(chunk_iterator, '=', TokenType::Less, TokenType::LessEqual)
     }
 
     fn bang(&mut self, chunk_iterator: &mut Peekable<Chars>) -> Option<Token> {
-        match chunk_iterator.peek() {
-            Some('=') => {
-                chunk_iterator.next();
-                Some(self.build_double_char_token(TokenType::BangEqual))
-            }
-            Some(_) => Some(self.build_single_char_token(TokenType::Bang)),
-            None => {
-                self.last_in_progress = Some((String::from("="), TokenType::Bang));
-                None
-            }
-        }
+        self.single_or_double_character_token(chunk_iterator, '=', TokenType::Bang, TokenType::BangEqual)
     }
 
     fn pipe(&mut self, chunk_iterator: &mut Peekable<Chars>) -> Option<Token> {
-        match chunk_iterator.peek() {
-            Some('|') => {
-                chunk_iterator.next();
-                Some(self.build_double_char_token(TokenType::PipePipe))
-            }
-            Some(_) => Some(self.build_single_char_token(TokenType::Pipe)),
-            None => {
-                self.last_in_progress = Some((String::from("="), TokenType::Pipe));
-                None
-            }
-        }
+        self.single_or_double_character_token(chunk_iterator, '|', TokenType::Pipe, TokenType::PipePipe)
     }
 
     fn ampersand(&mut self, chunk_iterator: &mut Peekable<Chars>) -> Option<Token> {
+        self.single_or_double_character_token(chunk_iterator, '&', TokenType::Ampersand, TokenType::AmpersandAmpersand)
+    }
+
+    fn single_or_double_character_token(
+        &mut self,
+        chunk_iterator: &mut Peekable<Chars>,
+        next_char: char,
+        token_type: TokenType,
+        second_token_type: TokenType,
+    ) -> Option<Token> {
         match chunk_iterator.peek() {
-            Some('&') => {
+            Some(c) if *c == next_char => {
                 chunk_iterator.next();
-                Some(self.build_double_char_token(TokenType::AmpersandAmpersand))
+                Some(self.build_double_char_token(second_token_type))
             }
-            Some(_) => Some(self.build_single_char_token(TokenType::Ampersand)),
+            Some(_) => Some(self.build_single_char_token(token_type)),
             None => {
-                self.last_in_progress = Some((String::from("="), TokenType::Ampersand));
+                self.last_in_progress = Some((String::from("="), token_type));
                 None
             }
         }
