@@ -10,7 +10,7 @@ pub enum Stmt {
     /// ```rust
     /// (name, arg_names, body)
     /// ```
-    FunctionDecl(String, Vec<String>, Box<Stmt>),
+    FuncDecl(String, Vec<String>, Box<Stmt>),
 
     /// ```rust
     /// (condition, if_clause)
@@ -26,7 +26,6 @@ pub enum Stmt {
     /// ```
     VarDecl(String, Expr),
 
-
     /// ```rust
     /// (name, expr)
     /// ```
@@ -36,6 +35,4 @@ pub enum Stmt {
     /// (condition, Body)
     /// ```
     While(Expr, Box<Stmt>),
-
-    Empty,
 }

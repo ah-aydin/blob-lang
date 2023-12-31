@@ -10,8 +10,8 @@ fn main() {
         println!("Usage: blob-lang [source_file]");
         return;
     }
-    let mut parser = Parser::new(args.get(1).unwrap()).unwrap();
-    match parser.parse() {
+
+    match Parser::new(args.get(1).unwrap()).unwrap().parse() {
         Ok(stmts) => stmts.iter().for_each(|stmt| println!("{:?}", stmt)),
         Err(err) => eprintln!("{:?}", err),
     };

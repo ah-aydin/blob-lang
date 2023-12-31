@@ -34,7 +34,10 @@ pub enum ParserError {
 /// Parsing rules
 /// ```
 /// // Statement grammar
-/// stmt -> var_decl_stmt / while_stmt / block_stmt / assignment_stmt
+/// stmt -> func_decl_stmt / return_stmt / if_else_stmt / var_decl_stmt / while_stmt / block_stmt / assignment_stmt
+/// func_decl_stmt -> "func" "(" ")" block_stmt
+/// return_stmt -> "return" expr ";"
+/// if_else_stmt -> "if" "(" expr ")" block_stmt
 /// var_decl_stmt -> "var" IDENTIFIER  "=" expr ";"
 /// while_stmt -> "while" "(" expr ")" block_stmt
 /// block_stmt -> "{" stmt* "}"
@@ -81,7 +84,17 @@ impl Parser {
     }
 
     fn stmt(&mut self) -> StmtResult {
-        match self.match_token(vec![TokenType::Var, TokenType::While, TokenType::LeftBrace])? {
+        match self.match_token(vec![
+            TokenType::Func,
+            TokenType::Return,
+            TokenType::If,
+            TokenType::Var,
+            TokenType::While,
+            TokenType::LeftBrace,
+        ])? {
+            Some(TokenType::Func) => self.func_decl_stmt(),
+            Some(TokenType::Return) => self.return_stmt(),
+            Some(TokenType::If) => self.if_else_stmt(),
             Some(TokenType::Var) => self.var_decl_stmt(),
             Some(TokenType::While) => self.while_stmt(),
             Some(TokenType::LeftBrace) => self.block_stmt(),
@@ -89,23 +102,99 @@ impl Parser {
         }
     }
 
+    fn func_decl_stmt(&mut self) -> StmtResult {
+        let func_name = self.consume_identifier_and_get_lexeme("Expected function name")?;
+
+        self.consume(
+            TokenType::LeftParen,
+            "Expected opening '(' for function argument declarations",
+        )?;
+        let mut args = Vec::new();
+        let mut first_pass = true;
+        while self.peek_token()?.token_type != TokenType::RightParen {
+            if !first_pass {
+                self.consume(
+                    TokenType::Comma,
+                    "Expecting ',' to seperate function arguments",
+                )?;
+            }
+            // TODO change this logic to also accept variable types after introducing
+            // types other than i32
+            args.push(self.consume_identifier_and_get_lexeme("Expected argument name")?);
+            first_pass = false;
+        }
+        self.consume(
+            TokenType::RightParen,
+            "Expected closing ')' for function argument declrations",
+        )?;
+
+        self.consume(
+            TokenType::LeftBrace,
+            "Expected opening '{' for function body",
+        )?;
+        let func_body = self.block_stmt()?;
+
+        Ok(Stmt::FuncDecl(func_name, args, Box::new(func_body)))
+    }
+
+    fn return_stmt(&mut self) -> StmtResult {
+        let expr = self.expr()?;
+        self.consume(TokenType::Semicolon, "Expected ';' to end return statement")?;
+        Ok(Stmt::Return(expr))
+    }
+
+    fn if_else_stmt(&mut self) -> StmtResult {
+        self.consume(
+            TokenType::LeftParen,
+            "Expected opening '(' for if condition",
+        )?;
+        if self.peek_token()?.token_type == TokenType::RightParen {
+            return Err(ParserError::WrongToken(
+                String::from("Expected if condition"),
+                self.next_token()?.clone(),
+            ));
+        }
+        let condition = self.expr()?;
+        self.consume(
+            TokenType::RightParen,
+            "Expected closing')' for while conditon",
+        )?;
+
+        self.consume(TokenType::LeftBrace, "Expected opening '{' for if body")?;
+        let if_clause = self.block_stmt()?;
+
+        // Check for `else` and `else if` chains
+        if self.peek_token()?.token_type == TokenType::Else {
+            self.next_token()?;
+            let else_clause = match self.match_token(vec![TokenType::If, TokenType::LeftBrace])? {
+                Some(TokenType::If) => self.if_else_stmt(),
+                Some(TokenType::LeftBrace) => self.block_stmt(),
+                Some(_) | None => Err(ParserError::WrongToken(
+                    String::from("Expected another 'if' statement or opening '{' for else body"),
+                    self.peek_token()?.clone(),
+                )),
+            }?;
+            return Ok(Stmt::IfElse(
+                condition,
+                Box::new(if_clause),
+                Box::new(else_clause),
+            ));
+        }
+
+        Ok(Stmt::If(condition, Box::new(if_clause)))
+    }
+
     fn var_decl_stmt(&mut self) -> StmtResult {
-        let lexeme = self
-            .consume(
-                TokenType::Identifier,
-                "Expected an identifier for var declaration",
-            )?
-            .lexeme
-            .as_ref()
-            .unwrap()
-            .clone();
+        // TODO add option to specify var type after introducing types other
+        // than i32
+        let var_name = self.consume_identifier_and_get_lexeme("Expected variable name")?;
         self.consume(
             TokenType::Equal,
             "Must give an intial value for var declaration",
         )?;
         let expr = self.expr()?;
         self.consume(TokenType::Semicolon, "Expected ';'")?;
-        Ok(Stmt::VarDecl(lexeme.clone(), expr))
+        Ok(Stmt::VarDecl(var_name.clone(), expr))
     }
 
     fn while_stmt(&mut self) -> StmtResult {
@@ -129,6 +218,7 @@ impl Parser {
         Ok(Stmt::While(condition, Box::new(block)))
     }
 
+    /// Consume a "{" befor calling this function
     fn block_stmt(&mut self) -> StmtResult {
         let mut block_stmts = Vec::new();
         while self.peek_token()?.token_type != TokenType::RightBrace {
@@ -305,6 +395,15 @@ impl Parser {
         Ok(token)
     }
 
+    fn consume_identifier_and_get_lexeme(&mut self, msg: &str) -> Result<String, ParserError> {
+        Ok(String::from(
+            self.consume(TokenType::Identifier, msg)?
+                .lexeme
+                .as_ref()
+                .unwrap(),
+        ))
+    }
+
     /// Iterates to the next token if token is in the given types.
     /// Returns an `Option<TokenType>` for the found token and iterates
     /// to the next one if a match is found.
@@ -346,7 +445,7 @@ impl Parser {
         return match self.reader.read(&mut chunk) {
             Ok(bytes_read) => {
                 if bytes_read == 0 {
-                    self.tokens.push(Token::eof());
+                    self.tokens.push(Token::eof(self.scanner.get_coords()));
                     return Ok(self.tokens.last().unwrap());
                 }
 
@@ -360,7 +459,7 @@ impl Parser {
                 String::from("Failed to read next chunk from line"),
                 self.tokens
                     .last()
-                    .unwrap_or(&Token::eof())
+                    .unwrap_or(&Token::eof(self.scanner.get_coords()))
                     .file_coords
                     .clone(),
             )),

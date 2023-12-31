@@ -1,4 +1,4 @@
-use super::token::{Token, TokenType};
+use super::token::{FileCoords, Token, TokenType};
 use lazy_static::lazy_static;
 use std::{collections::HashMap, iter::Peekable, str::Chars};
 
@@ -34,6 +34,13 @@ impl Scanner {
             line: 1,
             col: 1,
             last_in_progress: None,
+        }
+    }
+
+    pub fn get_coords(&self) -> FileCoords {
+        FileCoords {
+            line: self.line,
+            col: self.col,
         }
     }
 
@@ -77,6 +84,7 @@ impl Scanner {
                 '*' => tokens.push(self.build_single_char_token(TokenType::Star)),
                 '/' => tokens.push(self.build_single_char_token(TokenType::Slash)),
                 ';' => tokens.push(self.build_single_char_token(TokenType::Semicolon)),
+                ':' => tokens.push(self.build_single_char_token(TokenType::Colon)),
                 '(' => tokens.push(self.build_single_char_token(TokenType::LeftParen)),
                 ')' => tokens.push(self.build_single_char_token(TokenType::RightParen)),
                 '[' => tokens.push(self.build_single_char_token(TokenType::LeftBracket)),

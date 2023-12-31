@@ -13,6 +13,7 @@ pub enum TokenType {
     Greater,
     Less,
     Semicolon,
+    Colon,
     Equal,
     Pipe,
     Ampersand,
@@ -49,8 +50,8 @@ pub enum TokenType {
 
 #[derive(Default, Debug, PartialEq, Eq, Clone)]
 pub struct FileCoords {
-    line: usize,
-    col: usize
+    pub line: usize,
+    pub col: usize,
 }
 
 impl TokenType {
@@ -75,7 +76,7 @@ impl TokenType {
             TokenType::BangEqual => BinaryOpType::NotEqual,
             TokenType::AmpersandAmpersand => BinaryOpType::And,
             TokenType::PipePipe => BinaryOpType::Or,
-            _ => unreachable!("{:?} does not have a BinaryOpType", self)
+            _ => unreachable!("{:?} does not have a BinaryOpType", self),
         }
     }
 }
@@ -111,10 +112,10 @@ impl Token {
         }
     }
 
-    pub fn eof() -> Token {
+    pub fn eof(file_coords: FileCoords) -> Token {
         Token {
             token_type: TokenType::EOF,
-            file_coords: FileCoords::default(),
+            file_coords,
             lexeme: None,
         }
     }
