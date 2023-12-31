@@ -1,4 +1,4 @@
-use super::{expr::Expr, blob_type::BlobType};
+use super::expr::Expr;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Stmt {
@@ -8,9 +8,9 @@ pub enum Stmt {
     Return(Expr),
 
     /// ```rust
-    /// (name, Vec<(arg_name, blob_type), return_type, body)
+    /// (name, arg_names, body)
     /// ```
-    FuncDecl(String, Vec<(String, BlobType)>, Option<BlobType>, Box<Stmt>),
+    FuncDecl(String, Vec<(String, TokenType)>, Box<Stmt>),
 
     /// ```rust
     /// (condition, if_clause)
@@ -22,9 +22,9 @@ pub enum Stmt {
     IfElse(Expr, Box<Stmt>, Box<Stmt>),
 
     /// ```rust
-    /// (name, blob_type, expr)
+    /// (name, expr)
     /// ```
-    VarDecl(String, Option<BlobType>,Expr),
+    VarDecl(String, Expr),
 
     /// ```rust
     /// (name, expr)

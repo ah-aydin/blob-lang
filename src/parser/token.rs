@@ -44,6 +44,8 @@ pub enum TokenType {
     Return,
     Var,
     While,
+    // Types
+    I32,
 
     Blank,
 

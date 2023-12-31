@@ -3,6 +3,7 @@ mod token;
 
 use crate::{
     ast::{
+        blob_type::BlobType,
         expr::Expr,
         op_type::{BinaryOpType, UnaryOpType},
         stmt::Stmt,
@@ -39,6 +40,7 @@ pub enum ParserError {
     /// This error is used only when reading the chunk fails.
     IOError(String, FileCoords),
     WrongToken(String, Token),
+    TypeError(String, Token),
     EOF,
 }
 
@@ -49,6 +51,12 @@ impl ParserError {
                 eprintln!(
                     "ERROR: Line {} Col {}: {}. '{:?}'",
                     token.file_coords.line, token.file_coords.col, msg, token.token_type
+                );
+            }
+            Self::TypeError(msg, token) => {
+                eprintln!(
+                    "ERROR: Line{}: {}. '{:?}'",
+                    token.file_coords.line, msg, token.token_type
                 );
             }
             Self::IOError(msg, token) => {
@@ -112,10 +120,10 @@ macro_rules! stmt_scope {
 /// ```
 /// // Statement grammar
 /// stmt -> func_decl_stmt / return_stmt / if_else_stmt / var_decl_stmt / while_stmt / block_stmt / assignment_stmt
-/// func_decl_stmt -> "func" "(" (IDENTIFIER ("," IDENTIFIER)*)? ")" block_stmt
+/// func_decl_stmt -> "func" "(" (IDENTIFIER type_expr ("," IDENTIFIER type_expr)*)? ")" type_expr? block_stmt
 /// return_stmt -> "return" expr ";"
 /// if_else_stmt -> "if" "(" expr ")" block_stmt
-/// var_decl_stmt -> "var" IDENTIFIER  "=" expr ";"
+/// var_decl_stmt -> "var" IDENTIFIER type_expr? "=" expr ";"
 /// while_stmt -> "while" "(" expr ")" block_stmt
 /// block_stmt -> "{" stmt* "}"
 /// assignment_stmt -> ((IDENTIFIER "=")? expr | IDENTIFIER) ";"
@@ -131,6 +139,7 @@ macro_rules! stmt_scope {
 /// call -> primary | IDENTIFIER ("(" arguments? ")")?
 /// arguments -> expr ("," expr )*
 /// primary -> NUMBER | IDENTIFIER | "(" expression ")"
+/// type_expr -> ":" IDENTIFIER | "i32"
 /// ```
 pub struct Parser {
     scanner: Scanner,
@@ -289,14 +298,24 @@ impl Parser {
                     "Expecting ',' to seperate function arguments",
                 )?;
             }
-            // TODO change this logic to also accept variable types after introducing
-            // types other than i32
-            args.push(self.consume_identifier_and_get_lexeme("Expected argument name")?);
+            let arg_name = self.consume_identifier_and_get_lexeme("Expected argument name")?;
+            let arg_type = self.type_expr(
+                &format!(
+                    "Expected variable type for function argument '{}'",
+                    arg_name
+                ),
+                true,
+            )?;
+            args.push((arg_name, arg_type.unwrap()));
             first_pass = false;
         }
         self.consume(
             TokenType::RightParen,
             "Expected closing ')' for function argument declrations",
+        )?;
+        let return_type: Option<BlobType> = self.type_expr(
+            &format!("Expected return type for function '{}'", func_name),
+            false,
         )?;
 
         self.consume(
@@ -305,7 +324,12 @@ impl Parser {
         )?;
         let func_body = self.block_stmt()?;
 
-        Ok(Stmt::FuncDecl(func_name, args, Box::new(func_body)))
+        Ok(Stmt::FuncDecl(
+            func_name,
+            args,
+            return_type,
+            Box::new(func_body),
+        ))
     }
 
     fn return_stmt(&mut self) -> StmtResult {
@@ -373,13 +397,18 @@ impl Parser {
         // TODO add option to specify var type after introducing types other
         // than i32
         let var_name = self.consume_identifier_and_get_lexeme("Expected variable name")?;
+        let var_type =
+            self.type_expr(&format!("Expected variable type for '{}'", var_name), false)?;
+
         self.consume(
             TokenType::Equal,
             "Must give an intial value for var declaration",
         )?;
+
         let expr = self.expr()?;
         self.consume(TokenType::Semicolon, "Expected ';'")?;
-        Ok(Stmt::VarDecl(var_name.clone(), expr))
+
+        Ok(Stmt::VarDecl(var_name.clone(), var_type, expr))
     }
 
     fn while_stmt(&mut self) -> StmtResult {
@@ -423,10 +452,12 @@ impl Parser {
                     self.consume(TokenType::Semicolon, "Expected ';' after expression")?;
                     return Ok(Stmt::Assign(ident, to_expr));
                 }
+                // TODO print warning here for unimpactfull instruction
                 self.consume(TokenType::Semicolon, "Expected ';' after expression")?;
                 Ok(Stmt::ExprStmt(Expr::Identifier(ident)))
             }
             other => {
+                // TODO add checks for unimpactfull instructions
                 self.consume(TokenType::Semicolon, "Expected ';' after expression")?;
                 Ok(Stmt::ExprStmt(other))
             }
@@ -571,6 +602,41 @@ impl Parser {
                 token.clone(),
             )),
         }
+    }
+    ///
+    /// Checks if next token is ':'. If so it consumes it and consumes the next token as a BlobType
+    /// If `required` is true it will expect to have a type and will return an `Err(ParserError)` if
+    /// no type is found.
+    /// ```
+    /// type_expr -> ":" IDENTIFIER | "i32"
+    /// ```
+    fn type_expr(
+        &mut self,
+        err_msg: &str,
+        required: bool,
+    ) -> Result<Option<BlobType>, ParserError> {
+        if self.match_token(TokenType::Colon)? {
+            return match self.peek_token()?.token_type {
+                TokenType::I32 => {
+                    let _ = self.next_token()?;
+                    Ok(Some(BlobType::I32))
+                }
+                TokenType::Identifier => Ok(Some(BlobType::Custom(
+                    self.next_token()?.lexeme.as_ref().unwrap().clone(),
+                ))),
+                _ => Err(ParserError::TypeError(
+                    String::from(err_msg),
+                    self.peek_token()?.clone(),
+                )),
+            };
+        }
+        if required {
+            return Err(ParserError::TypeError(
+                String::from(err_msg),
+                self.peek_token()?.clone(),
+            ));
+        }
+        Ok(None)
     }
 
     ///////////////////////////////////////////////////////////////////////////
