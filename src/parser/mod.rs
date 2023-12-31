@@ -10,6 +10,7 @@ use crate::{
     parser::token::TokenType,
 };
 use std::{
+    fmt::Display,
     fs::File,
     io::{BufReader, Read},
 };
@@ -46,7 +47,7 @@ impl ParserError {
         match self {
             Self::WrongToken(msg, token) => {
                 eprintln!(
-                    "ERROR: Line {} Col {}: {}. Got {:?}",
+                    "ERROR: Line {} Col {}: {}. '{:?}'",
                     token.file_coords.line, token.file_coords.col, msg, token.token_type
                 );
             }
@@ -61,12 +62,48 @@ impl ParserError {
 }
 
 #[derive(Debug, Clone)]
-enum Scope {
-    Func(FileCoords),
-    If(FileCoords),
-    Else(FileCoords),
-    While(FileCoords),
-    Block(FileCoords),
+enum ScopeType {
+    Func,
+    If,
+    Else,
+    While,
+    Block,
+}
+
+#[derive(Debug, Clone)]
+struct Scope {
+    scope_type: ScopeType,
+    file_coords: FileCoords,
+}
+
+impl Scope {
+    fn new(scope_type: ScopeType, file_coords: FileCoords) -> Scope {
+        Scope {
+            scope_type,
+            file_coords,
+        }
+    }
+}
+
+impl Display for Scope {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{:?} at line {} col {}",
+            self.scope_type, self.file_coords.line, self.file_coords.col
+        )
+    }
+}
+
+/// Inteded for use in `Parser`. Pushed the given scope to the stack with the current file
+/// coordinates.
+macro_rules! push_scope {
+    ($self:ident; $scope_type:ident) => {
+        $self.scopes.push(Scope::new(
+            ScopeType::$scope_type,
+            $self.scanner.get_coords(),
+        ))
+    };
 }
 
 /// Top down parser.
@@ -101,13 +138,11 @@ pub struct Parser {
     tokens: Vec<Token>,
     token_index: usize,
     scopes: Vec<Scope>,
-    file_coords: FileCoords,
 }
 
 /// Inteded for use in `Parser`. It checks if the current token's `TokenType` matches the given branches.
 /// If so, it advances to the next token and it executed the given expression. If not it goes to
-/// the default branch and executes it wihtout advancing to the next token. In each branch a
-/// variable of type `&Token` named `token` is available for use.
+/// the default branch and executes it wihtout advancing to the next token.
 ///
 /// Usefull when a different action is needed for each token type and they all require to advance
 /// to the next one.
@@ -142,24 +177,13 @@ macro_rules! action_and_advance_by_token_type {
         match $self.peek_token()?.token_type {
             $(
                 TokenType::$token_type => {
-                    #[allow(unused)]
-                    let token = $self.next_token()?;
+                    let _ = $self.next_token()?;
                     $action
                 }
             )+
             _ => $default
         }
     }
-}
-
-/// Inteded for use in `Parser`. Pushed the given scope to the stack with the current file
-/// coordinates.
-macro_rules! push_scope {
-    ($self:ident; $scope_type:ident) => {
-        $self
-            .scopes
-            .push(Scope::$scope_type($self.file_coords.clone()))
-    };
 }
 
 impl Parser {
@@ -170,7 +194,6 @@ impl Parser {
             tokens: Vec::with_capacity(INTIAL_CAPACITY),
             token_index: 0,
             scopes: Vec::with_capacity(INTIAL_CAPACITY),
-            file_coords: FileCoords { line: 0, col: 0 },
         })
     }
 
@@ -205,7 +228,7 @@ impl Parser {
                     match err {
                         ParserError::EOF => {
                             self.scopes.iter().for_each(|scope| {
-                                eprintln!("\tDid end scope of {:?}", scope);
+                                eprintln!("\tDid end scope of {}", scope);
                             });
                         }
                         _ => {}
@@ -238,21 +261,21 @@ impl Parser {
     ///////////////////////////////////////////////////////////////////////////
 
     fn stmt(&mut self) -> StmtResult {
-        action_and_advance_by_token_type!(
+        Ok(action_and_advance_by_token_type!(
             self;
-            Func => self.func_decl_stmt(),
-            Return => self.return_stmt(),
-            If => self.if_else_stmt(),
-            Var => self.var_decl_stmt(),
-            While => self.while_stmt(),
+            Func => self.func_decl_stmt()?,
+            Return => self.return_stmt()?,
+            If => self.if_else_stmt()?,
+            Var => self.var_decl_stmt()?,
+            While => self.while_stmt()?,
             LeftBrace => {
-                push_scope!(self;Block);
-                let stmt = self.block_stmt();
+                push_scope!(self; Block);
+                let stmt = self.block_stmt()?;
                 self.scopes.pop();
                 stmt
             };
-            default => self.assignment_stmt()
-        )
+            default => self.assignment_stmt()?
+        ))
     }
 
     fn func_decl_stmt(&mut self) -> StmtResult {
@@ -330,9 +353,9 @@ impl Parser {
                 If => self.if_else_stmt(),
                 LeftBrace => {
                     push_scope!(self; Else);
-                    let clause = self.block_stmt();
+                    let clause = self.block_stmt()?;
                     self.scopes.pop();
-                    clause
+                    Ok(clause)
                 };
                 default => Err(ParserError::WrongToken(
                     String::from("Expected another 'if' statement or opening '{' for else body"),
