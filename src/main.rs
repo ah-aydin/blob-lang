@@ -13,7 +13,7 @@ fn main() {
 
     match Parser::new(args.get(1).unwrap()).unwrap().parse() {
         ParserStatus::Succeeded(stmts) => stmts.iter().for_each(|stmt| println!("{:?}", stmt)),
-        ParserStatus::Failed => eprintln!("ERROR: Paring failed"),
+        ParserStatus::Failed => eprintln!("ERROR: Parsing failed"),
         ParserStatus::IOError => eprintln!("ERROR: Failed while reading chunk from file"),
     };
 }

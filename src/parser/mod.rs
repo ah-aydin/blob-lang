@@ -73,37 +73,37 @@ enum ScopeType {
 #[derive(Debug, Clone)]
 struct Scope {
     scope_type: ScopeType,
-    file_coords: FileCoords,
+    line: usize,
 }
 
 impl Scope {
-    fn new(scope_type: ScopeType, file_coords: FileCoords) -> Scope {
-        Scope {
-            scope_type,
-            file_coords,
-        }
+    fn new(scope_type: ScopeType, line: usize) -> Scope {
+        Scope { scope_type, line }
     }
 }
 
 impl Display for Scope {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{:?} at line {} col {}",
-            self.scope_type, self.file_coords.line, self.file_coords.col
-        )
+        write!(f, "{:?} at line {}", self.scope_type, self.line)
     }
 }
 
-/// Inteded for use in `Parser`. Pushed the given scope to the stack with the current file
-/// coordinates.
-macro_rules! push_scope {
-    ($self:ident; $scope_type:ident) => {
-        $self.scopes.push(Scope::new(
-            ScopeType::$scope_type,
-            $self.scanner.get_coords(),
-        ))
-    };
+/// Inteded for use in `Parser`. Pushes the given `ScopeType` to the stack and executes the action.
+/// The action is a block which should return a `Stmt` object. Then it pops the scope from the stack.
+///
+/// Example
+/// ```
+/// stmt_scope!(self; While; {self.while_stmt()?})
+/// ```
+macro_rules! stmt_scope {
+    ($self:ident; $scope_type:ident; $action:block) => {{
+        $self
+            .scopes
+            .push(Scope::new(ScopeType::$scope_type, $self.get_line()));
+        let stmt: Stmt = $action;
+        $self.scopes.pop();
+        stmt
+    }};
 }
 
 /// Top down parser.
@@ -162,11 +162,11 @@ pub struct Parser {
 /// ```
 /// match self.peek_tokne()?.token_type {
 ///     TokenType::If => {
-///         let token = self.next_token()?;
+///         let _ = self.next_token()?;
 ///         self.if_else_stmt()
 ///     },
 ///     TokenType::While => {
-///         let token = self.next_token()?;
+///         let _ = self.next_token()?;
 ///         self.while_stmt()
 ///     },
 ///     _ => self.assignment_stmt(),
@@ -228,7 +228,7 @@ impl Parser {
                     match err {
                         ParserError::EOF => {
                             self.scopes.iter().for_each(|scope| {
-                                eprintln!("\tDid end scope of {}", scope);
+                                eprintln!("\tDid not end scope of {}", scope);
                             });
                         }
                         _ => {}
@@ -263,24 +263,17 @@ impl Parser {
     fn stmt(&mut self) -> StmtResult {
         Ok(action_and_advance_by_token_type!(
             self;
-            Func => self.func_decl_stmt()?,
+            Func => stmt_scope!(self; Func; {self.func_decl_stmt()?}),
             Return => self.return_stmt()?,
             If => self.if_else_stmt()?,
             Var => self.var_decl_stmt()?,
-            While => self.while_stmt()?,
-            LeftBrace => {
-                push_scope!(self; Block);
-                let stmt = self.block_stmt()?;
-                self.scopes.pop();
-                stmt
-            };
+            While => stmt_scope!(self; While; {self.while_stmt()?}),
+            LeftBrace => stmt_scope!(self; Block; {self.block_stmt()?});
             default => self.assignment_stmt()?
         ))
     }
 
     fn func_decl_stmt(&mut self) -> StmtResult {
-        push_scope!(self; Func);
-
         let func_name = self.consume_identifier_and_get_lexeme("Expected function name")?;
 
         self.consume(
@@ -312,7 +305,6 @@ impl Parser {
         )?;
         let func_body = self.block_stmt()?;
 
-        self.scopes.pop();
         Ok(Stmt::FuncDecl(func_name, args, Box::new(func_body)))
     }
 
@@ -323,27 +315,28 @@ impl Parser {
     }
 
     fn if_else_stmt(&mut self) -> StmtResult {
-        push_scope!(self; If);
+        let if_stmt = stmt_scope!(self; If; {
+            self.consume(
+                TokenType::LeftParen,
+                "Expected opening '(' for if condition",
+                )?;
+            if self.peek_token()?.token_type == TokenType::RightParen {
+                return Err(ParserError::WrongToken(
+                        String::from("Expected opening '(' for if condition"),
+                        self.next_token()?.clone(),
+                        ));
+            }
+            let condition = self.expr()?;
+            self.consume(
+                TokenType::RightParen,
+                "Expected closing ')' for if conditon",
+                )?;
 
-        self.consume(
-            TokenType::LeftParen,
-            "Expected opening '(' for if condition",
-        )?;
-        if self.peek_token()?.token_type == TokenType::RightParen {
-            return Err(ParserError::WrongToken(
-                String::from("Expected opening '(' for if condition"),
-                self.next_token()?.clone(),
-            ));
-        }
-        let condition = self.expr()?;
-        self.consume(
-            TokenType::RightParen,
-            "Expected closing ')' for if conditon",
-        )?;
+            self.consume(TokenType::LeftBrace, "Expected opening '{' for if body")?;
+            let if_clause = self.block_stmt()?;
 
-        self.consume(TokenType::LeftBrace, "Expected opening '{' for if body")?;
-        let if_clause = self.block_stmt()?;
-        self.scopes.pop();
+            Stmt::If(condition, Box::new(if_clause))
+        });
 
         // Check for `else` and `else if` chains
         if self.peek_token()?.token_type == TokenType::Else {
@@ -352,24 +345,28 @@ impl Parser {
                 self;
                 If => self.if_else_stmt(),
                 LeftBrace => {
-                    push_scope!(self; Else);
-                    let clause = self.block_stmt()?;
-                    self.scopes.pop();
-                    Ok(clause)
+                    Ok(stmt_scope!(self; Else; {
+                        self.block_stmt()?
+                    }))
                 };
                 default => Err(ParserError::WrongToken(
                     String::from("Expected another 'if' statement or opening '{' for else body"),
                     self.peek_token()?.clone(),
                 ))
             )?;
-            return Ok(Stmt::IfElse(
-                condition,
-                Box::new(if_clause),
-                Box::new(else_clause),
-            ));
+            match if_stmt {
+                Stmt::If(condition, if_clause) => {
+                    return Ok(Stmt::IfElse(
+                        condition,
+                        Box::new(*if_clause),
+                        Box::new(else_clause),
+                    ))
+                }
+                _ => unreachable!("How the heck did it make the if statement into something else?"),
+            }
         }
 
-        Ok(Stmt::If(condition, Box::new(if_clause)))
+        Ok(if_stmt)
     }
 
     fn var_decl_stmt(&mut self) -> StmtResult {
@@ -386,8 +383,6 @@ impl Parser {
     }
 
     fn while_stmt(&mut self) -> StmtResult {
-        push_scope!(self; While);
-
         self.consume(
             TokenType::LeftParen,
             "Expected opening '(' for while condition",
@@ -405,7 +400,6 @@ impl Parser {
         )?;
         self.consume(TokenType::LeftBrace, "Expected opening '{' for while body")?;
         let block = self.block_stmt()?;
-        self.scopes.pop();
 
         Ok(Stmt::While(condition, Box::new(block)))
     }
@@ -693,5 +687,13 @@ impl Parser {
                     .clone(),
             )),
         };
+    }
+
+    fn get_line(&self) -> usize {
+        self.tokens
+            .get(self.token_index - 1)
+            .unwrap_or_else(|| self.tokens.get(self.token_index).unwrap())
+            .file_coords
+            .line
     }
 }
