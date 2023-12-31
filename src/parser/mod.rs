@@ -41,6 +41,7 @@ pub enum ParserError {
     IOError(String, FileCoords),
     WrongToken(String, Token),
     TypeError(String, Token),
+    Scope(String, Token),
     EOF,
 }
 
@@ -59,6 +60,9 @@ impl ParserError {
                     token.file_coords.line, msg, token.token_type
                 );
             }
+            Self::Scope(msg, token) => {
+                eprintln!("ERROR: Line {}: {}", token.file_coords.line, msg);
+            }
             Self::IOError(msg, token) => {
                 eprintln!("FAIL: {}. Last token {:?}", msg, token);
             }
@@ -69,7 +73,7 @@ impl ParserError {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 enum ScopeType {
     Func,
     If,
@@ -195,6 +199,40 @@ macro_rules! action_and_advance_by_token_type {
     }
 }
 
+macro_rules! in_func {
+    ($self:ident; $msg:literal; $action:expr) => {
+        if $self
+            .scopes
+            .iter()
+            .any(|scope| scope.scope_type == ScopeType::Func)
+        {
+            $action
+        } else {
+            return Err(ParserError::Scope(
+                String::from($msg),
+                $self.peek_token()?.clone(),
+            ));
+        }
+    };
+}
+
+macro_rules! not_in_func {
+    ($self:ident; $msg:literal; $action:expr) => {
+        if !$self
+            .scopes
+            .iter()
+            .any(|scope| scope.scope_type == ScopeType::Func)
+        {
+            $action
+        } else {
+            return Err(ParserError::Scope(
+                String::from($msg),
+                $self.peek_token()?.clone(),
+            ));
+        }
+    };
+}
+
 impl Parser {
     pub fn new(file_path: &str) -> Result<Parser, std::io::Error> {
         Ok(Parser {
@@ -272,12 +310,36 @@ impl Parser {
     fn stmt(&mut self) -> StmtResult {
         Ok(action_and_advance_by_token_type!(
             self;
-            Func => stmt_scope!(self; Func; {self.func_decl_stmt()?}),
-            Return => self.return_stmt()?,
-            If => self.if_else_stmt()?,
-            Var => self.var_decl_stmt()?,
-            While => stmt_scope!(self; While; {self.while_stmt()?}),
-            LeftBrace => stmt_scope!(self; Block; {self.block_stmt()?});
+            Func => not_in_func!(
+                self;
+                "Cannot declare a function inside another function";
+                stmt_scope!(self; Func; {self.func_decl_stmt()?})
+            ),
+            Return => in_func!(
+                self;
+                "Return statement must be inside a function";
+                self.return_stmt()?
+            ),
+            If => in_func!(
+                self;
+                "If statement must be inside a function";
+                self.if_else_stmt()?
+            ),
+            Var => in_func!(
+                self;
+                "Var statement must be inside a function";
+                self.var_decl_stmt()?
+            ),
+            While => in_func!(
+                self;
+                "While statement must be inside a function";
+                stmt_scope!(self; While; {self.while_stmt()?})
+            ),
+            LeftBrace => in_func!(
+                self;
+                "Block statement must be inside a function";
+                stmt_scope!(self; Block; {self.block_stmt()?})
+            );
             default => self.assignment_stmt()?
         ))
     }
@@ -699,7 +761,6 @@ impl Parser {
                 _ => self.next_token()?,
             };
         }
-        let _ = self.next_token()?;
         Ok(())
     }
 
