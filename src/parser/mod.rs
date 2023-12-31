@@ -2,7 +2,7 @@ mod scanner;
 mod token;
 
 use crate::{
-    ast::{expr::Expr, op_type::UnaryOpType, stmt::Stmt},
+    ast::{expr::Expr, op_type::{UnaryOpType, BinaryOpType}, stmt::Stmt},
     parser::token::TokenType,
 };
 use std::{
@@ -46,7 +46,7 @@ pub enum ParserError {
 /// // Expression grammar
 /// expr -> logic_or
 /// logic_or -> logic_and ("||" logic_and)?
-/// logic_and -> comparison("&&" comparison)?
+/// logic_and -> comparison ("&&" comparison)?
 /// comparison -> term (("<" | ">" | "<=" | ">=" | "==" | "!=") term)?
 /// term -> factor (("+" | "-") factor)*
 /// factor -> unary (("*" | "/") unary)*
@@ -60,6 +60,39 @@ pub struct Parser {
     reader: BufReader<File>,
     tokens: Vec<Token>,
     token_index: usize,
+}
+
+/// Inteded for use in `Parser`. Checks if the current token matches any of the arms, if so it 
+/// iterates to the next token and executes the apropiate action.
+/// Usefull when every supplied `TokenType` has to perform a different action.
+/// Removes the need to add a `TokenType` both in the `match` statement and in the argument `Vec`
+/// for `self.match_tokens`.
+/// Example usage
+/// ```
+/// match_tokens!(
+///     self;
+///     If => self.if_else_stmt(),
+///     While => self.while_stmt(),
+///     default => self.assignment_stmt()
+/// )
+/// ```
+/// generates
+/// ```
+/// match self.match_tokens(vec![TokenType::While, TokenType::LeftBrace])? {
+///     Some(TokenType::If) => self.if_else_stmt(),
+///     Some(TokenType::While) => self.while_stmt(),
+///     _ => self.assignment_stmt(),
+/// }
+/// ```
+macro_rules! match_tokens {
+    ($self:ident; $($token:ident => $action:expr),+ ; default => $default:expr) => {
+        match $self.match_tokens(vec![$(TokenType::$token),+])? {
+            $(
+                Some(TokenType::$token) => $action,
+            )+
+            _ => $default,
+        }
+    }
 }
 
 impl Parser {
@@ -83,23 +116,21 @@ impl Parser {
         Ok(stmts)
     }
 
+    ///////////////////////////////////////////////////////////////////////////
+    /// Statement rules
+    ///////////////////////////////////////////////////////////////////////////
+
     fn stmt(&mut self) -> StmtResult {
-        match self.match_token(vec![
-            TokenType::Func,
-            TokenType::Return,
-            TokenType::If,
-            TokenType::Var,
-            TokenType::While,
-            TokenType::LeftBrace,
-        ])? {
-            Some(TokenType::Func) => self.func_decl_stmt(),
-            Some(TokenType::Return) => self.return_stmt(),
-            Some(TokenType::If) => self.if_else_stmt(),
-            Some(TokenType::Var) => self.var_decl_stmt(),
-            Some(TokenType::While) => self.while_stmt(),
-            Some(TokenType::LeftBrace) => self.block_stmt(),
-            Some(_) | None => self.assignment_stmt(),
-        }
+        match_tokens!(
+            self;
+            Func => self.func_decl_stmt(),
+            Return => self.return_stmt(),
+            If => self.if_else_stmt(),
+            Var => self.var_decl_stmt(),
+            While => self.while_stmt(),
+            LeftBrace => self.block_stmt();
+            default => self.assignment_stmt()
+        )
     }
 
     fn func_decl_stmt(&mut self) -> StmtResult {
@@ -166,14 +197,15 @@ impl Parser {
         // Check for `else` and `else if` chains
         if self.peek_token()?.token_type == TokenType::Else {
             self.next_token()?;
-            let else_clause = match self.match_token(vec![TokenType::If, TokenType::LeftBrace])? {
-                Some(TokenType::If) => self.if_else_stmt(),
-                Some(TokenType::LeftBrace) => self.block_stmt(),
-                Some(_) | None => Err(ParserError::WrongToken(
+            let else_clause = match_tokens!(
+                self;
+                If => self.if_else_stmt(),
+                LeftBrace => self.block_stmt();
+                default => Err(ParserError::WrongToken(
                     String::from("Expected another 'if' statement or opening '{' for else body"),
                     self.peek_token()?.clone(),
-                )),
-            }?;
+                ))
+            )?;
             return Ok(Stmt::IfElse(
                 condition,
                 Box::new(if_clause),
@@ -247,14 +279,18 @@ impl Parser {
         }
     }
 
+    ///////////////////////////////////////////////////////////////////////////
+    /// Expression rules
+    ///////////////////////////////////////////////////////////////////////////
+
     fn expr(&mut self) -> ExprResult {
         self.logic_or()
     }
 
     fn logic_or(&mut self) -> ExprResult {
         let possible_left_term = self.logic_and()?;
-        if let Some(token_type) = self.match_token(vec![TokenType::PipePipe])? {
-            let bin_op_type = token_type.get_bin_op_type();
+        if self.match_token(TokenType::PipePipe)? {
+            let bin_op_type = BinaryOpType::Or;
             let right_term = self.logic_and()?;
             return Ok(Expr::BinaryOp(
                 Box::new(possible_left_term),
@@ -267,8 +303,8 @@ impl Parser {
 
     fn logic_and(&mut self) -> ExprResult {
         let possible_left_term = self.comparison()?;
-        if let Some(token_type) = self.match_token(vec![TokenType::AmpersandAmpersand])? {
-            let bin_op_type = token_type.get_bin_op_type();
+        if self.match_token(TokenType::AmpersandAmpersand)? {
+            let bin_op_type = BinaryOpType::And;
             let right_term = self.comparison()?;
             return Ok(Expr::BinaryOp(
                 Box::new(possible_left_term),
@@ -281,7 +317,7 @@ impl Parser {
 
     fn comparison(&mut self) -> ExprResult {
         let possible_left_term = self.term()?;
-        if let Some(token_type) = self.match_token(vec![
+        if let Some(token_type) = self.match_tokens(vec![
             TokenType::Less,
             TokenType::Greater,
             TokenType::LessEqual,
@@ -302,7 +338,7 @@ impl Parser {
 
     fn term(&mut self) -> ExprResult {
         let mut expr = self.factor()?;
-        while let Some(token_type) = self.match_token(vec![TokenType::Plus, TokenType::Minus])? {
+        while let Some(token_type) = self.match_tokens(vec![TokenType::Plus, TokenType::Minus])? {
             let bin_op_type = token_type.get_bin_op_type();
             let right_term = self.factor()?;
             expr = Expr::BinaryOp(Box::new(expr), bin_op_type, Box::new(right_term));
@@ -312,7 +348,7 @@ impl Parser {
 
     fn factor(&mut self) -> ExprResult {
         let mut expr = self.unary()?;
-        while let Some(token_type) = self.match_token(vec![TokenType::Star, TokenType::Slash])? {
+        while let Some(token_type) = self.match_tokens(vec![TokenType::Star, TokenType::Slash])? {
             let bin_op_type = token_type.get_bin_op_type();
             let right_term = self.unary()?;
             expr = Expr::BinaryOp(Box::new(expr), bin_op_type, Box::new(right_term));
@@ -321,19 +357,18 @@ impl Parser {
     }
 
     fn unary(&mut self) -> ExprResult {
-        match self.peek_token()?.token_type {
-            TokenType::Bang => {
-                self.consume(TokenType::Bang, "Expected '!'")?;
+        match_tokens!(
+            self;
+            Bang => {
                 let term = self.unary()?;
                 Ok(Expr::UnaryOp(UnaryOpType::Not, Box::new(term)))
-            }
-            TokenType::Minus => {
-                self.consume(TokenType::Minus, "Expected '-'")?;
+            },
+            Minus => {
                 let term = self.unary()?;
                 Ok(Expr::UnaryOp(UnaryOpType::Negate, Box::new(term)))
-            }
-            _ => self.call(),
-        }
+            };
+            default => self.call()
+        )
     }
 
     fn call(&mut self) -> ExprResult {
@@ -386,6 +421,10 @@ impl Parser {
         }
     }
 
+    ///////////////////////////////////////////////////////////////////////////
+    /// Parer helper methods
+    ///////////////////////////////////////////////////////////////////////////
+
     /// Iterates to the next token and returns an error if it is not of the given type
     fn consume(&mut self, token_type: TokenType, msg: &str) -> TokenRefResult {
         let token = self.next_token()?;
@@ -404,10 +443,19 @@ impl Parser {
         ))
     }
 
+    /// Iterates to the next token if token is of given type.
+    fn match_token(&mut self, token_type: TokenType) -> Result<bool, ParserError> {
+        if self.peek_token()?.token_type == token_type {
+            let _ = self.next_token()?;
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
     /// Iterates to the next token if token is in the given types.
     /// Returns an `Option<TokenType>` for the found token and iterates
     /// to the next one if a match is found.
-    fn match_token(
+    fn match_tokens(
         &mut self,
         token_types: Vec<TokenType>,
     ) -> Result<Option<TokenType>, ParserError> {
