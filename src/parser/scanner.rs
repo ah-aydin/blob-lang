@@ -24,6 +24,7 @@ pub struct Scanner {
     /// (last_in_progress_lexeme: String, last_in_progress_token_type: TokenType)
     /// ```
     last_in_progress: Option<(String, TokenType)>,
+    in_comment: bool,
 }
 
 impl Scanner {
@@ -34,6 +35,7 @@ impl Scanner {
             line: 1,
             col: 1,
             last_in_progress: None,
+            in_comment: false,
         }
     }
 
@@ -50,7 +52,12 @@ impl Scanner {
         self.start_index = 0;
         let mut tokens = vec![];
 
-        // Process the token that is in seperate chunks
+        // Finish the comment from previous chunk
+        if self.in_comment {
+            self.finish_comment(&mut chunk_iterator);
+        }
+
+        // Process the token that started at previous chunk
         if let Some(token) = match self.last_in_progress {
             Some((_, TokenType::Number)) => self.number(&mut chunk_iterator, '1'),
             Some((_, TokenType::Identifier)) => self.identifier(&mut chunk_iterator, 'a'),
@@ -139,11 +146,17 @@ impl Scanner {
     }
 
     fn comment(&mut self, chunk_iterator: &mut Peekable<Chars>) {
+        self.in_comment = true;
         self.new_char();
+        self.finish_comment(chunk_iterator);
+    }
+
+    fn finish_comment(&mut self, chunk_iterator: &mut Peekable<Chars>) {
         while let Some(c) = chunk_iterator.peek() {
             if *c == '\n' {
                 self.new_line();
                 chunk_iterator.next();
+                self.in_comment = false;
                 break;
             }
             self.new_char();

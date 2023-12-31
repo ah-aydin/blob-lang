@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use crate::ast::op_type::BinaryOpType;
 
@@ -45,13 +45,9 @@ pub enum TokenType {
     Var,
     While,
 
-    EOF,
-}
+    Blank,
 
-#[derive(Default, Debug, PartialEq, Eq, Clone)]
-pub struct FileCoords {
-    pub line: usize,
-    pub col: usize,
+    EOF,
 }
 
 impl TokenType {
@@ -79,6 +75,12 @@ impl TokenType {
             _ => unreachable!("{:?} does not have a BinaryOpType", self),
         }
     }
+}
+
+#[derive(Default, Debug, PartialEq, Eq, Clone)]
+pub struct FileCoords {
+    pub line: usize,
+    pub col: usize,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -115,6 +117,14 @@ impl Token {
     pub fn eof(file_coords: FileCoords) -> Token {
         Token {
             token_type: TokenType::EOF,
+            file_coords,
+            lexeme: None,
+        }
+    }
+
+    pub fn blank(file_coords: FileCoords) -> Token {
+        Token {
+            token_type: TokenType::Blank,
             file_coords,
             lexeme: None,
         }

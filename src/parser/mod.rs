@@ -20,17 +20,53 @@ use self::{
 };
 
 const CHUNK_SIZE: usize = 4096;
-const INTIAL_TOKEN_CAPACITY: usize = 1024;
+const INTIAL_CAPACITY: usize = 1024;
 
 type StmtResult = Result<Stmt, ParserError>;
 type ExprResult = Result<Expr, ParserError>;
 type TokenRefResult<'a> = Result<&'a Token, ParserError>;
 
 #[derive(Debug)]
+pub enum ParserStatus {
+    Succeeded(Vec<Stmt>),
+    Failed,
+    IOError,
+}
+
+#[derive(Debug)]
 pub enum ParserError {
+    /// This error is used only when reading the chunk fails.
     IOError(String, FileCoords),
     WrongToken(String, Token),
     EOF,
+}
+
+impl ParserError {
+    fn print(&self) {
+        match self {
+            Self::WrongToken(msg, token) => {
+                eprintln!(
+                    "ERROR: Line {} Col {}: {}. Got {:?}",
+                    token.file_coords.line, token.file_coords.col, msg, token.token_type
+                );
+            }
+            Self::IOError(msg, token) => {
+                eprintln!("FAIL: {}. Last token {:?}", msg, token);
+            }
+            Self::EOF => {
+                eprintln!("ERROR: Reached end of file in incomplete state",);
+            }
+        };
+    }
+}
+
+#[derive(Debug, Clone)]
+enum Scope {
+    Func(FileCoords),
+    If(FileCoords),
+    Else(FileCoords),
+    While(FileCoords),
+    Block(FileCoords),
 }
 
 /// Top down parser.
@@ -64,6 +100,8 @@ pub struct Parser {
     reader: BufReader<File>,
     tokens: Vec<Token>,
     token_index: usize,
+    scopes: Vec<Scope>,
+    file_coords: FileCoords,
 }
 
 /// Inteded for use in `Parser`. It checks if the current token's `TokenType` matches the given branches.
@@ -114,25 +152,85 @@ macro_rules! action_and_advance_by_token_type {
     }
 }
 
+/// Inteded for use in `Parser`. Pushed the given scope to the stack with the current file
+/// coordinates.
+macro_rules! push_scope {
+    ($self:ident; $scope_type:ident) => {
+        $self
+            .scopes
+            .push(Scope::$scope_type($self.file_coords.clone()))
+    };
+}
+
 impl Parser {
     pub fn new(file_path: &str) -> Result<Parser, std::io::Error> {
         Ok(Parser {
             scanner: Scanner::new(),
             reader: BufReader::new(File::open(file_path)?),
-            tokens: Vec::with_capacity(INTIAL_TOKEN_CAPACITY),
+            tokens: Vec::with_capacity(INTIAL_CAPACITY),
             token_index: 0,
+            scopes: Vec::with_capacity(INTIAL_CAPACITY),
+            file_coords: FileCoords { line: 0, col: 0 },
         })
     }
 
-    pub fn parse(&mut self) -> Result<Vec<Stmt>, ParserError> {
+    pub fn parse(&mut self) -> ParserStatus {
         let mut stmts: Vec<Stmt> = Vec::new();
+        let mut errored = false;
+        let mut io_error = false;
+
         loop {
-            if self.peek_token()?.token_type == TokenType::EOF {
-                break;
+            match self.peek_token() {
+                Err(err) if matches!(&err, ParserError::IOError(_, _)) => {
+                    err.print();
+                    io_error = true;
+                    break;
+                }
+                Ok(token) => {
+                    if token.token_type == TokenType::Blank {
+                        let _ = self.next_token();
+                        continue;
+                    }
+                    if token.token_type == TokenType::EOF {
+                        break;
+                    }
+                }
+                Err(_) => unreachable!("Unexpected error type. This match only expectes IOError"),
             }
-            stmts.push(self.stmt()?);
+            match self.stmt() {
+                Ok(stmt) => stmts.push(stmt),
+                Err(err) => {
+                    errored = true;
+                    err.print();
+                    match err {
+                        ParserError::EOF => {
+                            self.scopes.iter().for_each(|scope| {
+                                eprintln!("\tDid end scope of {:?}", scope);
+                            });
+                        }
+                        _ => {}
+                    }
+                    self.scopes.clear();
+
+                    match self.sync() {
+                        Err(err) if matches!(&err, ParserError::IOError(_, _)) => {
+                            err.print();
+                            io_error = true;
+                            break;
+                        }
+                        _ => {}
+                    };
+                }
+            };
         }
-        Ok(stmts)
+
+        if io_error {
+            return ParserStatus::IOError;
+        }
+        match errored {
+            true => ParserStatus::Failed,
+            false => ParserStatus::Succeeded(stmts),
+        }
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -147,12 +245,19 @@ impl Parser {
             If => self.if_else_stmt(),
             Var => self.var_decl_stmt(),
             While => self.while_stmt(),
-            LeftBrace => self.block_stmt();
+            LeftBrace => {
+                push_scope!(self;Block);
+                let stmt = self.block_stmt();
+                self.scopes.pop();
+                stmt
+            };
             default => self.assignment_stmt()
         )
     }
 
     fn func_decl_stmt(&mut self) -> StmtResult {
+        push_scope!(self; Func);
+
         let func_name = self.consume_identifier_and_get_lexeme("Expected function name")?;
 
         self.consume(
@@ -184,6 +289,7 @@ impl Parser {
         )?;
         let func_body = self.block_stmt()?;
 
+        self.scopes.pop();
         Ok(Stmt::FuncDecl(func_name, args, Box::new(func_body)))
     }
 
@@ -194,24 +300,27 @@ impl Parser {
     }
 
     fn if_else_stmt(&mut self) -> StmtResult {
+        push_scope!(self; If);
+
         self.consume(
             TokenType::LeftParen,
             "Expected opening '(' for if condition",
         )?;
         if self.peek_token()?.token_type == TokenType::RightParen {
             return Err(ParserError::WrongToken(
-                String::from("Expected if condition"),
+                String::from("Expected opening '(' for if condition"),
                 self.next_token()?.clone(),
             ));
         }
         let condition = self.expr()?;
         self.consume(
             TokenType::RightParen,
-            "Expected closing')' for while conditon",
+            "Expected closing ')' for if conditon",
         )?;
 
         self.consume(TokenType::LeftBrace, "Expected opening '{' for if body")?;
         let if_clause = self.block_stmt()?;
+        self.scopes.pop();
 
         // Check for `else` and `else if` chains
         if self.peek_token()?.token_type == TokenType::Else {
@@ -219,7 +328,12 @@ impl Parser {
             let else_clause = action_and_advance_by_token_type!(
                 self;
                 If => self.if_else_stmt(),
-                LeftBrace => self.block_stmt();
+                LeftBrace => {
+                    push_scope!(self; Else);
+                    let clause = self.block_stmt();
+                    self.scopes.pop();
+                    clause
+                };
                 default => Err(ParserError::WrongToken(
                     String::from("Expected another 'if' statement or opening '{' for else body"),
                     self.peek_token()?.clone(),
@@ -249,6 +363,8 @@ impl Parser {
     }
 
     fn while_stmt(&mut self) -> StmtResult {
+        push_scope!(self; While);
+
         self.consume(
             TokenType::LeftParen,
             "Expected opening '(' for while condition",
@@ -266,6 +382,8 @@ impl Parser {
         )?;
         self.consume(TokenType::LeftBrace, "Expected opening '{' for while body")?;
         let block = self.block_stmt()?;
+        self.scopes.pop();
+
         Ok(Stmt::While(condition, Box::new(block)))
     }
 
@@ -432,7 +550,7 @@ impl Parser {
             }
             TokenType::EOF => Err(ParserError::EOF),
             _ => Err(ParserError::WrongToken(
-                String::from("Unexpected token"),
+                String::from("Can't start statement or expression with this token"),
                 token.clone(),
             )),
         }
@@ -486,10 +604,26 @@ impl Parser {
         Ok(None)
     }
 
+    /// Syncronize to a stable state after a parsing error
+    fn sync(&mut self) -> Result<(), ParserError> {
+        loop {
+            match self.peek_token()?.token_type {
+                TokenType::Semicolon | TokenType::RightBrace => {
+                    self.next_token()?;
+                    break;
+                }
+                TokenType::EOF => break,
+                _ => self.next_token()?,
+            };
+        }
+        let _ = self.next_token()?;
+        Ok(())
+    }
+
     /// Returns the next token in the iteration, does not iterate to the next one
     fn peek_token(&mut self) -> TokenRefResult {
         if self.token_index >= self.tokens.len() {
-            return self.read_next_chunk();
+            return self.read_next_chunk(false);
         }
 
         Ok(self.tokens.get(self.token_index).unwrap())
@@ -498,14 +632,14 @@ impl Parser {
     /// Returns the next token in the iteration, iterate to the next one
     fn next_token(&mut self) -> TokenRefResult {
         if self.token_index >= self.tokens.len() {
-            return self.read_next_chunk();
+            return self.read_next_chunk(true);
         }
         let token = self.tokens.get(self.token_index).unwrap();
         self.token_index += 1;
         Ok(token)
     }
 
-    fn read_next_chunk(&mut self) -> TokenRefResult {
+    fn read_next_chunk(&mut self, iterate_to_next: bool) -> TokenRefResult {
         let mut chunk: Vec<u8> = vec![0; CHUNK_SIZE];
         return match self.reader.read(&mut chunk) {
             Ok(bytes_read) => {
@@ -517,8 +651,15 @@ impl Parser {
                 self.tokens = self
                     .scanner
                     .scan(&String::from_utf8_lossy(&chunk[..bytes_read]));
-                self.token_index = 0;
-                return Ok(self.tokens.get(self.token_index).unwrap());
+                if iterate_to_next {
+                    self.token_index = 1;
+                } else {
+                    self.token_index = 0;
+                }
+                if self.tokens.is_empty() {
+                    self.tokens.push(Token::blank(self.scanner.get_coords()));
+                }
+                return Ok(self.tokens.get(0).unwrap());
             }
             Err(_) => Err(ParserError::IOError(
                 String::from("Failed to read next chunk from line"),

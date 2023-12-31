@@ -1,7 +1,7 @@
 mod ast;
 mod parser;
 
-use parser::Parser;
+use parser::{Parser, ParserStatus};
 use std::env;
 
 fn main() {
@@ -12,7 +12,8 @@ fn main() {
     }
 
     match Parser::new(args.get(1).unwrap()).unwrap().parse() {
-        Ok(stmts) => stmts.iter().for_each(|stmt| println!("{:?}", stmt)),
-        Err(err) => eprintln!("{:?}", err),
+        ParserStatus::Succeeded(stmts) => stmts.iter().for_each(|stmt| println!("{:?}", stmt)),
+        ParserStatus::Failed => {}
+        ParserStatus::IOError => eprintln!("ERROR: Failed while reading chunk from file"),
     };
 }
