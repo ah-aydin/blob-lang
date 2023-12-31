@@ -340,7 +340,11 @@ impl Parser {
                 "Block statement must be inside a function";
                 stmt_scope!(self; Block; {self.block_stmt()?})
             );
-            default => self.assignment_stmt()?
+            default => in_func!(
+                self;
+                "Statement must be inside a function";
+                self.assignment_stmt()?
+            )
         ))
     }
 

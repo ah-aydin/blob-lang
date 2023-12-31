@@ -61,7 +61,6 @@ func main() {
   var a: i32 = 1;
 }
 
-
 func my_func(){
   var a = 1;
   var b = 2;
