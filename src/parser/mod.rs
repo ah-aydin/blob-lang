@@ -2,7 +2,11 @@ mod scanner;
 mod token;
 
 use crate::{
-    ast::{expr::Expr, op_type::{UnaryOpType, BinaryOpType}, stmt::Stmt},
+    ast::{
+        expr::Expr,
+        op_type::{BinaryOpType, UnaryOpType},
+        stmt::Stmt,
+    },
     parser::token::TokenType,
 };
 use std::{
@@ -35,7 +39,7 @@ pub enum ParserError {
 /// ```
 /// // Statement grammar
 /// stmt -> func_decl_stmt / return_stmt / if_else_stmt / var_decl_stmt / while_stmt / block_stmt / assignment_stmt
-/// func_decl_stmt -> "func" "(" ")" block_stmt
+/// func_decl_stmt -> "func" "(" (IDENTIFIER ("," IDENTIFIER)*)? ")" block_stmt
 /// return_stmt -> "return" expr ";"
 /// if_else_stmt -> "if" "(" expr ")" block_stmt
 /// var_decl_stmt -> "var" IDENTIFIER  "=" expr ";"
@@ -51,7 +55,7 @@ pub enum ParserError {
 /// term -> factor (("+" | "-") factor)*
 /// factor -> unary (("*" | "/") unary)*
 /// unary -> ("!" | "-") unary | call
-/// call -> primary ("(" arguments? ")")?
+/// call -> primary | IDENTIFIER ("(" arguments? ")")?
 /// arguments -> expr ("," expr )*
 /// primary -> NUMBER | IDENTIFIER | "(" expression ")"
 /// ```
@@ -62,14 +66,19 @@ pub struct Parser {
     token_index: usize,
 }
 
-/// Inteded for use in `Parser`. Checks if the current token matches any of the arms, if so it 
-/// iterates to the next token and executes the apropiate action.
-/// Usefull when every supplied `TokenType` has to perform a different action.
-/// Removes the need to add a `TokenType` both in the `match` statement and in the argument `Vec`
-/// for `self.match_tokens`.
+/// Inteded for use in `Parser`. It checks if the current token's `TokenType` matches the given branches.
+/// If so, it advances to the next token and it executed the given expression. If not it goes to
+/// the default branch and executes it wihtout advancing to the next token. In each branch a
+/// variable of type `&Token` named `token` is available for use.
+///
+/// Usefull when a different action is needed for each token type and they all require to advance
+/// to the next one.
+///
+/// Propagates error of type `ParserError`.
+///
 /// Example usage
 /// ```
-/// match_tokens!(
+/// action_and_advance_by_token_type!(
 ///     self;
 ///     If => self.if_else_stmt(),
 ///     While => self.while_stmt(),
@@ -78,19 +87,29 @@ pub struct Parser {
 /// ```
 /// generates
 /// ```
-/// match self.match_tokens(vec![TokenType::While, TokenType::LeftBrace])? {
-///     Some(TokenType::If) => self.if_else_stmt(),
-///     Some(TokenType::While) => self.while_stmt(),
+/// match self.peek_tokne()?.token_type {
+///     TokenType::If => {
+///         let token = self.next_token()?;
+///         self.if_else_stmt()
+///     },
+///     TokenType::While => {
+///         let token = self.next_token()?;
+///         self.while_stmt()
+///     },
 ///     _ => self.assignment_stmt(),
 /// }
 /// ```
-macro_rules! match_tokens {
-    ($self:ident; $($token:ident => $action:expr),+ ; default => $default:expr) => {
-        match $self.match_tokens(vec![$(TokenType::$token),+])? {
+macro_rules! action_and_advance_by_token_type {
+    ($self:ident; $($token_type:ident => $action:expr),+ ; default => $default:expr) => {
+        match $self.peek_token()?.token_type {
             $(
-                Some(TokenType::$token) => $action,
+                TokenType::$token_type => {
+                    #[allow(unused)]
+                    let token = $self.next_token()?;
+                    $action
+                }
             )+
-            _ => $default,
+            _ => $default
         }
     }
 }
@@ -121,7 +140,7 @@ impl Parser {
     ///////////////////////////////////////////////////////////////////////////
 
     fn stmt(&mut self) -> StmtResult {
-        match_tokens!(
+        action_and_advance_by_token_type!(
             self;
             Func => self.func_decl_stmt(),
             Return => self.return_stmt(),
@@ -197,7 +216,7 @@ impl Parser {
         // Check for `else` and `else if` chains
         if self.peek_token()?.token_type == TokenType::Else {
             self.next_token()?;
-            let else_clause = match_tokens!(
+            let else_clause = action_and_advance_by_token_type!(
                 self;
                 If => self.if_else_stmt(),
                 LeftBrace => self.block_stmt();
@@ -357,7 +376,7 @@ impl Parser {
     }
 
     fn unary(&mut self) -> ExprResult {
-        match_tokens!(
+        action_and_advance_by_token_type!(
             self;
             Bang => {
                 let term = self.unary()?;
@@ -404,9 +423,7 @@ impl Parser {
     fn primary(&mut self) -> ExprResult {
         let token = self.next_token()?;
         match token.token_type {
-            TokenType::Number => Ok(Expr::I32(
-                token.lexeme.as_ref().unwrap().parse::<i32>().unwrap(),
-            )),
+            TokenType::Number => Ok(Expr::Number(token.lexeme.as_ref().unwrap().clone())),
             TokenType::Identifier => Ok(Expr::Identifier(token.lexeme.as_ref().unwrap().clone())),
             TokenType::LeftParen => {
                 let expr = self.expr()?;

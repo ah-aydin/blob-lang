@@ -2,7 +2,7 @@ use super::op_type::{BinaryOpType, UnaryOpType};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {
-    I32(i32),
+    Number(String),
     Identifier(String),
 
     /// ```rust
