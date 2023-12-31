@@ -218,7 +218,7 @@ impl Parser {
                         break;
                     }
                 }
-                Err(_) => unreachable!("Unexpected error type. This match only expectes IOError"),
+                Err(_) => unreachable!("Unexpected error type. This branch only expectes IOError"),
             }
             match self.stmt() {
                 Ok(stmt) => stmts.push(stmt),
