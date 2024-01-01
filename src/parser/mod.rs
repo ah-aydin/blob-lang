@@ -4,7 +4,7 @@ mod token;
 use crate::{
     ast::{
         blob_type::BlobType,
-        expr::Expr,
+        expr::{Expr, ExprBinaryOp, ExprCall, ExprUnaryOp},
         op_type::{BinaryOpType, UnaryOpType},
         stmt::Stmt,
         FileCoords,
@@ -531,34 +531,39 @@ impl Parser {
 
     fn logic_or(&mut self) -> ExprResult {
         let possible_left_term = self.logic_and()?;
+        let line = self.get_line();
         if self.match_token(TokenType::PipePipe)? {
             let bin_op_type = BinaryOpType::Or;
             let right_term = self.logic_and()?;
-            return Ok(Expr::BinaryOp(
+            return Ok(Expr::BinaryOp(ExprBinaryOp::new(
                 Box::new(possible_left_term),
                 bin_op_type,
                 Box::new(right_term),
-            ));
+                line,
+            )));
         }
         Ok(possible_left_term)
     }
 
     fn logic_and(&mut self) -> ExprResult {
         let possible_left_term = self.comparison()?;
+        let line = self.get_line();
         if self.match_token(TokenType::AmpersandAmpersand)? {
             let bin_op_type = BinaryOpType::And;
             let right_term = self.comparison()?;
-            return Ok(Expr::BinaryOp(
+            return Ok(Expr::BinaryOp(ExprBinaryOp::new(
                 Box::new(possible_left_term),
                 bin_op_type,
                 Box::new(right_term),
-            ));
+                line,
+            )));
         }
         Ok(possible_left_term)
     }
 
     fn comparison(&mut self) -> ExprResult {
         let possible_left_term = self.term()?;
+        let line = self.get_line();
         if let Some(token_type) = self.match_tokens(vec![
             TokenType::Less,
             TokenType::Greater,
@@ -569,11 +574,12 @@ impl Parser {
         ])? {
             let bin_op_type = token_type.get_bin_op_type();
             let right_term = self.term()?;
-            return Ok(Expr::BinaryOp(
+            return Ok(Expr::BinaryOp(ExprBinaryOp::new(
                 Box::new(possible_left_term),
                 bin_op_type,
                 Box::new(right_term),
-            ));
+                line,
+            )));
         }
         Ok(possible_left_term)
     }
@@ -581,9 +587,15 @@ impl Parser {
     fn term(&mut self) -> ExprResult {
         let mut expr = self.factor()?;
         while let Some(token_type) = self.match_tokens(vec![TokenType::Plus, TokenType::Minus])? {
+            let line = self.get_line();
             let bin_op_type = token_type.get_bin_op_type();
             let right_term = self.factor()?;
-            expr = Expr::BinaryOp(Box::new(expr), bin_op_type, Box::new(right_term));
+            expr = Expr::BinaryOp(ExprBinaryOp::new(
+                Box::new(expr),
+                bin_op_type,
+                Box::new(right_term),
+                line,
+            ));
         }
         Ok(expr)
     }
@@ -591,9 +603,15 @@ impl Parser {
     fn factor(&mut self) -> ExprResult {
         let mut expr = self.unary()?;
         while let Some(token_type) = self.match_tokens(vec![TokenType::Star, TokenType::Slash])? {
+            let line = self.get_line();
             let bin_op_type = token_type.get_bin_op_type();
             let right_term = self.unary()?;
-            expr = Expr::BinaryOp(Box::new(expr), bin_op_type, Box::new(right_term));
+            expr = Expr::BinaryOp(ExprBinaryOp::new(
+                Box::new(expr),
+                bin_op_type,
+                Box::new(right_term),
+                line,
+            ));
         }
         Ok(expr)
     }
@@ -602,12 +620,14 @@ impl Parser {
         action_and_advance_by_token_type!(
             self;
             Bang => {
+                let line = self.get_line();
                 let term = self.unary()?;
-                Ok(Expr::UnaryOp(UnaryOpType::Not, Box::new(term)))
+                Ok(Expr::UnaryOp(ExprUnaryOp::new(UnaryOpType::Not, Box::new(term), line)))
             },
             Minus => {
+                let line = self.get_line();
                 let term = self.unary()?;
-                Ok(Expr::UnaryOp(UnaryOpType::Negate, Box::new(term)))
+                Ok(Expr::UnaryOp(ExprUnaryOp::new(UnaryOpType::Negate, Box::new(term), line)))
             };
             default => self.call()
         )
@@ -619,7 +639,7 @@ impl Parser {
             if let Expr::Identifier(ident) = possible_callee {
                 self.consume(TokenType::LeftParen, "Expected opening '('")?;
                 let args = self.arguments()?;
-                return Ok(Expr::Call(ident, args));
+                return Ok(Expr::Call(ExprCall::new(ident, args, self.get_line())));
             }
             return Err(ParserError::WrongToken(
                 String::from("Call expression requires an identifier"),

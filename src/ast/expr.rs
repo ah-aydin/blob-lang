@@ -1,21 +1,34 @@
+use derive_new::new;
+
 use super::op_type::{BinaryOpType, UnaryOpType};
+
+#[derive(Debug, Clone, PartialEq, Eq, new)]
+pub struct ExprUnaryOp {
+    op_type: UnaryOpType,
+    expr: Box<Expr>,
+    line: usize
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, new)]
+pub struct ExprBinaryOp {
+    left_expr: Box<Expr>,
+    op_type: BinaryOpType,
+    right_expr: Box<Expr>,
+    line: usize
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, new)]
+pub struct ExprCall {
+    name: String,
+    args: Vec<Expr>,
+    line: usize
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {
     Number(String),
     Identifier(String),
-
-    /// ```rust
-    /// (Op: UnaryOpType, Term: Box<Expr>)
-    /// ```
-    UnaryOp(UnaryOpType, Box<Expr>),
-    /// ```rust
-    /// (LeftTerm: Box<Expr>, Op: BinaryOpType, RightTerm: Box<Expr>)
-    /// ```
-    BinaryOp(Box<Expr>, BinaryOpType, Box<Expr>),
-
-    /// ```rust
-    /// (CalleeName: String, Args: Vec<Expr>)
-    /// ```
-    Call(String, Vec<Expr>),
+    UnaryOp(ExprUnaryOp),
+    BinaryOp(ExprBinaryOp),
+    Call(ExprCall),
 }
