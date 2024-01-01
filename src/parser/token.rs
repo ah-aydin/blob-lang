@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::ast::op_type::BinaryOpType;
+use crate::ast::{op_type::BinaryOpType, FileCoords};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenType {
@@ -77,12 +77,6 @@ impl TokenType {
             _ => unreachable!("{:?} does not have a BinaryOpType", self),
         }
     }
-}
-
-#[derive(Default, Debug, PartialEq, Eq, Clone)]
-pub struct FileCoords {
-    pub line: usize,
-    pub col: usize,
 }
 
 #[derive(Clone, PartialEq, Eq)]

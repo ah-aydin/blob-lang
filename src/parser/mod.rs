@@ -7,6 +7,7 @@ use crate::{
         expr::Expr,
         op_type::{BinaryOpType, UnaryOpType},
         stmt::Stmt,
+        FileCoords,
     },
     parser::token::TokenType,
 };
@@ -16,10 +17,7 @@ use std::{
     io::{BufReader, Read},
 };
 
-use self::{
-    scanner::Scanner,
-    token::{FileCoords, Token},
-};
+use self::{scanner::Scanner, token::Token};
 
 const CHUNK_SIZE: usize = 4096;
 const INTIAL_CAPACITY: usize = 1024;
@@ -167,7 +165,6 @@ pub struct Parser {
 /// action_and_advance_by_token_type!(
 ///     self;
 ///     If => self.if_else_stmt(),
-///     While => self.while_stmt(),
 ///     default => self.assignment_stmt()
 /// )
 /// ```
@@ -177,10 +174,6 @@ pub struct Parser {
 ///     TokenType::If => {
 ///         let _ = self.next_token()?;
 ///         self.if_else_stmt()
-///     },
-///     TokenType::While => {
-///         let _ = self.next_token()?;
-///         self.while_stmt()
 ///     },
 ///     _ => self.assignment_stmt(),
 /// }
@@ -460,8 +453,6 @@ impl Parser {
     }
 
     fn var_decl_stmt(&mut self) -> StmtResult {
-        // TODO add option to specify var type after introducing types other
-        // than i32
         let var_name = self.consume_identifier_and_get_lexeme("Expected variable name")?;
         let var_type =
             self.type_expr(&format!("Expected variable type for '{}'", var_name), false)?;
