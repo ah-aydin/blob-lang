@@ -4,24 +4,24 @@ use super::op_type::{BinaryOpType, UnaryOpType};
 
 #[derive(Debug, Clone, PartialEq, Eq, new)]
 pub struct ExprUnaryOp {
-    op_type: UnaryOpType,
-    expr: Box<Expr>,
-    line: usize
+    pub op_type: UnaryOpType,
+    pub expr: Box<Expr>,
+    pub line: usize
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, new)]
 pub struct ExprBinaryOp {
-    left_expr: Box<Expr>,
-    op_type: BinaryOpType,
-    right_expr: Box<Expr>,
-    line: usize
+    pub left_expr: Box<Expr>,
+    pub op_type: BinaryOpType,
+    pub right_expr: Box<Expr>,
+    pub line: usize
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, new)]
 pub struct ExprCall {
-    name: String,
-    args: Vec<Expr>,
-    line: usize
+    pub name: String,
+    pub args: Vec<Expr>,
+    pub line: usize
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

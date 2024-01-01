@@ -6,7 +6,7 @@ use crate::{
         blob_type::BlobType,
         expr::{Expr, ExprBinaryOp, ExprCall, ExprUnaryOp},
         op_type::{BinaryOpType, UnaryOpType},
-        stmt::Stmt,
+        stmt::{Stmt, StmtAssign, StmtFuncDecl, StmtIf, StmtIfElse, StmtVarDecl, StmtWhile},
         FileCoords,
     },
     parser::token::TokenType,
@@ -342,6 +342,7 @@ impl Parser {
     }
 
     fn func_decl_stmt(&mut self) -> StmtResult {
+        let line = self.get_line();
         let func_name = self.consume_identifier_and_get_lexeme("Expected function name")?;
 
         self.consume(
@@ -383,12 +384,13 @@ impl Parser {
         )?;
         let func_body = self.block_stmt()?;
 
-        Ok(Stmt::FuncDecl(
+        Ok(Stmt::FuncDecl(StmtFuncDecl::new(
             func_name,
             args,
             return_type,
             Box::new(func_body),
-        ))
+            line,
+        )))
     }
 
     fn return_stmt(&mut self) -> StmtResult {
@@ -398,6 +400,7 @@ impl Parser {
     }
 
     fn if_else_stmt(&mut self) -> StmtResult {
+        let line = self.get_line();
         let if_stmt = stmt_scope!(self; If; {
             self.consume(
                 TokenType::LeftParen,
@@ -418,7 +421,7 @@ impl Parser {
             self.consume(TokenType::LeftBrace, "Expected opening '{' for if body")?;
             let if_clause = self.block_stmt()?;
 
-            Stmt::If(condition, Box::new(if_clause))
+            Stmt::If(StmtIf::new(condition, Box::new(if_clause), line))
         });
 
         // Check for `else` and `else if` chains
@@ -438,12 +441,13 @@ impl Parser {
                 ))
             )?;
             match if_stmt {
-                Stmt::If(condition, if_clause) => {
-                    return Ok(Stmt::IfElse(
-                        condition,
-                        Box::new(*if_clause),
+                Stmt::If(stmt_if) => {
+                    return Ok(Stmt::IfElse(StmtIfElse::new(
+                        stmt_if.condition,
+                        Box::new(*stmt_if.clause),
                         Box::new(else_clause),
-                    ))
+                        line,
+                    )))
                 }
                 _ => unreachable!("How the heck did it make the if statement into something else?"),
             }
@@ -453,6 +457,7 @@ impl Parser {
     }
 
     fn var_decl_stmt(&mut self) -> StmtResult {
+        let line = self.get_line();
         let var_name = self.consume_identifier_and_get_lexeme("Expected variable name")?;
         let var_type =
             self.type_expr(&format!("Expected variable type for '{}'", var_name), false)?;
@@ -465,10 +470,16 @@ impl Parser {
         let expr = self.expr()?;
         self.consume(TokenType::Semicolon, "Expected ';'")?;
 
-        Ok(Stmt::VarDecl(var_name.clone(), var_type, expr))
+        Ok(Stmt::VarDecl(StmtVarDecl::new(
+            var_name.clone(),
+            var_type,
+            expr,
+            line,
+        )))
     }
 
     fn while_stmt(&mut self) -> StmtResult {
+        let line = self.get_line();
         self.consume(
             TokenType::LeftParen,
             "Expected opening '(' for while condition",
@@ -487,7 +498,11 @@ impl Parser {
         self.consume(TokenType::LeftBrace, "Expected opening '{' for while body")?;
         let block = self.block_stmt()?;
 
-        Ok(Stmt::While(condition, Box::new(block)))
+        Ok(Stmt::While(StmtWhile::new(
+            condition,
+            Box::new(block),
+            line,
+        )))
     }
 
     /// Consume a "{" befor calling this function
@@ -503,11 +518,12 @@ impl Parser {
     fn assignment_stmt(&mut self) -> StmtResult {
         match self.expr()? {
             Expr::Identifier(ident) => {
+                let line = self.get_line();
                 if self.peek_token()?.token_type == TokenType::Equal {
                     self.consume(TokenType::Equal, "Expected '='")?;
                     let to_expr = self.expr()?;
                     self.consume(TokenType::Semicolon, "Expected ';' after expression")?;
-                    return Ok(Stmt::Assign(ident, to_expr));
+                    return Ok(Stmt::Assign(StmtAssign::new(ident, to_expr, line)));
                 }
                 // TODO print warning here for unimpactfull instruction
                 self.consume(TokenType::Semicolon, "Expected ';' after expression")?;
