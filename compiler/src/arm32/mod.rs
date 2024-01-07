@@ -2,12 +2,9 @@ mod assembly;
 
 use ast::stmt::Stmt;
 
-const ARM32_WORD_SIZE: u32 = 4;
+use crate::common::CompileError;
 
-#[derive(Debug)]
-pub enum CompileError {
-    Failed,
-}
+const ARM32_WORD_SIZE: u32 = 4;
 
 pub struct Arm32Compiler {
     stmts: Vec<Stmt>,

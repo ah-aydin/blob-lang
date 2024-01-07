@@ -1,4 +1,5 @@
 mod arm32;
+mod common;
 
 use arm32::Arm32Compiler;
 use parser::{Parser, ParserStatus};
