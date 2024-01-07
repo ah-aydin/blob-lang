@@ -1,6 +1,6 @@
-mod compiler;
+mod arm32;
 
-use compiler::arm32::Arm32Compiler;
+use arm32::Arm32Compiler;
 use parser::{Parser, ParserStatus};
 use std::env;
 
