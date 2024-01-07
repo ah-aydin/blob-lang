@@ -36,7 +36,7 @@ fn cmain() -> Result<i32, i32> {
     }?;
 
     match Arm32Compiler::new(stmts).compile() {
-        Ok(()) => Ok(1),
+        Ok(()) => Ok(0),
         Err(compiler_error) => {
             eprintln!("[ERROR] compilation failed {:?}", compiler_error);
             Err(1)
