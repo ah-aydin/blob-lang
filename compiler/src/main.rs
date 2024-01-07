@@ -1,14 +1,16 @@
 mod ast;
+mod compiler;
 mod parser;
 
+use compiler::arm32::Arm32Compiler;
 use parser::{Parser, ParserStatus};
 use std::env;
 
-fn cmain() -> i32 {
+fn cmain() -> Result<i32, i32> {
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
         println!("Usage: blob-lang [source_file]");
-        return 1;
+        return Err(1);
     }
     let file_name = args.get(1).unwrap();
 
@@ -19,25 +21,32 @@ fn cmain() -> i32 {
             file_name,
             parser.err().unwrap()
         );
-        return 1;
+        return Err(1);
     }
-    let mut parser = parser.unwrap();
-    match parser.parse() {
-        ParserStatus::Succeeded(stmts) => {
-            stmts.iter().for_each(|stmt| println!("{:?}", stmt));
-            0
-        }
+
+    let stmts = match parser.unwrap().parse() {
+        ParserStatus::Succeeded(stmts) => Ok(stmts),
         ParserStatus::Failed => {
-            eprintln!("ERROR: Parsing failed");
-            1
+            eprintln!("[ERROR] Parsing failed");
+            Err(1)
         }
         ParserStatus::IOError => {
-            eprintln!("ERROR: Failed while reading chunk from file");
-            1
+            eprintln!("[ERROR] Failed while reading chunk from file");
+            Err(1)
+        }
+    }?;
+
+    match Arm32Compiler::new(stmts).compile() {
+        Ok(()) => Ok(1),
+        Err(compiler_error) => {
+            eprintln!("[ERROR] compileation failed {:?}", compiler_error);
+            Err(1)
         }
     }
 }
 
 fn main() {
-    std::process::exit(cmain());
+    std::process::exit(match cmain() {
+        Ok(exit_code) | Err(exit_code) => exit_code,
+    });
 }

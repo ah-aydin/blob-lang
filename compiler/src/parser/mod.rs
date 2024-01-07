@@ -48,24 +48,24 @@ impl ParserError {
         match self {
             Self::WrongToken(msg, token) => {
                 eprintln!(
-                    "ERROR: Line {} Col {}: {}. '{:?}'",
+                    "[ERROR] Line {} Col {}: {}. '{:?}'",
                     token.file_coords.line, token.file_coords.col, msg, token.token_type
                 );
             }
             Self::TypeError(msg, token) => {
                 eprintln!(
-                    "ERROR: Line{}: {}. '{:?}'",
+                    "[ERROR] Line{}: {}. '{:?}'",
                     token.file_coords.line, msg, token.token_type
                 );
             }
             Self::Scope(msg, token) => {
-                eprintln!("ERROR: Line {}: {}", token.file_coords.line, msg);
+                eprintln!("[ERROR] Line {}: {}", token.file_coords.line, msg);
             }
             Self::IOError(msg, token) => {
                 eprintln!("FAIL: {}. Last token {:?}", msg, token);
             }
             Self::EOF => {
-                eprintln!("ERROR: Reached end of file in incomplete state",);
+                eprintln!("[ERROR] Reached end of file in incomplete state",);
             }
         };
     }
@@ -388,6 +388,15 @@ impl Parser {
         )?;
         let func_body = self.block_stmt()?;
 
+        if func_name == "main" {
+            return Ok(Stmt::MainDecl(StmtFuncDecl::new(
+                func_name,
+                args,
+                return_type,
+                Box::new(func_body),
+                line,
+            )));
+        }
         Ok(Stmt::FuncDecl(StmtFuncDecl::new(
             func_name,
             args,
