@@ -5,15 +5,15 @@ use super::op_type::{BinaryOpType, UnaryOpType};
 #[derive(Debug, Clone, PartialEq, Eq, new)]
 pub struct ExprUnaryOp {
     pub op_type: UnaryOpType,
-    pub expr: Box<Expr>,
+    pub term: Box<Expr>,
     pub line: usize
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, new)]
 pub struct ExprBinaryOp {
-    pub left_expr: Box<Expr>,
+    pub left_term: Box<Expr>,
     pub op_type: BinaryOpType,
-    pub right_expr: Box<Expr>,
+    pub right_term: Box<Expr>,
     pub line: usize
 }
 

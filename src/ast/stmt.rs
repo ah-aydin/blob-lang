@@ -30,14 +30,14 @@ pub struct StmtIfElse {
 pub struct StmtVarDecl {
     pub name: String,
     pub blob_type: Option<BlobType>,
-    pub expr: Expr,
+    pub to: Expr,
     pub line: usize
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, new)]
 pub struct StmtAssign {
     pub name: String,
-    pub expr: Expr,
+    pub to: Expr,
     pub line: usize
 }
 

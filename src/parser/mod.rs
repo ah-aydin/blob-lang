@@ -98,59 +98,6 @@ impl Display for Scope {
     }
 }
 
-/// Inteded for use in `Parser`. Pushes the given `ScopeType` to the stack and executes the action.
-/// The action is a block which should return a `Stmt` object. Then it pops the scope from the stack.
-///
-/// Example
-/// ```
-/// stmt_scope!(self; While; {self.while_stmt()?})
-/// ```
-macro_rules! stmt_scope {
-    ($self:ident; $scope_type:ident; $action:block) => {{
-        $self
-            .scopes
-            .push(Scope::new(ScopeType::$scope_type, $self.get_line()));
-        let stmt: Stmt = $action;
-        $self.scopes.pop();
-        stmt
-    }};
-}
-
-/// Top down parser.
-///
-/// Parsing rules
-/// ```
-/// // Statement grammar
-/// stmt -> func_decl_stmt / return_stmt / if_else_stmt / var_decl_stmt / while_stmt / block_stmt / assignment_stmt
-/// func_decl_stmt -> "func" "(" (IDENTIFIER type_expr ("," IDENTIFIER type_expr)*)? ")" type_expr? block_stmt
-/// return_stmt -> "return" expr ";"
-/// if_else_stmt -> "if" "(" expr ")" block_stmt
-/// var_decl_stmt -> "var" IDENTIFIER type_expr? "=" expr ";"
-/// while_stmt -> "while" "(" expr ")" block_stmt
-/// block_stmt -> "{" stmt* "}"
-/// assignment_stmt -> ((IDENTIFIER "=")? expr | IDENTIFIER) ";"
-///
-/// // Expression grammar
-/// expr -> logic_or
-/// logic_or -> logic_and ("||" logic_and)?
-/// logic_and -> comparison ("&&" comparison)?
-/// comparison -> term (("<" | ">" | "<=" | ">=" | "==" | "!=") term)?
-/// term -> factor (("+" | "-") factor)*
-/// factor -> unary (("*" | "/") unary)*
-/// unary -> ("!" | "-") unary | call
-/// call -> primary | IDENTIFIER ("(" arguments? ")")?
-/// arguments -> expr ("," expr )*
-/// primary -> NUMBER | IDENTIFIER | "(" expression ")"
-/// type_expr -> ":" IDENTIFIER | "i32"
-/// ```
-pub struct Parser {
-    scanner: Scanner,
-    reader: BufReader<File>,
-    tokens: Vec<Token>,
-    token_index: usize,
-    scopes: Vec<Scope>,
-}
-
 /// Inteded for use in `Parser`. It checks if the current token's `TokenType` matches the given branches.
 /// If so, it advances to the next token and it executed the given expression. If not it goes to
 /// the default branch and executes it wihtout advancing to the next token.
@@ -192,6 +139,26 @@ macro_rules! action_and_advance_by_token_type {
     }
 }
 
+/// Inteded for use in `Parser`. Pushes the given `ScopeType` to the stack and executes the action.
+/// The action is a block which should return a `Stmt` object. Then it pops the scope from the stack.
+///
+/// Example
+/// ```
+/// stmt_scope!(self; While; {self.while_stmt()?})
+/// ```
+macro_rules! stmt_scope {
+    ($self:ident; $scope_type:ident; $action:block) => {{
+        $self
+            .scopes
+            .push(Scope::new(ScopeType::$scope_type, $self.get_line()));
+        let stmt: Stmt = $action;
+        $self.scopes.pop();
+        stmt
+    }};
+}
+
+/// Executes the given action if it is inside the scope of a function.
+/// Returns a `ParserError` otherwise.
 macro_rules! in_func {
     ($self:ident; $msg:literal; $action:expr) => {
         if $self
@@ -209,6 +176,8 @@ macro_rules! in_func {
     };
 }
 
+/// Executes the given action if it is NOT inside the scope of a function.
+/// Returns a `ParserError` otherwise.
 macro_rules! not_in_func {
     ($self:ident; $msg:literal; $action:expr) => {
         if !$self
@@ -224,6 +193,41 @@ macro_rules! not_in_func {
             ));
         }
     };
+}
+
+/// Top down parser.
+///
+/// Parsing rules
+/// ```
+/// // Statement grammar
+/// stmt -> func_decl_stmt / return_stmt / if_else_stmt / var_decl_stmt / while_stmt / block_stmt / assignment_stmt
+/// func_decl_stmt -> "func" "(" (IDENTIFIER type_expr ("," IDENTIFIER type_expr)*)? ")" type_expr? block_stmt
+/// return_stmt -> "return" expr ";"
+/// if_else_stmt -> "if" "(" expr ")" block_stmt ("else" block_stmt | "else" if_else_stmt)?
+/// var_decl_stmt -> "var" IDENTIFIER type_expr? "=" expr ";"
+/// while_stmt -> "while" "(" expr ")" block_stmt
+/// block_stmt -> "{" stmt* "}"
+/// assignment_stmt -> ((IDENTIFIER "=")? expr | IDENTIFIER) ";"
+///
+/// // Expression grammar
+/// expr -> logic_or
+/// logic_or -> logic_and ("||" logic_and)?
+/// logic_and -> comparison ("&&" comparison)?
+/// comparison -> term (("<" | ">" | "<=" | ">=" | "==" | "!=") term)?
+/// term -> factor (("+" | "-") factor)*
+/// factor -> unary (("*" | "/") unary)*
+/// unary -> ("!" | "-") unary | call
+/// call -> primary | IDENTIFIER ("(" arguments? ")")?
+/// arguments -> expr ("," expr )*
+/// primary -> NUMBER | IDENTIFIER | "(" expression ")"
+/// type_expr -> ":" IDENTIFIER | "i32"
+/// ```
+pub struct Parser {
+    scanner: Scanner,
+    reader: BufReader<File>,
+    tokens: Vec<Token>,
+    token_index: usize,
+    scopes: Vec<Scope>,
 }
 
 impl Parser {
@@ -696,6 +700,7 @@ impl Parser {
             )),
         }
     }
+
     ///
     /// Checks if next token is ':'. If so it consumes it and consumes the next token as a BlobType
     /// If `required` is true it will expect to have a type and will return an `Err(ParserError)` if
@@ -855,3 +860,6 @@ impl Parser {
             .line
     }
 }
+
+#[cfg(test)]
+mod test {}
