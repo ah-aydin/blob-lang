@@ -1,15 +1,13 @@
 mod scanner;
 mod token;
 
-use crate::{
-    ast::{
-        blob_type::BlobType,
-        expr::{Expr, ExprBinaryOp, ExprCall, ExprUnaryOp},
-        op_type::{BinaryOpType, UnaryOpType},
-        stmt::{Stmt, StmtAssign, StmtFuncDecl, StmtIf, StmtIfElse, StmtVarDecl, StmtWhile},
-        FileCoords,
-    },
-    parser::token::TokenType,
+use crate::parser::token::TokenType;
+use ast::{
+    blob_type::BlobType,
+    expr::{Expr, ExprBinaryOp, ExprCall, ExprUnaryOp},
+    op_type::{BinaryOpType, UnaryOpType},
+    stmt::{Stmt, StmtAssign, StmtFuncDecl, StmtIf, StmtIfElse, StmtVarDecl, StmtWhile},
+    FileCoords,
 };
 use std::{
     fmt::Display,

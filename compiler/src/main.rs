@@ -1,4 +1,3 @@
-mod ast;
 mod compiler;
 mod parser;
 
@@ -39,7 +38,7 @@ fn cmain() -> Result<i32, i32> {
     match Arm32Compiler::new(stmts).compile() {
         Ok(()) => Ok(1),
         Err(compiler_error) => {
-            eprintln!("[ERROR] compileation failed {:?}", compiler_error);
+            eprintln!("[ERROR] compilation failed {:?}", compiler_error);
             Err(1)
         }
     }

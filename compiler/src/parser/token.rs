@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::ast::{op_type::BinaryOpType, FileCoords};
+use ast::{op_type::BinaryOpType, FileCoords};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenType {

@@ -1,6 +1,6 @@
 mod assembly;
 
-use crate::ast::stmt::Stmt;
+use ast::stmt::Stmt;
 
 const ARM32_WORD_SIZE: u32 = 4;
 
