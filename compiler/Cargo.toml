@@ -7,5 +7,4 @@ edition = "2021"
 
 [dependencies]
 ast = { path = "../ast" }
-derive-new = "0.6.0"
-lazy_static = "1.4.0"
+parser = { path = "../parser" }
