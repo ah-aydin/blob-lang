@@ -114,10 +114,10 @@ impl Arm32Compiler {
         // Epilogue
         if func_name == "main" {
             self.instructions.append(&mut vec![
-                b!(EXIT),
-                label!(EXIT_FAIL),
-                mov!(R0, "#1"),
-                label!(EXIT),
+                // b!(EXIT),
+                // label!(EXIT_FAIL),
+                // mov!(R0, "#1"),
+                // label!(EXIT),
             ]);
         }
         self.instructions.push(pop!(FP, PC));
@@ -212,33 +212,33 @@ impl Arm32Compiler {
             BooleanOpType::And => todo!(),
             BooleanOpType::Or => todo!(),
             BooleanOpType::Equal => self.instructions.append(&mut vec![
-                cmp!(R0, R1),
+                cmp!(R1, R0),
                 mov!(R0, "#1", Eq),
                 mov!(R0, "#0", Ne),
             ]),
             BooleanOpType::NotEqual => self.instructions.append(&mut vec![
-                cmp!(R0, R1),
+                cmp!(R1, R0),
                 mov!(R0, "#1", Ne),
                 mov!(R0, "#0", Eq),
             ]),
             BooleanOpType::Greater => self.instructions.append(&mut vec![
-                cmp!(R0, R1),
+                cmp!(R1, R0),
                 mov!(R0, "#1", Gt),
                 mov!(R0, "#0", Le),
             ]),
             BooleanOpType::GreaterOrEqual => self.instructions.append(&mut vec![
-                cmp!(R0, R1),
+                cmp!(R1, R0),
                 mov!(R0, "#1", Ge),
                 mov!(R0, "#0", Lt),
             ]),
             BooleanOpType::Less => self.instructions.append(&mut vec![
-                cmp!(R0, R1),
+                cmp!(R1, R0),
                 mov!(R0, "#1", Lt),
                 mov!(R0, "#0", Ge),
             ]),
 
             BooleanOpType::LessOrEqual => self.instructions.append(&mut vec![
-                cmp!(R0, R1),
+                cmp!(R1, R0),
                 mov!(R0, "#1", Le),
                 mov!(R0, "#0", Gt),
             ]),

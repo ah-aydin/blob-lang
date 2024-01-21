@@ -364,6 +364,13 @@ macro_rules! neg {
             crate::arm32::assembly::Arm32Condition::None,
         )
     };
+    ($dest_reg:ident, $reg:ident, $condition:ident) => {
+        crate::arm32::assembly::Arm32Ins::Neg(
+            crate::arm32::assembly::Arm32Reg::$dest_reg,
+            crate::arm32::assembly::Arm32Reg::$reg,
+            crate::arm32::assembly::Arm32Condition::$condition,
+        )
+    };
 }
 
 #[macro_export]
