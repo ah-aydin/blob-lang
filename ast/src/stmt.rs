@@ -59,5 +59,5 @@ pub enum Stmt {
     VarDecl(StmtVarDecl),
     Assign(StmtAssign),
     While(StmtWhile),
-    MainDecl(StmtFuncDecl)
+    // MainDecl(StmtFuncDecl)
 }

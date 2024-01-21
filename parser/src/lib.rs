@@ -386,15 +386,6 @@ impl Parser {
         )?;
         let func_body = self.block_stmt()?;
 
-        if func_name == "main" {
-            return Ok(Stmt::MainDecl(StmtFuncDecl::new(
-                func_name,
-                args,
-                return_type,
-                Box::new(func_body),
-                line,
-            )));
-        }
         Ok(Stmt::FuncDecl(StmtFuncDecl::new(
             func_name,
             args,

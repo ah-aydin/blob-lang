@@ -3,7 +3,7 @@ mod common;
 
 use arm32::Arm32Compiler;
 use parser::{Parser, ParserStatus};
-use std::env;
+use std::{env, path::Path};
 
 fn cmain() -> Result<i32, i32> {
     let args: Vec<String> = env::args().collect();
@@ -13,6 +13,7 @@ fn cmain() -> Result<i32, i32> {
     }
     let file_name = args.get(1).unwrap();
 
+    println!("Compiling file {}", file_name);
     let parser = Parser::new(file_name);
     if parser.is_err() {
         eprintln!(
@@ -35,7 +36,11 @@ fn cmain() -> Result<i32, i32> {
         }
     }?;
 
-    match Arm32Compiler::new(stmts).compile() {
+    let mut arm32compiler = Arm32Compiler::new();
+    match arm32compiler.compile(
+        stmts,
+        Path::new(file_name).file_stem().unwrap().to_str().unwrap(),
+    ) {
         Ok(()) => Ok(0),
         Err(compiler_error) => {
             eprintln!("[ERROR] compilation failed {:?}", compiler_error);
