@@ -194,7 +194,9 @@ impl Arm32Compiler {
             BinaryOpType::Add => self.instructions.push(add!(R0, R0, R1)),
             BinaryOpType::Subtract => self.instructions.push(sub!(R0, R1, R0)),
             BinaryOpType::Multiply => self.instructions.push(mul!(R0, R0, R1)),
-            BinaryOpType::Divide => self.instructions.append(&mut builtin_instructions::goto_div_instructions()),
+            BinaryOpType::Divide => self
+                .instructions
+                .append(&mut builtin_instructions::goto_div_instructions()),
         };
         Ok(())
     }
