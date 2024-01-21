@@ -1,6 +1,12 @@
 use super::assembly::Arm32Ins;
 
 pub const DIV_START: &'static str = "div_start";
+pub const EXIT_FAIL: &'static str = "exit_fail";
+pub const EXIT: &'static str = "exit";
+
+pub fn get_exit_instructions() -> Vec<Arm32Ins> {
+    vec![b!(EXIT), label!(EXIT_FAIL), mov!(R0, "#1"), label!(EXIT)]
+}
 
 /// Required, since there isn't `sdiv` or 'udiv` instructions on arm32 :(
 pub fn goto_div_instructions() -> Vec<Arm32Ins> {
@@ -18,10 +24,12 @@ pub fn div_instructions() -> Vec<Arm32Ins> {
         cmp!(R1, "#0"),
         neg!(R1, R1, Lt),
         add!(R5, R5, "#1", Lt),
-        // Negate R0 if negative number
+        // Negate R0 if negative number and goto exit fail if it is 0
         cmp!(R0, "#0"),
         neg!(R0, R0, Lt),
         add!(R5, R5, "#1", Lt),
+        b!(EXIT_FAIL, Eq), // This causes an illegal hardware instruction, but it will go on an
+                           // infinte loop otherwise.
         //  Start division
         mov!(R2, R0),
         mov!(R3, "#0"), // R3 holds the sum

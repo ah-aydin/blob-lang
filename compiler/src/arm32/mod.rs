@@ -14,9 +14,6 @@ use crate::common::{CompileError, FuncData};
 
 use self::assembly::Arm32Ins;
 
-const EXIT_FAIL: &'static str = "exit_fail";
-const EXIT: &'static str = "exit";
-
 const ARM32_WORD_SIZE: u32 = 4;
 
 type CompilerResult = Result<(), CompileError>;
@@ -113,12 +110,7 @@ impl Arm32Compiler {
 
         // Epilogue
         if func_name == "main" {
-            self.instructions.append(&mut vec![
-                // b!(EXIT),
-                // label!(EXIT_FAIL),
-                // mov!(R0, "#1"),
-                // label!(EXIT),
-            ]);
+            self.instructions.append(&mut builtin_instructions::get_exit_instructions());
         }
         self.instructions.push(pop!(FP, PC));
         Ok(())

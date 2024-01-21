@@ -287,6 +287,9 @@ macro_rules! label {
     ($label:ident) => {
         crate::arm32::assembly::Arm32Ins::Label(String::from($label))
     };
+    ($label:expr) => {
+        crate::arm32::assembly::Arm32Ins::Label(String::from($label))
+    };
     ($label:literal) => {
         crate::arm32::assembly::Arm32Ins::Label(String::from($label))
     };
@@ -295,6 +298,18 @@ macro_rules! label {
 #[macro_export]
 macro_rules! b {
     ($jump_to:ident) => {
+        crate::arm32::assembly::Arm32Ins::BLabel(
+            String::from($jump_to),
+            crate::arm32::assembly::Arm32Condition::None,
+        )
+    };
+    ($jump_to:ident, $condition:ident) => {
+        crate::arm32::assembly::Arm32Ins::BLabel(
+            String::from($jump_to),
+            crate::arm32::assembly::Arm32Condition::$condition,
+        )
+    };
+    ($jump_to:expr) => {
         crate::arm32::assembly::Arm32Ins::BLabel(
             String::from($jump_to),
             crate::arm32::assembly::Arm32Condition::None,
