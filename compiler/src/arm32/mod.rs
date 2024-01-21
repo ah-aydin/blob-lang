@@ -1,5 +1,6 @@
 #[macro_use]
 mod assembly;
+mod builtin_instructions;
 
 use std::{collections::HashMap, fs::File, io::Write, process::Command};
 
@@ -23,6 +24,7 @@ type CompilerResult = Result<(), CompileError>;
 pub struct Arm32Compiler {
     instructions: Vec<Arm32Ins>,
     functions: HashMap<String, FuncData>,
+    func_label_count: usize,
 }
 
 impl Arm32Compiler {
@@ -30,6 +32,7 @@ impl Arm32Compiler {
         Arm32Compiler {
             instructions: vec![],
             functions: HashMap::new(),
+            func_label_count: 0,
         }
     }
 
@@ -78,7 +81,11 @@ impl Arm32Compiler {
     pub fn compile(&mut self, stmts: Vec<Stmt>, file_name: &str) -> CompilerResult {
         self.reset();
 
+        self.instructions
+            .append(&mut builtin_instructions::div_instructions());
+
         for stmt in &stmts {
+            self.func_label_count = 0;
             let _ = match stmt {
                 Stmt::FuncDecl(stmt_func_decl) => self.func(&stmt_func_decl)?,
                 _ => unreachable!("Got unexpected global statement"),
@@ -92,7 +99,8 @@ impl Arm32Compiler {
         let func_name = func_decl.name.as_str();
         self.functions
             .insert(String::from(func_name), FuncData::from_stmt(func_decl));
-        self.instructions.push(label!(func_name));
+        self.instructions
+            .push(Arm32Ins::Label(String::from(func_name)));
 
         // Prologue
         self.instructions.push(push!(FP, LR));
@@ -106,7 +114,7 @@ impl Arm32Compiler {
         // Epilogue
         if func_name == "main" {
             self.instructions.append(&mut vec![
-                branch!(EXIT),
+                b!(EXIT),
                 label!(EXIT_FAIL),
                 mov!(R0, "#1"),
                 label!(EXIT),
@@ -153,13 +161,12 @@ impl Arm32Compiler {
             Expr::UnaryOp(unary_op) => self.unary_expr(unary_op),
             Expr::BinaryOp(binary_op) => self.binary_expr(binary_op),
             Expr::BooleanOp(boolean_op) => self.boolean_expr(boolean_op),
-
             Expr::Call(_) => todo!(),
         }
     }
 
     fn i32_expr(&mut self, number: &str) -> CompilerResult {
-        self.instructions.push(ldr!(R0, lbl number));
+        self.instructions.push(ldr!(R0, number));
         Ok(())
     }
 
@@ -187,7 +194,7 @@ impl Arm32Compiler {
             BinaryOpType::Add => self.instructions.push(add!(R0, R0, R1)),
             BinaryOpType::Subtract => self.instructions.push(sub!(R0, R1, R0)),
             BinaryOpType::Multiply => self.instructions.push(mul!(R0, R0, R1)),
-            BinaryOpType::Divide => todo!("Division is not implemented yet"),
+            BinaryOpType::Divide => self.instructions.append(&mut builtin_instructions::goto_div_instructions()),
         };
         Ok(())
     }

@@ -182,12 +182,13 @@ pub enum Arm32Ins {
     ///  ``` CPRS = compare(reg1, 123) ```
     CmpImd(Arm32Reg, String, Arm32Condition),
 
+    /// Load ``` r0 = labelAddress ```
+    /// Load ``` r0 = the given number ```
+    Ldr(Arm32Reg, String, Arm32Condition),
     /// Load value of word from memory location ``` r0 = M[r1] ```
     LdrReg(Arm32Reg, Arm32Reg, Arm32Condition),
     /// Load ``` r0 = M[r1 + offset] ```
     LdrRegOffset(Arm32Reg, Arm32Reg, Arm32Offset, Arm32Condition),
-    /// Load ``` r0 = labelAddress ```
-    LdrLbl(Arm32Reg, String, Arm32Condition),
 
     /// Store ``` M[r1] = r0 ```
     StrReg(Arm32Reg, Arm32Reg, Arm32Condition),
@@ -219,7 +220,7 @@ impl fmt::Display for Arm32Ins {
                 write!(f, "\tsub{} {}, {}, {}", cond, dest, reg, imd)
             }
             Arm32Ins::Rsb(dest, reg1, reg2, cond) => {
-                write!(f, "\tsub{} {}, {}, {}", cond, dest, reg1, reg2)
+                write!(f, "\trsb{} {}, {}, {}", cond, dest, reg1, reg2)
             }
             Arm32Ins::RsbImd(dest, reg, imd, cond) => {
                 write!(f, "\trsb{} {}, {}, {}", cond, dest, reg, imd)
@@ -269,11 +270,11 @@ impl fmt::Display for Arm32Ins {
             Arm32Ins::Cmp(reg1, reg2, cond) => write!(f, "\tcmp{} {}, {}", cond, reg1, reg2),
             Arm32Ins::CmpImd(reg, imd, cond) => write!(f, "\tcmp{} {}, {}", cond, reg, imd),
 
+            Arm32Ins::Ldr(dest, lbl, cond) => write!(f, "\tldr{} {}, ={}", cond, dest, lbl),
             Arm32Ins::LdrReg(dest, reg, cond) => write!(f, "\tldr{} {}, [{}]", cond, dest, reg),
             Arm32Ins::LdrRegOffset(dest, reg, offset, cond) => {
                 write!(f, "\tldr{} {}, [{}, {}]", cond, dest, reg, offset)
             }
-            Arm32Ins::LdrLbl(dest, lbl, cond) => write!(f, "\tldr{} {}, ={}", cond, dest, lbl),
 
             Arm32Ins::StrReg(reg, dest, cond) => write!(f, "\tstr{} {}, [{}]", cond, reg, dest),
             Arm32Ins::StrOffset(reg, dest, offest, cond) => {
@@ -286,361 +287,44 @@ impl fmt::Display for Arm32Ins {
     }
 }
 
-macro_rules! ins_with_3_terms {
-    ($ins:ident, $term1:ident, $term2:ident, $term3:ident) => {
-        crate::arm32::assembly::Arm32Ins::$ins(
-            crate::arm32::assembly::Arm32Reg::$term1,
-            crate::arm32::assembly::Arm32Reg::$term2,
-            crate::arm32::assembly::Arm32Reg::$term3,
-            crate::arm32::assembly::Arm32Condition::None,
-        )
-    };
-    ($ins:ident, $term1:ident, $term2:ident, $term3:ident, $condition:ident) => {
-        crate::arm32::assembly::Arm32Ins::$ins(
-            crate::arm32::assembly::Arm32Reg::$term1,
-            crate::arm32::assembly::Arm32Reg::$term2,
-            crate::arm32::assembly::Arm32Reg::$term3,
-            crate::arm32::assembly::Arm32Condition::$condition,
-        )
-    };
-    ($ins:ident,$term1:ident, $term2:ident, $term3:literal) => {
-        crate::arm32::assembly::Arm32Ins::$ins(
-            crate::arm32::assembly::Arm32Reg::$term1,
-            crate::arm32::assembly::Arm32Reg::$term2,
-            String::from($term3),
-            crate::arm32::assembly::Arm32Condition::None,
-        )
-    };
-    ($ins:ident,$term1:ident, $term2:ident, $term3:literal, $condition:ident) => {
-        crate::arm32::assembly::Arm32Ins::$ins(
-            crate::arm32::assembly::Arm32Reg::$term1,
-            crate::arm32::assembly::Arm32Reg::$left_term_r,
-            String::from($term3),
-            crate::arm32::assembly::Arm32Condition::$condition,
-        )
-    };
-}
-
-macro_rules! ins_with_2_terms {
-    ($ins:ident, $term1:ident, $term2:ident) => {
-        crate::arm32::assembly::Arm32Ins::$ins(
-            crate::arm32::assembly::Arm32Reg::$term1,
-            crate::arm32::assembly::Arm32Reg::$term2,
-            crate::arm32::assembly::Arm32Condition::None,
-        )
-    };
-    ($ins:ident, $term1:ident, $term2:ident,$condition:ident) => {
-        crate::arm32::assembly::Arm32Ins::$ins(
-            crate::arm32::assembly::Arm32Reg::$term1,
-            crate::arm32::assembly::Arm32Reg::$term2,
-            crate::arm32::assembly::Arm32Condition::$condition,
-        )
-    };
-    ($ins:ident, $term1:ident, $term2:literal) => {
-        crate::arm32::assembly::Arm32Ins::$ins(
-            crate::arm32::assembly::Arm32Reg::$term1,
-            String::from($term2),
-            crate::arm32::assembly::Arm32Condition::None,
-        )
-    };
-    ($ins:ident,$term1:ident,  $term2:literal, $condition:ident) => {
-        crate::arm32::assembly::Arm32Ins::$ins(
-            crate::arm32::assembly::Arm32Reg::$term1,
-            String::from($term2),
-            crate::arm32::assembly::Arm32Condition::$condition,
-        )
-    };
-}
-
-macro_rules! ins_with_1_term {
-    ($ins:ident, $jump_to:literal) => {
-        crate::arm32::assembly::Arm32Ins::$ins(
-            String::from($jump_to),
-            crate::arm32::assembly::Arm32Condition::None,
-        )
-    };
-    ($ins:ident, $jump_to:literal, $condition:ident) => {
-        crate::arm32::assembly::Arm32Ins::$ins(
-            String::from($jump_to),
-            crate::arm32::assembly::Arm32Condition::$condition,
-        )
-    };
-    ($ins:ident, $jump_to:ident) => {
-        crate::arm32::assembly::Arm32Ins::$ins(
-            String::from($jump_to),
-            crate::arm32::assembly::Arm32Condition::None,
-        )
-    };
-    ($ins:ident, $jump_to:ident, $condition:ident) => {
-        crate::arm32::assembly::Arm32Ins::$ins(
-            String::from($jump_to),
-            crate::arm32::assembly::Arm32Condition::$condition,
-        )
-    };
-}
-
-macro_rules! ins_with_vec_of_terms {
-    ($ins:ident, $($reg:ident),+) => {
-        crate::arm32::assembly::Arm32Ins::$ins(
-            vec![$(crate::arm32::assembly::Arm32Reg::$reg),+],
-            crate::arm32::assembly::Arm32Condition::None
-        )
-    };
-    ($ins:ident, $($reg:ident),+; $condition:ident) => {
-        crate::arm32::assembly::Arm32Ins::$ins(
-            vec![$(crate::arm32::assembly::Arm32Reg::$reg),+],
-            crate::arm32::assembly::Arm32Condition::$condition
-        )
-    };
-}
-
 #[macro_export]
 macro_rules! label {
     ($label:ident) => {
         crate::arm32::assembly::Arm32Ins::Label(String::from($label))
     };
-}
-
-#[macro_export]
-macro_rules! add {
-    ($into_r:ident, $left_term_r:ident, $right_term_r:ident) => {
-        ins_with_3_terms!(Add, $into_r, $left_term_r, $right_term_r)
-    };
-    ($into_r:ident, $left_term_r:ident, $right_term_r:ident, $condition:ident) => {
-        ins_with_3_terms!(Add, $into_r, $left_term_r, $right_term_r, $condition)
-    };
-    ($into_r:ident, $left_term_r:ident, $right_term:literal) => {
-        ins_with_3_terms!(AddImd, $into_r, $left_term_r, $right_term)
-    };
-    ($into_r:ident, $left_term_r:ident, $right_term:literal, $condition:ident) => {
-        ins_with_3_terms!(AddImd, $into_r, $left_term_r, $right_term, $condition)
+    ($label:literal) => {
+        crate::arm32::assembly::Arm32Ins::Label(String::from($label))
     };
 }
 
 #[macro_export]
-macro_rules! sub {
-    ($into_r:ident, $left_term_r:ident, $right_term_r:ident) => {
-        ins_with_3_terms!(Sub, $into_r, $left_term_r, $right_term_r)
+macro_rules! b {
+    ($jump_to:ident) => {
+        crate::arm32::assembly::Arm32Ins::BLabel(
+            String::from($jump_to),
+            crate::arm32::assembly::Arm32Condition::None,
+        )
     };
-    ($into_r:ident, $left_term_r:ident, $right_term_r:ident, $condition:ident) => {
-        ins_with_3_terms!(Sub, $into_r, $left_term_r, $right_term_r, $condition)
-    };
-    ($into_r:ident, $left_term_r:ident, $right_term:literal) => {
-        ins_with_3_terms!(SubImd, $into_r, $left_term_r, $right_term)
-    };
-    ($into_r:ident, $left_term_r:ident, $right_term:literal, $condition:ident) => {
-        ins_with_3_terms!(SubImd, $into_r, $left_term_r, $right_term, $condition)
-    };
-}
-
-#[macro_export]
-macro_rules! rsb {
-    ($into_r:ident, $left_term_r:ident, $right_term_r:ident) => {
-        ins_with_3_terms!(Rsb, $into_r, $left_term_r, $right_term_r)
-    };
-    ($into_r:ident, $left_term_r:ident, $right_term_r:ident, $condition:ident) => {
-        ins_with_3_terms!(Rsb, $into_r, $left_term_r, $right_term_r, $condition)
-    };
-    ($into_r:ident, $left_term_r:ident, $right_term:literal) => {
-        ins_with_3_terms!(RsbImd, $into_r, $left_term_r, $right_term)
-    };
-    ($into_r:ident, $left_term_r:ident, $right_term:literal, $condition:ident) => {
-        ins_with_3_terms!(RsbImd, $into_r, $left_term_r, $right_term, $condition)
-    };
-}
-
-#[macro_export]
-macro_rules! mul {
-    ($into_r:ident, $left_term_r:ident, $right_term_r:ident) => {
-        ins_with_3_terms!(Mul, $into_r, $left_term_r, $right_term_r)
-    };
-    ($into_r:ident, $left_term_r:ident, $right_term_r:ident, $condition:ident) => {
-        ins_with_3_terms!(Mul, $into_r, $left_term_r, $right_term_r, $condition)
-    };
-    ($into_r:ident, $left_term_r:ident, $right_term:literal) => {
-        ins_with_3_terms!(MulImd, $into_r, $left_term_r, $right_term)
-    };
-    ($into_r:ident, $left_term_r:ident, $right_term:literal, $condition:ident) => {
-        ins_with_3_terms!(MulImd, $into_r, $left_term_r, $right_term, $condition)
-    };
-}
-
-#[macro_export]
-macro_rules! bic {
-    ($into_r:ident, $left_term_r:ident, $right_term_r:ident) => {
-        ins_with_3_terms!(Bic, $into_r, $left_term_r, $right_term_r)
-    };
-    ($into_r:ident, $left_term_r:ident, $right_term_r:ident, $condition:ident) => {
-        ins_with_3_terms!(Bic, $into_r, $left_term_r, $right_term_r, $condition)
-    };
-    ($into_r:ident, $left_term_r:ident, $right_term:literal) => {
-        ins_with_3_terms!(BicImd, $into_r, $left_term_r, $right_term)
-    };
-    ($into_r:ident, $left_term_r:ident, $right_term:literal, $condition:ident) => {
-        ins_with_3_terms!(BicImd, $into_r, $left_term_r, $right_term, $condition)
-    };
-}
-
-#[macro_export]
-macro_rules! and {
-    ($into_r:ident, $left_term_r:ident, $right_term_r:ident) => {
-        ins_with_3_terms!(And, $into_r, $left_term_r, $right_term_r)
-    };
-    ($into_r:ident, $left_term_r:ident, $right_term_r:ident, $condition:ident) => {
-        ins_with_3_terms!(And, $into_r, $left_term_r, $right_term_r, $condition)
-    };
-    ($into_r:ident, $left_term_r:ident, $right_term:literal) => {
-        ins_with_3_terms!(AndImd, $into_r, $left_term_r, $right_term)
-    };
-    ($into_r:ident, $left_term_r:ident, $right_term:literal, $condition:ident) => {
-        ins_with_3_terms!(AndImd, $into_r, $left_term_r, $right_term, $condition)
-    };
-}
-
-#[macro_export]
-macro_rules! orr {
-    ($into_r:ident, $left_term_r:ident, $right_term_r:ident) => {
-        ins_with_3_terms!(Orr, $into_r, $left_term_r, $right_term_r)
-    };
-    ($into_r:ident, $left_term_r:ident, $right_term_r:ident, $condition:ident) => {
-        ins_with_3_terms!(Orr, $into_r, $left_term_r, $right_term_r, $condition)
-    };
-    ($into_r:ident, $left_term_r:ident, $right_term:literal) => {
-        ins_with_3_terms!(OrrImd, $into_r, $left_term_r, $right_term)
-    };
-    ($into_r:ident, $left_term_r:ident, $right_term:literal, $condition:ident) => {
-        ins_with_3_terms!(OrrImd, $into_r, $left_term_r, $right_term, $condition)
-    };
-}
-
-#[macro_export]
-macro_rules! eor {
-    ($into_r:ident, $left_term_r:ident, $right_term_r:ident) => {
-        ins_with_3_terms!(Eor, $into_r, $left_term_r, $right_term_r)
-    };
-    ($into_r:ident, $left_term_r:ident, $right_term_r:ident, $condition:ident) => {
-        ins_with_3_terms!(Eor, $into_r, $left_term_r, $right_term_r, $condition)
-    };
-    ($into_r:ident, $left_term_r:ident, $right_term:literal) => {
-        ins_with_3_terms!(EorImd, $into_r, $left_term_r, $right_term)
-    };
-    ($into_r:ident, $left_term_r:ident, $right_term:literal, $condition:ident) => {
-        ins_with_3_terms!(EorImd, $into_r, $left_term_r, $right_term, $condition)
-    };
-}
-
-#[macro_export]
-macro_rules! mov {
-    ($into_r:ident, $term:ident) => {
-        ins_with_2_terms!(Mov, $into_r, $term)
-    };
-    ($into_r:ident, $term:ident, $condition:ident) => {
-        ins_with_2_terms!(Mov, $into_r, $term, $condition)
-    };
-    ($into_r:ident, $term:literal) => {
-        ins_with_2_terms!(MovImd, $into_r, $term)
-    };
-    ($into_r:ident, $term:literal, $condition:ident) => {
-        ins_with_2_terms!(MovImd, $into_r, $term, $condition)
-    };
-}
-
-#[macro_export]
-macro_rules! mvn {
-    ($into_r:ident, $term:ident) => {
-        ins_with_2_terms!(Mvn, $into_r, $term)
-    };
-    ($into_r:ident, $term:ident, $condition:ident) => {
-        ins_with_2_terms!(Mvn, $into_r, $term, $condition)
-    };
-    ($into_r:ident, $term:literal) => {
-        ins_with_2_terms!(MvnImd, $into_r, $term)
-    };
-    ($into_r:ident, $term:literal, $condition:ident) => {
-        ins_with_2_terms!(MvnImd, $into_r, $term, $condition)
-    };
-}
-
-#[macro_export]
-macro_rules! branch {
     ($jump_to:literal) => {
-        ins_with_1_term!(BLabel, $jump_to)
+        crate::arm32::assembly::Arm32Ins::BLabel(
+            String::from($jump_to),
+            crate::arm32::assembly::Arm32Condition::None,
+        )
     };
     ($jump_to:literal, $condition:ident) => {
-        ins_with_1_term!(BLabel, $jump_to, $condition)
-    };
-    ($jump_to:ident) => {
-        ins_with_1_term!(BLabel, $jump_to)
-    };
-    ($jump_to:ident, $condition:ident) => {
-        ins_with_1_term!(BLabel, $jump_to, $condition)
-    };
-}
-
-#[macro_export]
-macro_rules! branch_link {
-    ($jump_to:ident) => {
-        ins_with_1_term!(BL, $jump_to)
-    };
-    ($jump_to:ident, $condition:ident) => {
-        ins_with_1_term!(BL, $jump_to, $condition)
-    };
-}
-
-#[macro_export]
-macro_rules! branch_exchange {
-    ($jump_to:ident) => {
-        ins_with_1_term!(BX, $jump_to)
-    };
-    ($jump_to:ident, $condition:ident) => {
-        ins_with_1_term!(BX, $jump_to, $condition)
-    };
-}
-
-#[macro_export]
-macro_rules! cmp {
-    ($left_term:ident, $right_term:ident) => {
-        ins_with_2_terms!(Cmp, $left_term, $right_term)
-    };
-    ($left_term:ident, $right_term:ident, $condition:ident) => {
-        ins_with_2_terms!(Cmp, $left_term, $right_term, $condition)
-    };
-    ($left_term:ident, $right_term:literal) => {
-        ins_with_2_terms!(CmpImd, $left_term, $right_term)
-    };
-    ($left_term:ident, $right_term:literal, $condition:ident) => {
-        ins_with_2_terms!(CmpImd, $left_term, $right_term, $condition)
-    };
-}
-
-#[macro_export]
-macro_rules! ldr {
-    ($reg:ident, $reg2:ident) => {
-        crate::arm32::assembly::Arm32Ins::Ldr(
-            crate::arm32::assembly::Arm32Reg::$reg,
-            crate::arm32::assembly::Arm32Reg::$reg2,
-            crate::arm32::assembly::Arm32Condition::None,
-        )
-    };
-    ($reg:ident, $reg2:ident; $condition:ident) => {
-        crate::arm32::assembly::Arm32Ins::LdrLbl(
-            crate::arm32::assembly::Arm32Reg::$reg,
-            crate::arm32::assembly::Arm32Reg::$reg2,
+        crate::arm32::assembly::Arm32Ins::BLabel(
+            String::from($jump_to),
             crate::arm32::assembly::Arm32Condition::$condition,
         )
     };
-    ($reg:ident, lbl $label:ident) => {
-        crate::arm32::assembly::Arm32Ins::LdrLbl(
-            crate::arm32::assembly::Arm32Reg::$reg,
-            String::from($label),
+}
+
+#[macro_export]
+macro_rules! bx {
+    ($jump_reg:ident) => {
+        crate::arm32::assembly::Arm32Ins::BX(
+            crate::arm32::assembly::Arm32Reg::$jump_reg,
             crate::arm32::assembly::Arm32Condition::None,
-        )
-    };
-    ($reg:ident, lbl $label:ident; $condition:ident) => {
-        crate::arm32::assembly::Arm32Ins::LdrLbl(
-            crate::arm32::assembly::Arm32Reg::$reg,
-            String::from($label),
-            crate::arm32::assembly::Arm32Condition::$condition,
         )
     };
 }
@@ -648,19 +332,137 @@ macro_rules! ldr {
 #[macro_export]
 macro_rules! push {
     ($($reg:ident),+) => {
-        ins_with_vec_of_terms!(Push, $($reg),+)
-    };
-    ($($reg:ident),+; $condition:ident) => {
-        ins_with_vec_of_terms!(Push, $($reg),+; $condition)
+        crate::arm32::assembly::Arm32Ins::Push(
+            vec![$(crate::arm32::assembly::Arm32Reg::$reg),+],
+            crate::arm32::assembly::Arm32Condition::None
+        )
     };
 }
 
 #[macro_export]
 macro_rules! pop {
     ($($reg:ident),+) => {
-        ins_with_vec_of_terms!(Pop, $($reg),+)
+        crate::arm32::assembly::Arm32Ins::Pop(
+            vec![$(crate::arm32::assembly::Arm32Reg::$reg),+],
+            crate::arm32::assembly::Arm32Condition::None
+        )
     };
-    ($($reg:ident),+; $condition:ident) => {
-        ins_with_vec_of_terms!(Pop, $($reg),+; $condition)
+}
+
+#[macro_export]
+macro_rules! ldr {
+    ($dest_reg:ident, $label:ident) => {
+        crate::arm32::assembly::Arm32Ins::Ldr(
+            crate::arm32::assembly::Arm32Reg::$dest_reg,
+            String::from($label),
+            crate::arm32::assembly::Arm32Condition::None,
+        )
+    };
+}
+
+#[macro_export]
+macro_rules! rsb {
+    ($dest_reg:ident, $reg:ident, $imd:literal) => {
+        crate::arm32::assembly::Arm32Ins::RsbImd(
+            crate::arm32::assembly::Arm32Reg::$dest_reg,
+            crate::arm32::assembly::Arm32Reg::$reg,
+            String::from($imd),
+            crate::arm32::assembly::Arm32Condition::None,
+        )
+    };
+}
+
+#[macro_export]
+macro_rules! cmp {
+    ($reg1:ident, $reg2:ident) => {
+        crate::arm32::assembly::Arm32Ins::Cmp(
+            crate::arm32::assembly::Arm32Reg::$reg1,
+            crate::arm32::assembly::Arm32Reg::$reg2,
+            crate::arm32::assembly::Arm32Condition::None,
+        )
+    };
+    ($reg:ident, $imd:literal) => {
+        crate::arm32::assembly::Arm32Ins::CmpImd(
+            crate::arm32::assembly::Arm32Reg::$reg,
+            String::from($imd),
+            crate::arm32::assembly::Arm32Condition::None,
+        )
+    };
+}
+
+#[macro_export]
+macro_rules! mov {
+    ($dest_reg:ident, $source_reg:ident) => {
+        crate::arm32::assembly::Arm32Ins::Mov(
+            crate::arm32::assembly::Arm32Reg::$dest_reg,
+            crate::arm32::assembly::Arm32Reg::$source_reg,
+            crate::arm32::assembly::Arm32Condition::None,
+        )
+    };
+    ($dest_reg:ident, $imd:literal) => {
+        crate::arm32::assembly::Arm32Ins::MovImd(
+            crate::arm32::assembly::Arm32Reg::$dest_reg,
+            String::from($imd),
+            crate::arm32::assembly::Arm32Condition::None,
+        )
+    };
+    ($dest_reg:ident, $imd:literal, $condition:ident) => {
+        crate::arm32::assembly::Arm32Ins::MovImd(
+            crate::arm32::assembly::Arm32Reg::$dest_reg,
+            String::from($imd),
+            crate::arm32::assembly::Arm32Condition::$condition,
+        )
+    };
+}
+
+#[macro_export]
+macro_rules! add {
+    ($dest_reg:ident, $reg1:ident, $reg2:ident) => {
+        crate::arm32::assembly::Arm32Ins::Add(
+            crate::arm32::assembly::Arm32Reg::$dest_reg,
+            crate::arm32::assembly::Arm32Reg::$reg1,
+            crate::arm32::assembly::Arm32Reg::$reg2,
+            crate::arm32::assembly::Arm32Condition::None,
+        )
+    };
+    ($dest_reg:ident, $reg:ident, $imd:literal) => {
+        crate::arm32::assembly::Arm32Ins::AddImd(
+            crate::arm32::assembly::Arm32Reg::$dest_reg,
+            crate::arm32::assembly::Arm32Reg::$reg,
+            String::from($imd),
+            crate::arm32::assembly::Arm32Condition::None,
+        )
+    };
+    ($dest_reg:ident, $reg:ident, $imd:literal, $cond:ident) => {
+        crate::arm32::assembly::Arm32Ins::AddImd(
+            crate::arm32::assembly::Arm32Reg::$dest_reg,
+            crate::arm32::assembly::Arm32Reg::$reg,
+            String::from($imd),
+            crate::arm32::assembly::Arm32Condition::$cond,
+        )
+    };
+}
+
+#[macro_export]
+macro_rules! sub {
+    ($dest_reg:ident, $reg1:ident, $reg2:ident) => {
+        crate::arm32::assembly::Arm32Ins::Sub(
+            crate::arm32::assembly::Arm32Reg::$dest_reg,
+            crate::arm32::assembly::Arm32Reg::$reg1,
+            crate::arm32::assembly::Arm32Reg::$reg2,
+            crate::arm32::assembly::Arm32Condition::None,
+        )
+    };
+}
+
+#[macro_export]
+macro_rules! mul {
+    ($dest_reg:ident, $reg1:ident, $reg2:ident) => {
+        crate::arm32::assembly::Arm32Ins::Mul(
+            crate::arm32::assembly::Arm32Reg::$dest_reg,
+            crate::arm32::assembly::Arm32Reg::$reg1,
+            crate::arm32::assembly::Arm32Reg::$reg2,
+            crate::arm32::assembly::Arm32Condition::None,
+        )
     };
 }
