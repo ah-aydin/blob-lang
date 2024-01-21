@@ -41,7 +41,10 @@ fn cmain() -> Result<i32, i32> {
         stmts,
         Path::new(file_name).file_stem().unwrap().to_str().unwrap(),
     ) {
-        Ok(()) => Ok(0),
+        Ok(()) => {
+            println!("Compilation successfull");
+            Ok(0)
+        }
         Err(compiler_error) => {
             eprintln!("[ERROR] compilation failed {:?}", compiler_error);
             Err(1)

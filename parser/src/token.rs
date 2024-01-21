@@ -1,6 +1,9 @@
 use std::fmt::Debug;
 
-use ast::{op_type::BinaryOpType, FileCoords};
+use ast::{
+    op_type::{BinaryOpType, BooleanOpType},
+    FileCoords,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TokenType {
@@ -66,15 +69,21 @@ impl TokenType {
             TokenType::Minus => BinaryOpType::Subtract,
             TokenType::Slash => BinaryOpType::Divide,
             TokenType::Star => BinaryOpType::Multiply,
-            TokenType::Greater => BinaryOpType::Greater,
-            TokenType::Less => BinaryOpType::Less,
-            TokenType::EqualEqual => BinaryOpType::Equal,
-            TokenType::GreaterEqual => BinaryOpType::GreaterOrEqual,
-            TokenType::LessEqual => BinaryOpType::LessOrEqual,
-            TokenType::BangEqual => BinaryOpType::NotEqual,
-            TokenType::AmpersandAmpersand => BinaryOpType::And,
-            TokenType::PipePipe => BinaryOpType::Or,
             _ => unreachable!("{:?} does not have a BinaryOpType", self),
+        }
+    }
+
+    pub fn get_boolean_op_type(&self) -> BooleanOpType {
+        match self {
+            TokenType::AmpersandAmpersand => BooleanOpType::And,
+            TokenType::PipePipe => BooleanOpType::Or,
+            TokenType::Greater => BooleanOpType::Greater,
+            TokenType::Less => BooleanOpType::Less,
+            TokenType::EqualEqual => BooleanOpType::Equal,
+            TokenType::GreaterEqual => BooleanOpType::GreaterOrEqual,
+            TokenType::LessEqual => BooleanOpType::LessOrEqual,
+            TokenType::BangEqual => BooleanOpType::NotEqual,
+            _ => unreachable!("{:?} does not have a BooleanOpType", self),
         }
     }
 }

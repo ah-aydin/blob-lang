@@ -4,8 +4,8 @@ pub mod token;
 use crate::token::TokenType;
 use ast::{
     blob_type::BlobType,
-    expr::{Expr, ExprBinaryOp, ExprCall, ExprUnaryOp},
-    op_type::{BinaryOpType, UnaryOpType},
+    expr::{Expr, ExprBinaryOp, ExprBooleanOp, ExprCall, ExprUnaryOp},
+    op_type::{BinaryOpType, BooleanOpType, UnaryOpType},
     stmt::{Stmt, StmtAssign, StmtFuncDecl, StmtIf, StmtIfElse, StmtVarDecl, StmtWhile},
     FileCoords,
 };
@@ -208,9 +208,9 @@ macro_rules! not_in_func {
 /// assignment_stmt -> ((IDENTIFIER "=")? expr | IDENTIFIER) ";"
 ///
 /// // Expression grammar
-/// expr -> logic_or
-/// logic_or -> logic_and ("||" logic_and)?
-/// logic_and -> comparison ("&&" comparison)?
+/// expr -> boolean_or
+/// boolean_or -> boolean_or ("||" boolean_and)?
+/// boolean_and -> comparison ("&&" comparison)?
 /// comparison -> term (("<" | ">" | "<=" | ">=" | "==" | "!=") term)?
 /// term -> factor (("+" | "-") factor)*
 /// factor -> unary (("*" | "/") unary)*
@@ -544,18 +544,17 @@ impl Parser {
     ///////////////////////////////////////////////////////////////////////////
 
     fn expr(&mut self) -> ExprResult {
-        self.logic_or()
+        self.boolean_or()
     }
 
-    fn logic_or(&mut self) -> ExprResult {
-        let possible_left_term = self.logic_and()?;
+    fn boolean_or(&mut self) -> ExprResult {
+        let possible_left_term = self.boolean_and()?;
         let line = self.get_line();
         if self.match_token(TokenType::PipePipe)? {
-            let bin_op_type = BinaryOpType::Or;
-            let right_term = self.logic_and()?;
-            return Ok(Expr::BinaryOp(ExprBinaryOp::new(
+            let right_term = self.boolean_and()?;
+            return Ok(Expr::BooleanOp(ExprBooleanOp::new(
                 Box::new(possible_left_term),
-                bin_op_type,
+                BooleanOpType::Or,
                 Box::new(right_term),
                 line,
             )));
@@ -563,15 +562,14 @@ impl Parser {
         Ok(possible_left_term)
     }
 
-    fn logic_and(&mut self) -> ExprResult {
+    fn boolean_and(&mut self) -> ExprResult {
         let possible_left_term = self.comparison()?;
         let line = self.get_line();
         if self.match_token(TokenType::AmpersandAmpersand)? {
-            let bin_op_type = BinaryOpType::And;
             let right_term = self.comparison()?;
-            return Ok(Expr::BinaryOp(ExprBinaryOp::new(
+            return Ok(Expr::BooleanOp(ExprBooleanOp::new(
                 Box::new(possible_left_term),
-                bin_op_type,
+                BooleanOpType::And,
                 Box::new(right_term),
                 line,
             )));
@@ -590,11 +588,10 @@ impl Parser {
             TokenType::EqualEqual,
             TokenType::BangEqual,
         ])? {
-            let bin_op_type = token_type.get_bin_op_type();
             let right_term = self.term()?;
-            return Ok(Expr::BinaryOp(ExprBinaryOp::new(
+            return Ok(Expr::BooleanOp(ExprBooleanOp::new(
                 Box::new(possible_left_term),
-                bin_op_type,
+                token_type.get_boolean_op_type(),
                 Box::new(right_term),
                 line,
             )));

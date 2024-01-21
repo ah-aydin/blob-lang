@@ -4,7 +4,8 @@ mod assembly;
 use std::{collections::HashMap, fs::File, io::Write, process::Command};
 
 use ast::{
-    expr::Expr,
+    expr::{Expr, ExprBinaryOp, ExprBooleanOp, ExprUnaryOp},
+    op_type::{BinaryOpType, BooleanOpType, UnaryOpType},
     stmt::{Stmt, StmtFuncDecl},
 };
 
@@ -12,7 +13,11 @@ use crate::common::{CompileError, FuncData};
 
 use self::assembly::Arm32Ins;
 
+const EXIT_FAIL: &'static str = "exit_fail";
+const EXIT: &'static str = "exit";
+
 const ARM32_WORD_SIZE: u32 = 4;
+
 type CompilerResult = Result<(), CompileError>;
 
 pub struct Arm32Compiler {
@@ -54,13 +59,20 @@ impl Arm32Compiler {
             "{} ./build/{}.s -o ./build/{}",
             which_gcc, file_name, file_name
         );
-        match Command::new("sh").arg("-c").arg(gcc_command).output() {
-            Ok(_) => Ok(()),
-            Err(_) => {
-                eprintln!("[ERROR] {} is not installed.", which_gcc);
-                Err(CompileError::Failed)
-            }
+        let output = Command::new("sh")
+            .arg("-c")
+            .arg(gcc_command)
+            .output()
+            .expect(&format!("[ERROR] {} is not installed", which_gcc));
+
+        if !output.status.success() {
+            eprintln!(
+                "Command failed with: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            return Err(CompileError::Failed);
         }
+        Ok(())
     }
 
     pub fn compile(&mut self, stmts: Vec<Stmt>, file_name: &str) -> CompilerResult {
@@ -87,11 +99,19 @@ impl Arm32Compiler {
 
         let stmts = match *func_decl.body.clone() {
             Stmt::Block(stmts) => stmts,
-            _ => unreachable!()
+            _ => unreachable!(),
         };
         self.block_stmt(&stmts)?;
 
         // Epilogue
+        if func_name == "main" {
+            self.instructions.append(&mut vec![
+                branch!(EXIT),
+                label!(EXIT_FAIL),
+                mov!(R0, "#1"),
+                label!(EXIT),
+            ]);
+        }
         self.instructions.push(pop!(FP, PC));
         Ok(())
     }
@@ -130,14 +150,90 @@ impl Arm32Compiler {
         match expr {
             Expr::Number(number) => self.i32_expr(number),
             Expr::Identifier(_) => todo!(),
-            Expr::UnaryOp(_) => todo!(),
-            Expr::BinaryOp(_) => todo!(),
+            Expr::UnaryOp(unary_op) => self.unary_expr(unary_op),
+            Expr::BinaryOp(binary_op) => self.binary_expr(binary_op),
+            Expr::BooleanOp(boolean_op) => self.boolean_expr(boolean_op),
+
             Expr::Call(_) => todo!(),
         }
     }
 
     fn i32_expr(&mut self, number: &str) -> CompilerResult {
-        self.instructions.push(ldr!(R0, number));
+        self.instructions.push(ldr!(R0, lbl number));
+        Ok(())
+    }
+
+    fn unary_expr(&mut self, unary_op: &ExprUnaryOp) -> Result<(), CompileError> {
+        self.expr(&*unary_op.term)?;
+        match unary_op.op_type {
+            UnaryOpType::Negate => {
+                self.instructions.push(rsb!(R0, R0, "#0"));
+            }
+            UnaryOpType::Not => {
+                self.instructions.push(cmp!(R0, "#0"));
+                self.instructions.push(mov!(R0, "#1", Eq));
+                self.instructions.push(mov!(R0, "#0", Ne));
+            }
+        };
+        Ok(())
+    }
+
+    fn binary_expr(&mut self, binary_op: &ExprBinaryOp) -> Result<(), CompileError> {
+        self.expr(&binary_op.left_term)?;
+        self.instructions.push(push!(R0, IP));
+        self.expr(&binary_op.right_term)?;
+        self.instructions.push(pop!(R1, IP));
+        match binary_op.op_type {
+            BinaryOpType::Add => self.instructions.push(add!(R0, R0, R1)),
+            BinaryOpType::Subtract => self.instructions.push(sub!(R0, R1, R0)),
+            BinaryOpType::Multiply => self.instructions.push(mul!(R0, R0, R1)),
+            BinaryOpType::Divide => todo!("Division is not implemented yet"),
+        };
+        Ok(())
+    }
+
+    fn boolean_expr(&mut self, boolean_op: &ExprBooleanOp) -> Result<(), CompileError> {
+        if boolean_op.op_type != BooleanOpType::And || boolean_op.op_type != BooleanOpType::Or {
+            self.expr(&boolean_op.left_term)?;
+            self.instructions.push(push!(R0, IP));
+            self.expr(&boolean_op.right_term)?;
+            self.instructions.push(pop!(R1, IP));
+        }
+        match boolean_op.op_type {
+            BooleanOpType::And => todo!(),
+            BooleanOpType::Or => todo!(),
+            BooleanOpType::Equal => self.instructions.append(&mut vec![
+                cmp!(R0, R1),
+                mov!(R0, "#1", Eq),
+                mov!(R0, "#0", Ne),
+            ]),
+            BooleanOpType::NotEqual => self.instructions.append(&mut vec![
+                cmp!(R0, R1),
+                mov!(R0, "#1", Ne),
+                mov!(R0, "#0", Eq),
+            ]),
+            BooleanOpType::Greater => self.instructions.append(&mut vec![
+                cmp!(R0, R1),
+                mov!(R0, "#1", Gt),
+                mov!(R0, "#0", Le),
+            ]),
+            BooleanOpType::GreaterOrEqual => self.instructions.append(&mut vec![
+                cmp!(R0, R1),
+                mov!(R0, "#1", Ge),
+                mov!(R0, "#0", Lt),
+            ]),
+            BooleanOpType::Less => self.instructions.append(&mut vec![
+                cmp!(R0, R1),
+                mov!(R0, "#1", Lt),
+                mov!(R0, "#0", Ge),
+            ]),
+
+            BooleanOpType::LessOrEqual => self.instructions.append(&mut vec![
+                cmp!(R0, R1),
+                mov!(R0, "#1", Le),
+                mov!(R0, "#0", Gt),
+            ]),
+        };
         Ok(())
     }
 }
