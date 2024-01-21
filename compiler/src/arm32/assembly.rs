@@ -129,10 +129,8 @@ pub enum Arm32Ins {
     Sub(Arm32Reg, Arm32Reg, Arm32Reg, Arm32Condition),
     /// Arithmetic ``` r1 = r2 - 123 ```
     SubImd(Arm32Reg, Arm32Reg, String, Arm32Condition),
-    /// Arithmetic ``` r1 = r3 - r2 ```
-    Rsb(Arm32Reg, Arm32Reg, Arm32Reg, Arm32Condition),
-    /// Arithmetic ``` r1 = 123 - r2 ```
-    RsbImd(Arm32Reg, Arm32Reg, String, Arm32Condition),
+    /// Arithmetic ``` r1 = -r1
+    Neg(Arm32Reg, Arm32Reg, Arm32Condition),
     /// Arithmetic ``` r1 = r2 * r3 ```
     Mul(Arm32Reg, Arm32Reg, Arm32Reg, Arm32Condition),
     /// Arithmetic ``` r1 = r2 * 123 ```
@@ -219,11 +217,8 @@ impl fmt::Display for Arm32Ins {
             Arm32Ins::SubImd(dest, reg, imd, cond) => {
                 write!(f, "\tsub{} {}, {}, {}", cond, dest, reg, imd)
             }
-            Arm32Ins::Rsb(dest, reg1, reg2, cond) => {
-                write!(f, "\trsb{} {}, {}, {}", cond, dest, reg1, reg2)
-            }
-            Arm32Ins::RsbImd(dest, reg, imd, cond) => {
-                write!(f, "\trsb{} {}, {}, {}", cond, dest, reg, imd)
+            Arm32Ins::Neg(dest, reg, cond) => {
+                write!(f, "\tneg{} {}, {}", cond, dest, reg)
             }
             Arm32Ins::Mul(dest, reg1, reg2, cond) => {
                 write!(f, "\tmul{} {}, {}, {}", cond, dest, reg1, reg2)
@@ -361,12 +356,11 @@ macro_rules! ldr {
 }
 
 #[macro_export]
-macro_rules! rsb {
-    ($dest_reg:ident, $reg:ident, $imd:literal) => {
-        crate::arm32::assembly::Arm32Ins::RsbImd(
+macro_rules! neg {
+    ($dest_reg:ident, $reg:ident) => {
+        crate::arm32::assembly::Arm32Ins::Neg(
             crate::arm32::assembly::Arm32Reg::$dest_reg,
             crate::arm32::assembly::Arm32Reg::$reg,
-            String::from($imd),
             crate::arm32::assembly::Arm32Condition::None,
         )
     };
