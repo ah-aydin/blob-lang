@@ -99,10 +99,10 @@ impl Arm32Compiler {
         self.current_func = String::from(func_name);
         self.functions
             .insert(String::from(func_name), FuncData::from_stmt(func_decl));
-        self.instructions.push(self.gen_func_label(func_name));
+        self.emit(self.gen_func_label(func_name));
 
         // Prologue
-        self.instructions.push(push!(FP, LR));
+        self.emit(push!(FP, LR));
 
         let stmts = match *func_decl.body.clone() {
             Stmt::Block(stmts) => stmts,
@@ -115,7 +115,7 @@ impl Arm32Compiler {
             self.instructions
                 .append(&mut builtin_instructions::get_exit_instructions());
         }
-        self.instructions.push(pop!(FP, PC));
+        self.emit(pop!(FP, PC));
         Ok(())
     }
 
@@ -161,7 +161,7 @@ impl Arm32Compiler {
     }
 
     fn i32_expr(&mut self, number: &str) -> CompilerResult {
-        self.instructions.push(ldr!(R0, number));
+        self.emit(ldr!(R0, number));
         Ok(())
     }
 
@@ -169,12 +169,12 @@ impl Arm32Compiler {
         self.expr(&*unary_op.term)?;
         match unary_op.op_type {
             UnaryOpType::Negate => {
-                self.instructions.push(neg!(R0, R0));
+                self.emit(neg!(R0, R0));
             }
             UnaryOpType::Not => {
-                self.instructions.push(cmp!(R0, "#0"));
-                self.instructions.push(mov!(R0, "#1", Eq));
-                self.instructions.push(mov!(R0, "#0", Ne));
+                self.emit(cmp!(R0, #0));
+                self.emit(mov!(R0, #1, Eq));
+                self.emit(mov!(R0, #0, Ne));
             }
         };
         Ok(())
@@ -182,13 +182,13 @@ impl Arm32Compiler {
 
     fn binary_expr(&mut self, binary_op: &ExprBinaryOp) -> CompilerResult {
         self.expr(&binary_op.left_term)?;
-        self.instructions.push(push!(R0, IP));
+        self.emit(push!(R0, IP));
         self.expr(&binary_op.right_term)?;
-        self.instructions.push(pop!(R1, IP));
+        self.emit(pop!(R1, IP));
         match binary_op.op_type {
-            BinaryOpType::Add => self.instructions.push(add!(R0, R0, R1)),
-            BinaryOpType::Subtract => self.instructions.push(sub!(R0, R1, R0)),
-            BinaryOpType::Multiply => self.instructions.push(mul!(R0, R0, R1)),
+            BinaryOpType::Add => self.emit(add!(R0, R0, R1)),
+            BinaryOpType::Subtract => self.emit(sub!(R0, R1, R0)),
+            BinaryOpType::Multiply => self.emit(mul!(R0, R0, R1)),
             BinaryOpType::Divide => self
                 .instructions
                 .append(&mut builtin_instructions::goto_div_instructions()),
@@ -199,43 +199,43 @@ impl Arm32Compiler {
     fn boolean_expr(&mut self, boolean_op: &ExprBooleanOp) -> CompilerResult {
         if boolean_op.op_type != BooleanOpType::And || boolean_op.op_type != BooleanOpType::Or {
             self.expr(&boolean_op.left_term)?;
-            self.instructions.push(push!(R0, IP));
+            self.emit(push!(R0, IP));
             self.expr(&boolean_op.right_term)?;
-            self.instructions.push(pop!(R1, IP));
+            self.emit(pop!(R1, IP));
         }
         match boolean_op.op_type {
             BooleanOpType::And => todo!(),
             BooleanOpType::Or => todo!(),
-            BooleanOpType::Equal => self.instructions.append(&mut vec![
+            BooleanOpType::Equal => self.emit_multiple(&mut vec![
                 cmp!(R1, R0),
-                mov!(R0, "#1", Eq),
-                mov!(R0, "#0", Ne),
+                mov!(R0, #1, Eq),
+                mov!(R0, #0, Ne),
             ]),
-            BooleanOpType::NotEqual => self.instructions.append(&mut vec![
+            BooleanOpType::NotEqual => self.emit_multiple(&mut vec![
                 cmp!(R1, R0),
-                mov!(R0, "#1", Ne),
-                mov!(R0, "#0", Eq),
+                mov!(R0, #1, Ne),
+                mov!(R0, #0, Eq),
             ]),
-            BooleanOpType::Greater => self.instructions.append(&mut vec![
+            BooleanOpType::Greater => self.emit_multiple(&mut vec![
                 cmp!(R1, R0),
-                mov!(R0, "#1", Gt),
-                mov!(R0, "#0", Le),
+                mov!(R0, #1, Gt),
+                mov!(R0, #0, Le),
             ]),
-            BooleanOpType::GreaterOrEqual => self.instructions.append(&mut vec![
+            BooleanOpType::GreaterOrEqual => self.emit_multiple(&mut vec![
                 cmp!(R1, R0),
-                mov!(R0, "#1", Ge),
-                mov!(R0, "#0", Lt),
+                mov!(R0, #1, Ge),
+                mov!(R0, #0, Lt),
             ]),
-            BooleanOpType::Less => self.instructions.append(&mut vec![
+            BooleanOpType::Less => self.emit_multiple(&mut vec![
                 cmp!(R1, R0),
-                mov!(R0, "#1", Lt),
-                mov!(R0, "#0", Ge),
+                mov!(R0, #1, Lt),
+                mov!(R0, #0, Ge),
             ]),
 
-            BooleanOpType::LessOrEqual => self.instructions.append(&mut vec![
+            BooleanOpType::LessOrEqual => self.emit_multiple(&mut vec![
                 cmp!(R1, R0),
-                mov!(R0, "#1", Le),
-                mov!(R0, "#0", Gt),
+                mov!(R0, #1, Le),
+                mov!(R0, #0, Gt),
             ]),
         };
         Ok(())
@@ -243,31 +243,81 @@ impl Arm32Compiler {
 
     fn call(&mut self, call: &ExprCall) -> CompilerResult {
         let func_name = call.name.as_str();
-        match call.args.len() {
-            0 => self.instructions.push(bl!(func_name)),
+        let arg_count = call.args.len();
+        match arg_count {
+            0 => self.emit(bl!(func_name)),
             1 => {
                 self.expr(call.args.get(0).unwrap())?;
-                self.instructions.push(bl!(func_name));
+                self.emit(bl!(func_name));
             }
-            // 2 => {}
-            // 3 => {}
-            2 | 3 | 4 => {
-                self.instructions.push(sub!(SP, SP, "#16"));
-                for i in 0..call.args.len() {
-                    self.expr(&call.args.get(0).unwrap())?;
+            2 => {
+                self.emit(sub!(SP, SP, #8));
+                for i in 0..2 {
+                    self.expr(&call.args.get(i).unwrap())?;
                     let offset = format!("{}", i * ARM32_WORD_SIZE)
                         .parse::<String>()
                         .unwrap();
-                    self.instructions.push(str!(R0, [SP, offset]));
+                    self.emit(str!(R0, [SP, offset]));
                 }
-                self.instructions.push(pop!(R0, R1, R2, R3));
-                self.instructions.push(bl!(func_name));
+                self.emit(pop!(R0, R1));
+                self.emit(bl!(func_name));
+            }
+            3 => {
+                self.emit(sub!(SP, SP, #12));
+                for i in 0..3 {
+                    self.expr(&call.args.get(i).unwrap())?;
+                    let offset = format!("{}", i * ARM32_WORD_SIZE)
+                        .parse::<String>()
+                        .unwrap();
+                    self.emit(str!(R0, [SP, offset]));
+                }
+                self.emit(pop!(R0, R1, R2));
+                self.emit(bl!(func_name));
+            }
+            4 => {
+                self.emit(sub!(SP, SP, #16));
+                for i in 0..4 {
+                    self.expr(&call.args.get(i).unwrap())?;
+                    let offset = format!("{}", i * ARM32_WORD_SIZE)
+                        .parse::<String>()
+                        .unwrap();
+                    self.emit(str!(R0, [SP, offset]));
+                }
+                self.emit(pop!(R0, R1, R2, R3));
+                self.emit(bl!(func_name));
             }
             _ => {
-                todo!("Implement function calls with more then 4 arguments")
+                self.emit(sub!(SP, SP, #16));
+                for i in 0..4 {
+                    self.expr(&call.args.get(i).unwrap())?;
+                    let offset = format!("{}", i * ARM32_WORD_SIZE)
+                        .parse::<String>()
+                        .unwrap();
+                    self.emit(str!(R0, [SP, offset]));
+                }
+                self.emit(pop!(R0, R1, R2, R3));
+                for i in 4..arg_count {
+                    self.expr(&call.args.get(i).unwrap())?;
+                    let offset = format!("{}", (i - 4) * ARM32_WORD_SIZE)
+                        .parse::<String>()
+                        .unwrap();
+                    self.emit(str!(R0, [SP, offset]));
+                }
+                let call_stack_size = (arg_count - 4) * ARM32_WORD_SIZE;
+                self.emit(bl!(func_name));
+                // Clear stack after call
+                self.emit(add!(SP, SP, #call_stack_size));
             }
         }
         Ok(())
+    }
+
+    fn emit(&mut self, ins: Arm32Ins) {
+        self.instructions.push(ins);
+    }
+
+    fn emit_multiple(&mut self, ins: &mut Vec<Arm32Ins>) {
+        self.instructions.append(ins);
     }
 
     /////////////////////////////////////////////////////////////////

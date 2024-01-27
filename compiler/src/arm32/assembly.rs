@@ -209,13 +209,13 @@ impl fmt::Display for Arm32Ins {
                 write!(f, "\tadd{} {}, {}, {}", cond, dest, reg1, reg2)
             }
             Arm32Ins::AddImd(dest, reg, imd, cond) => {
-                write!(f, "\tadd{} {}, {}, {}", cond, dest, reg, imd)
+                write!(f, "\tadd{} {}, {}, #{}", cond, dest, reg, imd)
             }
             Arm32Ins::Sub(dest, reg1, reg2, cond) => {
                 write!(f, "\tsub{} {}, {}, {}", cond, dest, reg1, reg2)
             }
             Arm32Ins::SubImd(dest, reg, imd, cond) => {
-                write!(f, "\tsub{} {}, {}, {}", cond, dest, reg, imd)
+                write!(f, "\tsub{} {}, {}, #{}", cond, dest, reg, imd)
             }
             Arm32Ins::Neg(dest, reg, cond) => {
                 write!(f, "\tneg{} {}, {}", cond, dest, reg)
@@ -224,38 +224,38 @@ impl fmt::Display for Arm32Ins {
                 write!(f, "\tmul{} {}, {}, {}", cond, dest, reg1, reg2)
             }
             Arm32Ins::MulImd(dest, reg, imd, cond) => {
-                write!(f, "\tmul{} {}, {}, {}", cond, dest, reg, imd)
+                write!(f, "\tmul{} {}, {}, #{}", cond, dest, reg, imd)
             }
 
             Arm32Ins::Bic(dest, reg1, reg2, cond) => {
                 write!(f, "\tbic{} {}, {}, {}", cond, dest, reg1, reg2)
             }
             Arm32Ins::BicImd(dest, reg, imd, cond) => {
-                write!(f, "\tbic{} {}, {}, {}", cond, dest, reg, imd)
+                write!(f, "\tbic{} {}, {}, #{}", cond, dest, reg, imd)
             }
             Arm32Ins::And(dest, reg1, reg2, cond) => {
                 write!(f, "\tand{} {}, {}, {}", cond, dest, reg1, reg2)
             }
             Arm32Ins::AndImd(dest, reg, imd, cond) => {
-                write!(f, "\tand{} {}, {}, {}", cond, dest, reg, imd)
+                write!(f, "\tand{} {}, {}, #{}", cond, dest, reg, imd)
             }
             Arm32Ins::Orr(dest, reg1, reg2, cond) => {
                 write!(f, "\torr{} {}, {}, {}", cond, dest, reg1, reg2)
             }
             Arm32Ins::OrrImd(dest, reg, imd, cond) => {
-                write!(f, "\torr{} {}, {}, {}", cond, dest, reg, imd)
+                write!(f, "\torr{} {}, {}, #{}", cond, dest, reg, imd)
             }
             Arm32Ins::Eor(dest, reg1, reg2, cond) => {
                 write!(f, "\teor{} {}, {}, {}", cond, dest, reg1, reg2)
             }
             Arm32Ins::EorImd(dest, reg, imd, cond) => {
-                write!(f, "\teor{} {}, {}, {}", cond, dest, reg, imd)
+                write!(f, "\teor{} {}, {}, #{}", cond, dest, reg, imd)
             }
 
             Arm32Ins::Mov(dest, reg, cond) => write!(f, "\tmov{} {}, {}", cond, dest, reg),
-            Arm32Ins::MovImd(dest, imd, cond) => write!(f, "\tmov{} {}, {}", cond, dest, imd),
+            Arm32Ins::MovImd(dest, imd, cond) => write!(f, "\tmov{} {}, #{}", cond, dest, imd),
             Arm32Ins::Mvn(dest, reg, cond) => write!(f, "\tmvn{} {}, {}", cond, dest, reg),
-            Arm32Ins::MvnImd(dest, imd, cond) => write!(f, "\tmvn{} {}, {}", cond, dest, imd),
+            Arm32Ins::MvnImd(dest, imd, cond) => write!(f, "\tmvn{} {}, #{}", cond, dest, imd),
 
             Arm32Ins::BLabel(label, cond) => write!(f, "\tb{} {}", cond, label),
             Arm32Ins::BReg(reg, cond) => write!(f, "\tb{} {}", cond, reg),
@@ -263,7 +263,7 @@ impl fmt::Display for Arm32Ins {
             Arm32Ins::BX(reg, cond) => write!(f, "\tbx{} {}", cond, reg),
 
             Arm32Ins::Cmp(reg1, reg2, cond) => write!(f, "\tcmp{} {}, {}", cond, reg1, reg2),
-            Arm32Ins::CmpImd(reg, imd, cond) => write!(f, "\tcmp{} {}, {}", cond, reg, imd),
+            Arm32Ins::CmpImd(reg, imd, cond) => write!(f, "\tcmp{} {}, #{}", cond, reg, imd),
 
             Arm32Ins::Ldr(dest, lbl, cond) => write!(f, "\tldr{} {}, ={}", cond, dest, lbl),
             Arm32Ins::LdrReg(dest, reg, cond) => write!(f, "\tldr{} {}, [{}]", cond, dest, reg),
@@ -284,44 +284,20 @@ impl fmt::Display for Arm32Ins {
 
 #[macro_export]
 macro_rules! label {
-    ($label:ident) => {
-        crate::arm32::assembly::Arm32Ins::Label(String::from($label))
-    };
     ($label:expr) => {
-        crate::arm32::assembly::Arm32Ins::Label(String::from($label))
-    };
-    ($label:literal) => {
         crate::arm32::assembly::Arm32Ins::Label(String::from($label))
     };
 }
 
 #[macro_export]
 macro_rules! b {
-    ($jump_to:ident) => {
-        crate::arm32::assembly::Arm32Ins::BLabel(
-            String::from($jump_to),
-            crate::arm32::assembly::Arm32Condition::None,
-        )
-    };
-    ($jump_to:ident, $condition:ident) => {
-        crate::arm32::assembly::Arm32Ins::BLabel(
-            String::from($jump_to),
-            crate::arm32::assembly::Arm32Condition::$condition,
-        )
-    };
     ($jump_to:expr) => {
         crate::arm32::assembly::Arm32Ins::BLabel(
             String::from($jump_to),
             crate::arm32::assembly::Arm32Condition::None,
         )
     };
-    ($jump_to:literal) => {
-        crate::arm32::assembly::Arm32Ins::BLabel(
-            String::from($jump_to),
-            crate::arm32::assembly::Arm32Condition::None,
-        )
-    };
-    ($jump_to:literal, $condition:ident) => {
+    ($jump_to:expr, $condition:ident) => {
         crate::arm32::assembly::Arm32Ins::BLabel(
             String::from($jump_to),
             crate::arm32::assembly::Arm32Condition::$condition,
@@ -331,7 +307,7 @@ macro_rules! b {
 
 #[macro_export]
 macro_rules! bl {
-    ($label:ident) => {
+    ($label:expr) => {
         crate::arm32::assembly::Arm32Ins::BL(
             String::from($label),
             crate::arm32::assembly::Arm32Condition::None,
@@ -407,10 +383,10 @@ macro_rules! cmp {
             crate::arm32::assembly::Arm32Condition::None,
         )
     };
-    ($reg:ident, $imd:literal) => {
+    ($reg:ident, #$imd:tt) => {
         crate::arm32::assembly::Arm32Ins::CmpImd(
             crate::arm32::assembly::Arm32Reg::$reg,
-            String::from($imd),
+            String::from($imd.to_string()),
             crate::arm32::assembly::Arm32Condition::None,
         )
     };
@@ -425,17 +401,17 @@ macro_rules! mov {
             crate::arm32::assembly::Arm32Condition::None,
         )
     };
-    ($dest_reg:ident, $imd:literal) => {
+    ($dest_reg:ident, #$imd:tt) => {
         crate::arm32::assembly::Arm32Ins::MovImd(
             crate::arm32::assembly::Arm32Reg::$dest_reg,
-            String::from($imd),
+            String::from($imd.to_string()),
             crate::arm32::assembly::Arm32Condition::None,
         )
     };
-    ($dest_reg:ident, $imd:literal, $condition:ident) => {
+    ($dest_reg:ident, #$imd:tt, $condition:ident) => {
         crate::arm32::assembly::Arm32Ins::MovImd(
             crate::arm32::assembly::Arm32Reg::$dest_reg,
-            String::from($imd),
+            String::from($imd.to_string()),
             crate::arm32::assembly::Arm32Condition::$condition,
         )
     };
@@ -451,19 +427,27 @@ macro_rules! add {
             crate::arm32::assembly::Arm32Condition::None,
         )
     };
-    ($dest_reg:ident, $reg:ident, $imd:literal) => {
+    ($dest_reg:ident, $reg:ident, #$imd:tt) => {
         crate::arm32::assembly::Arm32Ins::AddImd(
             crate::arm32::assembly::Arm32Reg::$dest_reg,
             crate::arm32::assembly::Arm32Reg::$reg,
-            String::from($imd),
+            String::from($imd.to_string()),
             crate::arm32::assembly::Arm32Condition::None,
         )
     };
-    ($dest_reg:ident, $reg:ident, $imd:literal, $cond:ident) => {
+    ($dest_reg:ident, $reg:ident, #$imd:tt) => {
         crate::arm32::assembly::Arm32Ins::AddImd(
             crate::arm32::assembly::Arm32Reg::$dest_reg,
             crate::arm32::assembly::Arm32Reg::$reg,
-            String::from($imd),
+            String::from($imd.to_string()),
+            crate::arm32::assembly::Arm32Condition::None,
+        )
+    };
+    ($dest_reg:ident, $reg:ident, #$imd:tt, $cond:ident) => {
+        crate::arm32::assembly::Arm32Ins::AddImd(
+            crate::arm32::assembly::Arm32Reg::$dest_reg,
+            crate::arm32::assembly::Arm32Reg::$reg,
+            String::from($imd.to_string()),
             crate::arm32::assembly::Arm32Condition::$cond,
         )
     };
@@ -479,11 +463,11 @@ macro_rules! sub {
             crate::arm32::assembly::Arm32Condition::None,
         )
     };
-    ($dest_reg:ident, $reg:ident, $value:literal) => {
+    ($dest_reg:ident, $reg:ident, #$value:tt) => {
         crate::arm32::assembly::Arm32Ins::SubImd(
             crate::arm32::assembly::Arm32Reg::$dest_reg,
             crate::arm32::assembly::Arm32Reg::$reg,
-            String::from($value),
+            String::from($value.to_string()),
             crate::arm32::assembly::Arm32Condition::None,
         )
     };
