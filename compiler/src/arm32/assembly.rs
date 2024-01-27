@@ -199,6 +199,15 @@ pub enum Arm32Ins {
     Pop(Vec<Arm32Reg>, Arm32Condition),
 }
 
+impl Arm32Ins {
+    pub fn get_label(&self) -> &str {
+        match self {
+            Arm32Ins::Label(s) => s,
+            _ => unreachable!("Requested the label of a non label instruction")
+        }
+    }
+}
+
 impl fmt::Display for Arm32Ins {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

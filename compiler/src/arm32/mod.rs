@@ -7,7 +7,7 @@ use std::{collections::HashMap, fs::File, io::Write, process::Command};
 use ast::{
     expr::{Expr, ExprBinaryOp, ExprBooleanOp, ExprCall, ExprUnaryOp},
     op_type::{BinaryOpType, BooleanOpType, UnaryOpType},
-    stmt::{Stmt, StmtFuncDecl},
+    stmt::{Stmt, StmtFuncDecl, StmtIf, StmtIfElse},
 };
 
 use crate::common::{CompileError, FuncData};
@@ -94,6 +94,22 @@ impl Arm32Compiler {
         self.link(file_name)
     }
 
+    fn stmt(&mut self, stmt: &Stmt) -> CompilerResult {
+        match stmt {
+            Stmt::Block(stmts) => self.block_stmt(stmts),
+            Stmt::ExprStmt(expr) => self.expr_stmt(expr),
+            Stmt::Return(expr) => self.return_stmt(expr),
+            Stmt::If(iff) => self.if_stmt(iff),
+            Stmt::IfElse(if_else) => self.if_else_stmt(if_else),
+            Stmt::VarDecl(_) => todo!(),
+            Stmt::Assign(_) => todo!(),
+            Stmt::While(_) => todo!(),
+            Stmt::FuncDecl(_) => {
+                unreachable!("Did not expect a function decleration inside a block")
+            }
+        }
+    }
+
     fn func(&mut self, func_decl: &StmtFuncDecl) -> CompilerResult {
         let func_name = func_decl.name.as_str();
         self.current_func = String::from(func_name);
@@ -104,11 +120,7 @@ impl Arm32Compiler {
         // Prologue
         self.emit(push!(FP, LR));
 
-        let stmts = match *func_decl.body.clone() {
-            Stmt::Block(stmts) => stmts,
-            _ => unreachable!(),
-        };
-        self.block_stmt(&stmts)?;
+        self.stmt(&func_decl.body)?;
 
         // Epilogue
         if func_name == "main" {
@@ -121,19 +133,7 @@ impl Arm32Compiler {
 
     fn block_stmt(&mut self, stmts: &Vec<Stmt>) -> CompilerResult {
         for stmt in stmts {
-            match stmt {
-                Stmt::ExprStmt(expr) => self.expr_stmt(expr),
-                Stmt::Block(stmts) => self.block_stmt(stmts),
-                Stmt::Return(expr) => self.return_stmt(expr),
-                Stmt::If(_) => todo!(),
-                Stmt::IfElse(_) => todo!(),
-                Stmt::VarDecl(_) => todo!(),
-                Stmt::Assign(_) => todo!(),
-                Stmt::While(_) => todo!(),
-                Stmt::FuncDecl(_) => {
-                    unreachable!("Did not expect a function decleration inside a block")
-                }
-            }?;
+            self.stmt(stmt)?;
         }
 
         Ok(())
@@ -146,6 +146,34 @@ impl Arm32Compiler {
 
     fn return_stmt(&mut self, expr: &Expr) -> CompilerResult {
         self.expr(expr)?;
+        Ok(())
+    }
+
+    fn if_stmt(&mut self, iff: &StmtIf) -> CompilerResult {
+        let if_end_label = self.gen_in_func_label("ifEnd");
+        self.expr(&iff.condition)?;
+        self.emit_multiple(&mut vec![
+            cmp!(R0, #0),
+            b!(if_end_label.get_label(), Eq)
+        ]);
+        self.stmt(&iff.clause)?;
+        self.emit(if_end_label);
+        Ok(())
+    }
+
+    fn if_else_stmt(&mut self, if_else: &StmtIfElse) -> CompilerResult {
+        let if_else_end_label = self.gen_in_func_label("ifElseEnd");
+        let if_else_false_label = self.gen_in_func_label("ifElseFalse");
+        self.expr(&if_else.condition)?;
+        self.emit_multiple(&mut vec![
+            cmp!(R0, #0),
+            b!(if_else_false_label.get_label(), Eq)
+        ]);
+        self.stmt(&if_else.if_clause)?;
+        self.emit(b!(if_else_end_label.get_label()));
+        self.emit(if_else_false_label);
+        self.stmt(&if_else.else_clause)?;
+        self.emit(if_else_end_label);
         Ok(())
     }
 
@@ -197,46 +225,46 @@ impl Arm32Compiler {
     }
 
     fn boolean_expr(&mut self, boolean_op: &ExprBooleanOp) -> CompilerResult {
-        if boolean_op.op_type != BooleanOpType::And || boolean_op.op_type != BooleanOpType::Or {
+        if boolean_op.op_type != BooleanOpType::And && boolean_op.op_type != BooleanOpType::Or {
             self.expr(&boolean_op.left_term)?;
             self.emit(push!(R0, IP));
             self.expr(&boolean_op.right_term)?;
             self.emit(pop!(R1, IP));
         }
         match boolean_op.op_type {
-            BooleanOpType::And => todo!(),
-            BooleanOpType::Or => todo!(),
-            BooleanOpType::Equal => self.emit_multiple(&mut vec![
-                cmp!(R1, R0),
-                mov!(R0, #1, Eq),
-                mov!(R0, #0, Ne),
-            ]),
-            BooleanOpType::NotEqual => self.emit_multiple(&mut vec![
-                cmp!(R1, R0),
-                mov!(R0, #1, Ne),
-                mov!(R0, #0, Eq),
-            ]),
-            BooleanOpType::Greater => self.emit_multiple(&mut vec![
-                cmp!(R1, R0),
-                mov!(R0, #1, Gt),
-                mov!(R0, #0, Le),
-            ]),
-            BooleanOpType::GreaterOrEqual => self.emit_multiple(&mut vec![
-                cmp!(R1, R0),
-                mov!(R0, #1, Ge),
-                mov!(R0, #0, Lt),
-            ]),
-            BooleanOpType::Less => self.emit_multiple(&mut vec![
-                cmp!(R1, R0),
-                mov!(R0, #1, Lt),
-                mov!(R0, #0, Ge),
-            ]),
+            BooleanOpType::And => {
+                self.expr(&boolean_op.left_term)?;
+                let and_end_label = self.gen_in_func_label("andEnd");
+                self.emit_multiple(&mut vec![cmp!(R0, #0), b!(and_end_label.get_label(), Eq)]);
+                self.expr(&boolean_op.right_term)?;
+                self.emit(and_end_label);
+            }
+            BooleanOpType::Or => {
+                self.expr(&boolean_op.left_term)?;
+                let or_end_label = self.gen_in_func_label("orEnd");
+                self.emit_multiple(&mut vec![cmp!(R0, #1), b!(or_end_label.get_label(), Eq)]);
+                self.expr(&boolean_op.right_term)?;
+                self.emit(or_end_label);
+            }
+            BooleanOpType::Equal => {
+                self.emit_multiple(&mut vec![cmp!(R1, R0), mov!(R0, #1, Eq), mov!(R0, #0, Ne)])
+            }
+            BooleanOpType::NotEqual => {
+                self.emit_multiple(&mut vec![cmp!(R1, R0), mov!(R0, #1, Ne), mov!(R0, #0, Eq)])
+            }
+            BooleanOpType::Greater => {
+                self.emit_multiple(&mut vec![cmp!(R1, R0), mov!(R0, #1, Gt), mov!(R0, #0, Le)])
+            }
+            BooleanOpType::GreaterOrEqual => {
+                self.emit_multiple(&mut vec![cmp!(R1, R0), mov!(R0, #1, Ge), mov!(R0, #0, Lt)])
+            }
+            BooleanOpType::Less => {
+                self.emit_multiple(&mut vec![cmp!(R1, R0), mov!(R0, #1, Lt), mov!(R0, #0, Ge)])
+            }
 
-            BooleanOpType::LessOrEqual => self.emit_multiple(&mut vec![
-                cmp!(R1, R0),
-                mov!(R0, #1, Le),
-                mov!(R0, #0, Gt),
-            ]),
+            BooleanOpType::LessOrEqual => {
+                self.emit_multiple(&mut vec![cmp!(R1, R0), mov!(R0, #1, Le), mov!(R0, #0, Gt)])
+            }
         };
         Ok(())
     }
@@ -330,7 +358,7 @@ impl Arm32Compiler {
     fn gen_in_func_label(&mut self, s: &str) -> Arm32Ins {
         self.func_label_count += 1;
         Arm32Ins::Label(format!(
-            "__{}__{}_{}_",
+            ".L_{}__{}_{}",
             self.current_func, s, self.func_label_count
         ))
     }
