@@ -5,7 +5,7 @@ mod builtin_instructions;
 use std::{collections::HashMap, fs::File, io::Write, process::Command};
 
 use ast::{
-    expr::{Expr, ExprBinaryOp, ExprBooleanOp, ExprUnaryOp},
+    expr::{Expr, ExprBinaryOp, ExprBooleanOp, ExprCall, ExprUnaryOp},
     op_type::{BinaryOpType, BooleanOpType, UnaryOpType},
     stmt::{Stmt, StmtFuncDecl},
 };
@@ -14,7 +14,7 @@ use crate::common::{CompileError, FuncData};
 
 use self::assembly::Arm32Ins;
 
-const ARM32_WORD_SIZE: u32 = 4;
+const ARM32_WORD_SIZE: usize = 4;
 
 type CompilerResult = Result<(), CompileError>;
 
@@ -22,6 +22,7 @@ pub struct Arm32Compiler {
     instructions: Vec<Arm32Ins>,
     functions: HashMap<String, FuncData>,
     func_label_count: usize,
+    current_func: String,
 }
 
 impl Arm32Compiler {
@@ -30,6 +31,7 @@ impl Arm32Compiler {
             instructions: vec![],
             functions: HashMap::new(),
             func_label_count: 0,
+            current_func: String::new(),
         }
     }
 
@@ -94,10 +96,10 @@ impl Arm32Compiler {
 
     fn func(&mut self, func_decl: &StmtFuncDecl) -> CompilerResult {
         let func_name = func_decl.name.as_str();
+        self.current_func = String::from(func_name);
         self.functions
             .insert(String::from(func_name), FuncData::from_stmt(func_decl));
-        self.instructions
-            .push(Arm32Ins::Label(String::from(func_name)));
+        self.instructions.push(self.gen_func_label(func_name));
 
         // Prologue
         self.instructions.push(push!(FP, LR));
@@ -110,7 +112,8 @@ impl Arm32Compiler {
 
         // Epilogue
         if func_name == "main" {
-            self.instructions.append(&mut builtin_instructions::get_exit_instructions());
+            self.instructions
+                .append(&mut builtin_instructions::get_exit_instructions());
         }
         self.instructions.push(pop!(FP, PC));
         Ok(())
@@ -153,7 +156,7 @@ impl Arm32Compiler {
             Expr::UnaryOp(unary_op) => self.unary_expr(unary_op),
             Expr::BinaryOp(binary_op) => self.binary_expr(binary_op),
             Expr::BooleanOp(boolean_op) => self.boolean_expr(boolean_op),
-            Expr::Call(_) => todo!(),
+            Expr::Call(call) => self.call(call),
         }
     }
 
@@ -162,7 +165,7 @@ impl Arm32Compiler {
         Ok(())
     }
 
-    fn unary_expr(&mut self, unary_op: &ExprUnaryOp) -> Result<(), CompileError> {
+    fn unary_expr(&mut self, unary_op: &ExprUnaryOp) -> CompilerResult {
         self.expr(&*unary_op.term)?;
         match unary_op.op_type {
             UnaryOpType::Negate => {
@@ -177,7 +180,7 @@ impl Arm32Compiler {
         Ok(())
     }
 
-    fn binary_expr(&mut self, binary_op: &ExprBinaryOp) -> Result<(), CompileError> {
+    fn binary_expr(&mut self, binary_op: &ExprBinaryOp) -> CompilerResult {
         self.expr(&binary_op.left_term)?;
         self.instructions.push(push!(R0, IP));
         self.expr(&binary_op.right_term)?;
@@ -193,7 +196,7 @@ impl Arm32Compiler {
         Ok(())
     }
 
-    fn boolean_expr(&mut self, boolean_op: &ExprBooleanOp) -> Result<(), CompileError> {
+    fn boolean_expr(&mut self, boolean_op: &ExprBooleanOp) -> CompilerResult {
         if boolean_op.op_type != BooleanOpType::And || boolean_op.op_type != BooleanOpType::Or {
             self.expr(&boolean_op.left_term)?;
             self.instructions.push(push!(R0, IP));
@@ -236,5 +239,49 @@ impl Arm32Compiler {
             ]),
         };
         Ok(())
+    }
+
+    fn call(&mut self, call: &ExprCall) -> CompilerResult {
+        let func_name = call.name.as_str();
+        match call.args.len() {
+            0 => self.instructions.push(bl!(func_name)),
+            1 => {
+                self.expr(call.args.get(0).unwrap())?;
+                self.instructions.push(bl!(func_name));
+            }
+            // 2 => {}
+            // 3 => {}
+            2 | 3 | 4 => {
+                self.instructions.push(sub!(SP, SP, "#16"));
+                for i in 0..call.args.len() {
+                    self.expr(&call.args.get(0).unwrap())?;
+                    let offset = format!("{}", i * ARM32_WORD_SIZE)
+                        .parse::<String>()
+                        .unwrap();
+                    self.instructions.push(str!(R0, [SP, offset]));
+                }
+                self.instructions.push(pop!(R0, R1, R2, R3));
+                self.instructions.push(bl!(func_name));
+            }
+            _ => {
+                todo!("Implement function calls with more then 4 arguments")
+            }
+        }
+        Ok(())
+    }
+
+    /////////////////////////////////////////////////////////////////
+    /// Label generators
+    /////////////////////////////////////////////////////////////////
+    fn gen_func_label(&self, func_name: &str) -> Arm32Ins {
+        Arm32Ins::Label(String::from(func_name))
+    }
+
+    fn gen_in_func_label(&mut self, s: &str) -> Arm32Ins {
+        self.func_label_count += 1;
+        Arm32Ins::Label(format!(
+            "__{}__{}_{}_",
+            self.current_func, s, self.func_label_count
+        ))
     }
 }

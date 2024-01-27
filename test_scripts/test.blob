@@ -1,3 +1,5 @@
 func main(): i32 {
-  return 20 + -20 / -5 / 2 * 2;
+  putchar(80);
+  srand(100);
+  return rand();
 }

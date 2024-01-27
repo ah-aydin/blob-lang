@@ -111,7 +111,7 @@ pub enum Arm32Offset {
 impl fmt::Display for Arm32Offset {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Arm32Offset::Number(n) => write!(f, "{}", n),
+            Arm32Offset::Number(n) => write!(f, "#{}", n),
             Arm32Offset::PosReg(reg) => write!(f, "{}", reg),
             Arm32Offset::NegReg(reg) => write!(f, "-{}", reg),
         }
@@ -272,8 +272,8 @@ impl fmt::Display for Arm32Ins {
             }
 
             Arm32Ins::StrReg(reg, dest, cond) => write!(f, "\tstr{} {}, [{}]", cond, reg, dest),
-            Arm32Ins::StrOffset(reg, dest, offest, cond) => {
-                write!(f, "\tstr{} {}, [{}, {}]", cond, reg, dest, offest)
+            Arm32Ins::StrOffset(src_reg, addr_reg, offset, cond) => {
+                write!(f, "\tstr{} {}, [{}, {}]", cond, src_reg, addr_reg, offset)
             }
 
             Arm32Ins::Push(regs, cond) => write!(f, "\tpush{} {{{}}}", cond, join_regs(&regs)),
@@ -325,6 +325,16 @@ macro_rules! b {
         crate::arm32::assembly::Arm32Ins::BLabel(
             String::from($jump_to),
             crate::arm32::assembly::Arm32Condition::$condition,
+        )
+    };
+}
+
+#[macro_export]
+macro_rules! bl {
+    ($label:ident) => {
+        crate::arm32::assembly::Arm32Ins::BL(
+            String::from($label),
+            crate::arm32::assembly::Arm32Condition::None,
         )
     };
 }
@@ -469,6 +479,14 @@ macro_rules! sub {
             crate::arm32::assembly::Arm32Condition::None,
         )
     };
+    ($dest_reg:ident, $reg:ident, $value:literal) => {
+        crate::arm32::assembly::Arm32Ins::SubImd(
+            crate::arm32::assembly::Arm32Reg::$dest_reg,
+            crate::arm32::assembly::Arm32Reg::$reg,
+            String::from($value),
+            crate::arm32::assembly::Arm32Condition::None,
+        )
+    };
 }
 
 #[macro_export]
@@ -478,6 +496,18 @@ macro_rules! mul {
             crate::arm32::assembly::Arm32Reg::$dest_reg,
             crate::arm32::assembly::Arm32Reg::$reg1,
             crate::arm32::assembly::Arm32Reg::$reg2,
+            crate::arm32::assembly::Arm32Condition::None,
+        )
+    };
+}
+
+#[macro_export]
+macro_rules! str {
+    ($source_reg:ident, [$addr_reg:ident, $offset:expr]) => {
+        crate::arm32::assembly::Arm32Ins::StrOffset(
+            crate::arm32::assembly::Arm32Reg::$source_reg,
+            crate::arm32::assembly::Arm32Reg::$addr_reg,
+            crate::arm32::assembly::Arm32Offset::Number(String::from($offset)),
             crate::arm32::assembly::Arm32Condition::None,
         )
     };
