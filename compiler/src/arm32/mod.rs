@@ -2,42 +2,81 @@
 mod assembly;
 mod builtin_instructions;
 
-use std::{collections::HashMap, fs::File, io::Write, process::Command};
-
+use self::assembly::Arm32Ins;
+use crate::common::CompileError;
 use ast::{
+    blob_type::BlobType,
     expr::{Expr, ExprBinaryOp, ExprBooleanOp, ExprCall, ExprUnaryOp},
     op_type::{BinaryOpType, BooleanOpType, UnaryOpType},
     stmt::{Stmt, StmtFuncDecl, StmtIf, StmtIfElse},
 };
-
-use crate::common::{CompileError, FuncData};
-
-use self::assembly::Arm32Ins;
+use std::{fs::File, io::Write, process::Command};
 
 const ARM32_WORD_SIZE: usize = 4;
 
 type CompilerResult = Result<(), CompileError>;
 
+#[derive(Default)]
+struct FuncEnv {
+    name: String,
+    label_count: usize,
+    arg_count: usize,
+    local_vars: Vec<(String, BlobType)>,
+}
+
+impl FuncEnv {
+    /// Returns the offset from the FP (frame pointer) of the variable
+    fn get_var_offset(&self, param_name: &str) -> i32 {
+        let index = self
+            .local_vars
+            .iter()
+            .position(|(name, _)| name == param_name)
+            .expect("Value is not present in the local variable list");
+        match self.arg_count {
+            0 => None,
+            1 | 2 => match index {
+                0 => Some(-2 * ARM32_WORD_SIZE as i32),
+                1 => Some(-1 * ARM32_WORD_SIZE as i32),
+                _ => None,
+            },
+            3 | 4 => match index {
+                0 => Some(-4 * ARM32_WORD_SIZE as i32),
+                1 => Some(-3 * ARM32_WORD_SIZE as i32),
+                2 => Some(-2 * ARM32_WORD_SIZE as i32),
+                3 => Some(-1 * ARM32_WORD_SIZE as i32),
+                _ => None,
+            },
+            _ => todo!("Implement functions with more then 4 arguments"),
+        }
+        .unwrap_or(self.get_non_param_offset(index))
+    }
+
+    fn get_non_param_offset(&self, index: usize) -> i32 {
+        let after_args_offset = match self.arg_count {
+            0 => 0,
+            1 | 2 => -2 * ARM32_WORD_SIZE as i32,
+            3 | 4 => -4 * ARM32_WORD_SIZE as i32,
+            _ => todo!("Implement functions with more then 4 argumetns"),
+        };
+        -(((index - 3) * ARM32_WORD_SIZE) as i32) + after_args_offset
+    }
+}
+
 pub struct Arm32Compiler {
     instructions: Vec<Arm32Ins>,
-    functions: HashMap<String, FuncData>,
-    func_label_count: usize,
-    current_func: String,
+    current_func_env: FuncEnv
 }
 
 impl Arm32Compiler {
     pub fn new() -> Arm32Compiler {
         Arm32Compiler {
             instructions: vec![],
-            functions: HashMap::new(),
-            func_label_count: 0,
-            current_func: String::new(),
+            current_func_env: FuncEnv::default()
         }
     }
 
     fn reset(&mut self) {
         self.instructions.clear();
-        self.functions.clear();
     }
 
     fn link(&self, file_name: &str) -> CompilerResult {
@@ -84,7 +123,7 @@ impl Arm32Compiler {
             .append(&mut builtin_instructions::div_instructions());
 
         for stmt in &stmts {
-            self.func_label_count = 0;
+            self.current_func_env.label_count = 0;
             let _ = match stmt {
                 Stmt::FuncDecl(stmt_func_decl) => self.func(&stmt_func_decl)?,
                 _ => unreachable!("Got unexpected global statement"),
@@ -112,20 +151,35 @@ impl Arm32Compiler {
 
     fn func(&mut self, func_decl: &StmtFuncDecl) -> CompilerResult {
         let func_name = func_decl.name.as_str();
-        self.current_func = String::from(func_name);
-        self.functions
-            .insert(String::from(func_name), FuncData::from_stmt(func_decl));
+        let is_main = func_name == "main";
+        // Setup environment
+        self.current_func_env.name = String::from(func_name);
+        self.current_func_env.arg_count = func_decl.args.len();
+        self.current_func_env.local_vars = func_decl.args.clone();
+        // TODO put `.global` in here for the function name
         self.emit(self.gen_func_label(func_name));
 
         // Prologue
         self.emit(push!(FP, LR));
+        self.emit(mov!(FP, SP));
+        match func_decl.args.len() {
+            0 => {}
+            1 => self.emit(push!(R0, R1)), // Maintain 8-byte stack allignment
+            2 => self.emit(push!(R0, R1)),
+            3 => self.emit(push!(R0, R1, R2, R3)), // Maintain 8-byte stack allignment
+            4 => self.emit(push!(R0, R1, R2, R3)),
+            _ => todo!("Implement function calls with more then 4 arguments"),
+        }
 
         self.stmt(&func_decl.body)?;
 
         // Epilogue
-        if func_name == "main" {
+        if is_main {
             self.instructions
                 .append(&mut builtin_instructions::get_exit_instructions());
+        } else {
+            self.emit(mov!(SP, FP));
+            // self.emit(mov!(R0, #0));
         }
         self.emit(pop!(FP, PC));
         Ok(())
@@ -146,16 +200,15 @@ impl Arm32Compiler {
 
     fn return_stmt(&mut self, expr: &Expr) -> CompilerResult {
         self.expr(expr)?;
+        self.emit(mov!(SP, FP));
+        self.emit(pop!(FP, PC));
         Ok(())
     }
 
     fn if_stmt(&mut self, iff: &StmtIf) -> CompilerResult {
         let if_end_label = self.gen_in_func_label("ifEnd");
         self.expr(&iff.condition)?;
-        self.emit_multiple(&mut vec![
-            cmp!(R0, #0),
-            b!(if_end_label.get_label(), Eq)
-        ]);
+        self.emit_multiple(&mut vec![cmp!(R0, #0), b!(if_end_label.get_label(), Eq)]);
         self.stmt(&iff.clause)?;
         self.emit(if_end_label);
         Ok(())
@@ -167,7 +220,7 @@ impl Arm32Compiler {
         self.expr(&if_else.condition)?;
         self.emit_multiple(&mut vec![
             cmp!(R0, #0),
-            b!(if_else_false_label.get_label(), Eq)
+            b!(if_else_false_label.get_label(), Eq),
         ]);
         self.stmt(&if_else.if_clause)?;
         self.emit(b!(if_else_end_label.get_label()));
@@ -180,7 +233,7 @@ impl Arm32Compiler {
     fn expr(&mut self, expr: &Expr) -> CompilerResult {
         match expr {
             Expr::Number(number) => self.i32_expr(number),
-            Expr::Identifier(_) => todo!(),
+            Expr::Identifier(name) => self.identifier_expr(name),
             Expr::UnaryOp(unary_op) => self.unary_expr(unary_op),
             Expr::BinaryOp(binary_op) => self.binary_expr(binary_op),
             Expr::BooleanOp(boolean_op) => self.boolean_expr(boolean_op),
@@ -190,6 +243,12 @@ impl Arm32Compiler {
 
     fn i32_expr(&mut self, number: &str) -> CompilerResult {
         self.emit(ldr!(R0, number));
+        Ok(())
+    }
+
+    fn identifier_expr(&mut self, name: &str) -> CompilerResult {
+        let offset = self.current_func_env.get_var_offset(name);
+        self.emit(ldr!(R0, [FP, #offset]));
         Ok(())
     }
 
@@ -315,26 +374,27 @@ impl Arm32Compiler {
                 self.emit(bl!(func_name));
             }
             _ => {
-                self.emit(sub!(SP, SP, #16));
-                for i in 0..4 {
-                    self.expr(&call.args.get(i).unwrap())?;
-                    let offset = format!("{}", i * ARM32_WORD_SIZE)
-                        .parse::<String>()
-                        .unwrap();
-                    self.emit(str!(R0, [SP, offset]));
-                }
-                self.emit(pop!(R0, R1, R2, R3));
-                for i in 4..arg_count {
-                    self.expr(&call.args.get(i).unwrap())?;
-                    let offset = format!("{}", (i - 4) * ARM32_WORD_SIZE)
-                        .parse::<String>()
-                        .unwrap();
-                    self.emit(str!(R0, [SP, offset]));
-                }
-                let call_stack_size = (arg_count - 4) * ARM32_WORD_SIZE;
-                self.emit(bl!(func_name));
-                // Clear stack after call
-                self.emit(add!(SP, SP, #call_stack_size));
+                todo!("Implement function calls with more then 4 arguments");
+                // self.emit(sub!(SP, SP, #16));
+                // for i in 0..4 {
+                //     self.expr(&call.args.get(i).unwrap())?;
+                //     let offset = format!("{}", i * ARM32_WORD_SIZE)
+                //         .parse::<String>()
+                //         .unwrap();
+                //     self.emit(str!(R0, [SP, offset]));
+                // }
+                // self.emit(pop!(R0, R1, R2, R3));
+                // for i in 4..arg_count {
+                //     self.expr(&call.args.get(i).unwrap())?;
+                //     let offset = format!("{}", (i - 4) * ARM32_WORD_SIZE)
+                //         .parse::<String>()
+                //         .unwrap();
+                //     self.emit(str!(R0, [SP, offset]));
+                // }
+                // let call_stack_size = (arg_count - 4) * ARM32_WORD_SIZE;
+                // self.emit(bl!(func_name));
+                // // Clear stack after call
+                // self.emit(add!(SP, SP, #call_stack_size));
             }
         }
         Ok(())
@@ -356,10 +416,10 @@ impl Arm32Compiler {
     }
 
     fn gen_in_func_label(&mut self, s: &str) -> Arm32Ins {
-        self.func_label_count += 1;
+        self.current_func_env.label_count += 1;
         Arm32Ins::Label(format!(
             ".L_{}__{}_{}",
-            self.current_func, s, self.func_label_count
+            self.current_func_env.name, s, self.current_func_env.label_count
         ))
     }
 }

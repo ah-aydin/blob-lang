@@ -363,6 +363,14 @@ macro_rules! ldr {
             crate::arm32::assembly::Arm32Condition::None,
         )
     };
+    ($dest_reg:ident, [$addr_reg:ident, #$offset:expr]) => {
+        crate::arm32::assembly::Arm32Ins::LdrRegOffset(
+            crate::arm32::assembly::Arm32Reg::$dest_reg,
+            crate::arm32::assembly::Arm32Reg::$addr_reg,
+            crate::arm32::assembly::Arm32Offset::Number($offset.to_string()),
+            crate::arm32::assembly::Arm32Condition::None,
+         )
+    };
 }
 
 #[macro_export]

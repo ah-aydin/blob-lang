@@ -1,3 +1,26 @@
+func get_number(meh: i32): i32 {
+  return 2 + meh;
+}
+
+func add_2_numbers(a: i32, b: i32): i32 {
+  return a + b;
+}
+
+func add_3_numbers(a: i32, b: i32, c: i32): i32 {
+  return a + b + c;
+}
+
+func add_4_numbers(a: i32, b: i32, c: i32, d: i32): i32 {
+  return a + b + c + d;
+}
+
+func my_sum(a: i32): i32 {
+  if (a == 0) {
+    return 0;
+  }
+  return a + my_sum(a - 1);
+}
+
 func main(): i32 {
   if (1 != 1) {
     putchar(65);
@@ -8,5 +31,5 @@ func main(): i32 {
   } else {
     putchar(68);
   }
-  return 0;
+  return my_sum(10);
 }

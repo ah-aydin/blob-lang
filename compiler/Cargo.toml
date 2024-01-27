@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 ast = { path = "../ast" }
 parser = { path = "../parser" }
+
+derive-new = "0.6.0"
