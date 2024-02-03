@@ -8,7 +8,7 @@ use ast::{
     blob_type::BlobType,
     expr::{Expr, ExprBinaryOp, ExprBooleanOp, ExprCall, ExprUnaryOp},
     op_type::{BinaryOpType, BooleanOpType, UnaryOpType},
-    stmt::{Stmt, StmtFuncDecl, StmtIf, StmtIfElse, StmtVarDecl},
+    stmt::{Stmt, StmtFuncDecl, StmtIf, StmtIfElse, StmtVarDecl, StmtAssign},
 };
 use std::{fs::File, io::Write, process::Command};
 
@@ -42,10 +42,6 @@ impl ScopeEnv {
         let index = self.vars.iter().position(|(name, _)| name == var_name)?;
         Some(((index + 1) * WORD_SIZE * 2) as i32 + self.scope_stack_start)
     }
-
-    fn get_last_offset(&self) -> i32 {
-        self.scope_stack_start + self.get_scope_size()
-    }
 }
 
 #[derive(Default, Debug)]
@@ -59,7 +55,7 @@ struct FuncEnv {
 
 impl FuncEnv {
     /// Returns the offset from the FP (frame pointer) of the variable
-    fn get_arg_offset(&self, param_name: &str) -> i32 {
+    fn get_var_offset(&self, param_name: &str) -> i32 {
         let index = self.args.iter().position(|(name, _)| name == param_name);
 
         if index.is_none() {
@@ -185,7 +181,7 @@ impl Arm32Compiler {
             Stmt::If(iff) => self.if_stmt(iff),
             Stmt::IfElse(if_else) => self.if_else_stmt(if_else),
             Stmt::VarDecl(var_decl) => self.var_decl_stmt(var_decl),
-            Stmt::Assign(_) => todo!(),
+            Stmt::Assign(assign) => self.assign_stmt(assign),
             Stmt::While(_) => todo!(),
             Stmt::FuncDecl(_) => {
                 unreachable!("Did not expect a function decleration inside a block")
@@ -283,12 +279,16 @@ impl Arm32Compiler {
         let var = (var_decl.name.clone(), var_decl.blob_type.clone().unwrap());
         let scope = self.current_func_env.scopes.last_mut().unwrap();
         scope.add_var(var);
-        // let var_offset = scope.get_last_offset();
 
         self.expr(&var_decl.to)?;
         self.emit(push!(R0, IP));
-        // self.emit(sub!(SP, SP, #8));
-        // self.emit(str!(R0, [SP, var_offset]));
+        Ok(())
+    }
+
+    fn assign_stmt(&mut self, assign: &StmtAssign) -> CompilerResult {
+        self.expr(&assign.to)?;
+        let offset = self.current_func_env.get_var_offset(&assign.name);
+        self.emit(str!(R0, [FP, offset]));
         Ok(())
     }
 
@@ -309,7 +309,7 @@ impl Arm32Compiler {
     }
 
     fn identifier_expr(&mut self, name: &str) -> CompilerResult {
-        let offset = self.current_func_env.get_arg_offset(name);
+        let offset = self.current_func_env.get_var_offset(name);
         self.emit(ldr!(R0, [FP, #offset]));
         Ok(())
     }
