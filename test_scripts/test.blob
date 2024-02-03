@@ -37,15 +37,23 @@ func add_7_numbers(a: i32, b: i32, c: i32, d: i32, e: i32, f: i32, g: i32): i32 
   return a + b + c + d + e + f + g;
 }
 
+func local_vars(a: i32, b: i32, c: i32, d: i32, e: i32, f: i32): i32 {
+  var v1: i32 = 1;
+  var v2: i32 = 2;
+  var v3: i32 = v2 * 3 + v1;
+  return v3;
+}
+
 func main(): i32 {
-  if (1 != 1) {
+  var c: i32 = 2;
+  if (c == 1) {
     putchar(65);
-  } else if (2 != 2) {
+  } else if (c != 2) {
     putchar(66);
-  } else if (3 == 3) {
+  } else if (c != 3) {
     putchar(67);
   } else {
     putchar(68);
   }
-  return add_7_numbers(1, 2, 3, 4, 5, 6, 7);
+  return local_vars(0, 0, 0, 0, 0, 0);
 }

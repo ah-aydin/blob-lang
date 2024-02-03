@@ -8,7 +8,7 @@ use ast::{
     blob_type::BlobType,
     expr::{Expr, ExprBinaryOp, ExprBooleanOp, ExprCall, ExprUnaryOp},
     op_type::{BinaryOpType, BooleanOpType, UnaryOpType},
-    stmt::{Stmt, StmtFuncDecl, StmtIf, StmtIfElse},
+    stmt::{Stmt, StmtFuncDecl, StmtIf, StmtIfElse, StmtVarDecl},
 };
 use std::{fs::File, io::Write, process::Command};
 
@@ -16,57 +16,93 @@ const WORD_SIZE: usize = 4;
 
 type CompilerResult = Result<(), CompileError>;
 
-#[derive(Default)]
+#[derive(Debug)]
+struct ScopeEnv {
+    scope_stack_start: i32,
+    vars: Vec<(String, BlobType)>,
+}
+
+impl ScopeEnv {
+    fn new(prev_scope_stack_size: i32) -> ScopeEnv {
+        ScopeEnv {
+            scope_stack_start: prev_scope_stack_size,
+            vars: Vec::new(),
+        }
+    }
+
+    fn get_scope_size(&self) -> i32 {
+        (self.vars.len() * WORD_SIZE * 2) as i32
+    }
+
+    fn add_var(&mut self, var: (String, BlobType)) {
+        self.vars.push(var)
+    }
+
+    fn get_var_offset(&self, var_name: &str) -> Option<i32> {
+        let index = self.vars.iter().position(|(name, _)| name == var_name)?;
+        Some(((index + 1) * WORD_SIZE * 2) as i32 + self.scope_stack_start)
+    }
+
+    fn get_last_offset(&self) -> i32 {
+        self.scope_stack_start + self.get_scope_size()
+    }
+}
+
+#[derive(Default, Debug)]
 struct FuncEnv {
     name: String,
     label_count: usize,
     arg_count: usize,
-    local_vars: Vec<(String, BlobType)>,
+    args: Vec<(String, BlobType)>,
+    scopes: Vec<ScopeEnv>,
 }
 
 impl FuncEnv {
     /// Returns the offset from the FP (frame pointer) of the variable
-    fn get_var_offset(&self, param_name: &str) -> i32 {
-        let index = self
-            .local_vars
-            .iter()
-            .position(|(name, _)| name == param_name)
-            .expect("Value is not present in the local variable list");
+    fn get_arg_offset(&self, param_name: &str) -> i32 {
+        let index = self.args.iter().position(|(name, _)| name == param_name);
+
+        if index.is_none() {
+            return self.get_non_param_offset(param_name);
+        }
+        let index = index.unwrap();
+
         match self.arg_count {
-            0 => None,
+            0 => unreachable!(),
             1 | 2 => match index {
-                0 => Some(-2 * WORD_SIZE as i32),
-                1 => Some(-1 * WORD_SIZE as i32),
-                _ => None,
+                0 => -2 * WORD_SIZE as i32,
+                1 => -1 * WORD_SIZE as i32,
+                _ => unreachable!(),
             },
             3 | 4 => match index {
-                0 => Some(-4 * WORD_SIZE as i32),
-                1 => Some(-3 * WORD_SIZE as i32),
-                2 => Some(-2 * WORD_SIZE as i32),
-                3 => Some(-1 * WORD_SIZE as i32),
-                _ => None,
+                0 => -4 * WORD_SIZE as i32,
+                1 => -3 * WORD_SIZE as i32,
+                2 => -2 * WORD_SIZE as i32,
+                3 => -1 * WORD_SIZE as i32,
+                _ => unreachable!(),
             },
-            arg_count => match index {
-                0 => Some(-4 * WORD_SIZE as i32),
-                1 => Some(-3 * WORD_SIZE as i32),
-                2 => Some(-2 * WORD_SIZE as i32),
-                3 => Some(-1 * WORD_SIZE as i32),
-                index => match index > arg_count - 1 {
-                    true => None,
-                    false => Some((WORD_SIZE * 2 + (index - 4) * WORD_SIZE) as i32),
-                },
+            _ => match index {
+                0 => -4 * WORD_SIZE as i32,
+                1 => -3 * WORD_SIZE as i32,
+                2 => -2 * WORD_SIZE as i32,
+                3 => -1 * WORD_SIZE as i32,
+                index => (WORD_SIZE * 2 + (index - 4) * WORD_SIZE) as i32,
             },
         }
-        .unwrap_or(self.get_non_param_offset(index))
     }
 
-    fn get_non_param_offset(&self, index: usize) -> i32 {
-        let after_args_offset = match self.arg_count {
+    fn get_non_param_offset(&self, param_name: &str) -> i32 {
+        let args_stack_size = match self.arg_count {
             0 => 0,
-            1 | 2 => -2 * WORD_SIZE as i32,
-            _ => -4 * WORD_SIZE as i32,
+            1 | 2 => 2 * WORD_SIZE as i32,
+            _ => 4 * WORD_SIZE as i32,
         };
-        -(((index - 3) * WORD_SIZE) as i32) + after_args_offset
+        for scope in self.scopes.iter().rev() {
+            if let Some(offset) = scope.get_var_offset(param_name) {
+                return -(offset + args_stack_size);
+            }
+        }
+        unreachable!("'{}' does not exist in the local scope", param_name)
     }
 }
 
@@ -148,7 +184,7 @@ impl Arm32Compiler {
             Stmt::Return(expr) => self.return_stmt(expr),
             Stmt::If(iff) => self.if_stmt(iff),
             Stmt::IfElse(if_else) => self.if_else_stmt(if_else),
-            Stmt::VarDecl(_) => todo!(),
+            Stmt::VarDecl(var_decl) => self.var_decl_stmt(var_decl),
             Stmt::Assign(_) => todo!(),
             Stmt::While(_) => todo!(),
             Stmt::FuncDecl(_) => {
@@ -163,7 +199,8 @@ impl Arm32Compiler {
         // Setup environment
         self.current_func_env.name = String::from(func_name);
         self.current_func_env.arg_count = func_decl.args.len();
-        self.current_func_env.local_vars = func_decl.args.clone();
+        self.current_func_env.args = func_decl.args.clone();
+        self.current_func_env.scopes.clear();
         // TODO put `.global` in here for the function name
         self.emit(self.gen_func_label(func_name));
 
@@ -190,9 +227,18 @@ impl Arm32Compiler {
     }
 
     fn block_stmt(&mut self, stmts: &Vec<Stmt>) -> CompilerResult {
+        let prev_scope_size = match self.current_func_env.scopes.last() {
+            Some(scope) => scope.get_scope_size() + scope.scope_stack_start,
+            None => 0,
+        };
+        self.current_func_env
+            .scopes
+            .push(ScopeEnv::new(prev_scope_size));
         for stmt in stmts {
             self.stmt(stmt)?;
         }
+        let scope_stack_size = self.current_func_env.scopes.pop().unwrap().get_scope_size();
+        self.emit(sub!(SP, SP, #scope_stack_size));
         Ok(())
     }
 
@@ -233,6 +279,19 @@ impl Arm32Compiler {
         Ok(())
     }
 
+    fn var_decl_stmt(&mut self, var_decl: &StmtVarDecl) -> CompilerResult {
+        let var = (var_decl.name.clone(), var_decl.blob_type.clone().unwrap());
+        let scope = self.current_func_env.scopes.last_mut().unwrap();
+        scope.add_var(var);
+        // let var_offset = scope.get_last_offset();
+
+        self.expr(&var_decl.to)?;
+        self.emit(push!(R0, IP));
+        // self.emit(sub!(SP, SP, #8));
+        // self.emit(str!(R0, [SP, var_offset]));
+        Ok(())
+    }
+
     fn expr(&mut self, expr: &Expr) -> CompilerResult {
         match expr {
             Expr::Number(number) => self.i32_expr(number),
@@ -250,7 +309,7 @@ impl Arm32Compiler {
     }
 
     fn identifier_expr(&mut self, name: &str) -> CompilerResult {
-        let offset = self.current_func_env.get_var_offset(name);
+        let offset = self.current_func_env.get_arg_offset(name);
         self.emit(ldr!(R0, [FP, #offset]));
         Ok(())
     }

@@ -508,7 +508,7 @@ macro_rules! str {
         crate::arm32::assembly::Arm32Ins::StrOffset(
             crate::arm32::assembly::Arm32Reg::$source_reg,
             crate::arm32::assembly::Arm32Reg::$addr_reg,
-            crate::arm32::assembly::Arm32Offset::Number(String::from($offset)),
+            crate::arm32::assembly::Arm32Offset::Number($offset.to_string()),
             crate::arm32::assembly::Arm32Condition::None,
         )
     };
