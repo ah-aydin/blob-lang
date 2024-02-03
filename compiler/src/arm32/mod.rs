@@ -12,7 +12,7 @@ use ast::{
 };
 use std::{fs::File, io::Write, process::Command};
 
-const ARM32_WORD_SIZE: usize = 4;
+const WORD_SIZE: usize = 4;
 
 type CompilerResult = Result<(), CompileError>;
 
@@ -35,18 +35,27 @@ impl FuncEnv {
         match self.arg_count {
             0 => None,
             1 | 2 => match index {
-                0 => Some(-2 * ARM32_WORD_SIZE as i32),
-                1 => Some(-1 * ARM32_WORD_SIZE as i32),
+                0 => Some(-2 * WORD_SIZE as i32),
+                1 => Some(-1 * WORD_SIZE as i32),
                 _ => None,
             },
             3 | 4 => match index {
-                0 => Some(-4 * ARM32_WORD_SIZE as i32),
-                1 => Some(-3 * ARM32_WORD_SIZE as i32),
-                2 => Some(-2 * ARM32_WORD_SIZE as i32),
-                3 => Some(-1 * ARM32_WORD_SIZE as i32),
+                0 => Some(-4 * WORD_SIZE as i32),
+                1 => Some(-3 * WORD_SIZE as i32),
+                2 => Some(-2 * WORD_SIZE as i32),
+                3 => Some(-1 * WORD_SIZE as i32),
                 _ => None,
             },
-            _ => todo!("Implement functions with more then 4 arguments"),
+            arg_count => match index {
+                0 => Some(-4 * WORD_SIZE as i32),
+                1 => Some(-3 * WORD_SIZE as i32),
+                2 => Some(-2 * WORD_SIZE as i32),
+                3 => Some(-1 * WORD_SIZE as i32),
+                index => match index > arg_count - 1 {
+                    true => None,
+                    false => Some((WORD_SIZE * 2 + (index - 4) * WORD_SIZE) as i32),
+                },
+            },
         }
         .unwrap_or(self.get_non_param_offset(index))
     }
@@ -54,24 +63,23 @@ impl FuncEnv {
     fn get_non_param_offset(&self, index: usize) -> i32 {
         let after_args_offset = match self.arg_count {
             0 => 0,
-            1 | 2 => -2 * ARM32_WORD_SIZE as i32,
-            3 | 4 => -4 * ARM32_WORD_SIZE as i32,
-            _ => todo!("Implement functions with more then 4 argumetns"),
+            1 | 2 => -2 * WORD_SIZE as i32,
+            _ => -4 * WORD_SIZE as i32,
         };
-        -(((index - 3) * ARM32_WORD_SIZE) as i32) + after_args_offset
+        -(((index - 3) * WORD_SIZE) as i32) + after_args_offset
     }
 }
 
 pub struct Arm32Compiler {
     instructions: Vec<Arm32Ins>,
-    current_func_env: FuncEnv
+    current_func_env: FuncEnv,
 }
 
 impl Arm32Compiler {
     pub fn new() -> Arm32Compiler {
         Arm32Compiler {
             instructions: vec![],
-            current_func_env: FuncEnv::default()
+            current_func_env: FuncEnv::default(),
         }
     }
 
@@ -164,11 +172,8 @@ impl Arm32Compiler {
         self.emit(mov!(FP, SP));
         match func_decl.args.len() {
             0 => {}
-            1 => self.emit(push!(R0, R1)), // Maintain 8-byte stack allignment
-            2 => self.emit(push!(R0, R1)),
-            3 => self.emit(push!(R0, R1, R2, R3)), // Maintain 8-byte stack allignment
-            4 => self.emit(push!(R0, R1, R2, R3)),
-            _ => todo!("Implement function calls with more then 4 arguments"),
+            1 | 2 => self.emit(push!(R0, R1)),
+            _ => self.emit(push!(R0, R1, R2, R3)),
         }
 
         self.stmt(&func_decl.body)?;
@@ -179,7 +184,6 @@ impl Arm32Compiler {
                 .append(&mut builtin_instructions::get_exit_instructions());
         } else {
             self.emit(mov!(SP, FP));
-            // self.emit(mov!(R0, #0));
         }
         self.emit(pop!(FP, PC));
         Ok(())
@@ -189,7 +193,6 @@ impl Arm32Compiler {
         for stmt in stmts {
             self.stmt(stmt)?;
         }
-
         Ok(())
     }
 
@@ -341,9 +344,7 @@ impl Arm32Compiler {
                 self.emit(sub!(SP, SP, #8));
                 for i in 0..2 {
                     self.expr(&call.args.get(i).unwrap())?;
-                    let offset = format!("{}", i * ARM32_WORD_SIZE)
-                        .parse::<String>()
-                        .unwrap();
+                    let offset = format!("{}", i * WORD_SIZE).parse::<String>().unwrap();
                     self.emit(str!(R0, [SP, offset]));
                 }
                 self.emit(pop!(R0, R1));
@@ -353,9 +354,7 @@ impl Arm32Compiler {
                 self.emit(sub!(SP, SP, #12));
                 for i in 0..3 {
                     self.expr(&call.args.get(i).unwrap())?;
-                    let offset = format!("{}", i * ARM32_WORD_SIZE)
-                        .parse::<String>()
-                        .unwrap();
+                    let offset = format!("{}", i * WORD_SIZE).parse::<String>().unwrap();
                     self.emit(str!(R0, [SP, offset]));
                 }
                 self.emit(pop!(R0, R1, R2));
@@ -365,36 +364,40 @@ impl Arm32Compiler {
                 self.emit(sub!(SP, SP, #16));
                 for i in 0..4 {
                     self.expr(&call.args.get(i).unwrap())?;
-                    let offset = format!("{}", i * ARM32_WORD_SIZE)
-                        .parse::<String>()
-                        .unwrap();
+                    let offset = format!("{}", i * WORD_SIZE).parse::<String>().unwrap();
                     self.emit(str!(R0, [SP, offset]));
                 }
                 self.emit(pop!(R0, R1, R2, R3));
                 self.emit(bl!(func_name));
             }
-            _ => {
-                todo!("Implement function calls with more then 4 arguments");
-                // self.emit(sub!(SP, SP, #16));
-                // for i in 0..4 {
-                //     self.expr(&call.args.get(i).unwrap())?;
-                //     let offset = format!("{}", i * ARM32_WORD_SIZE)
-                //         .parse::<String>()
-                //         .unwrap();
-                //     self.emit(str!(R0, [SP, offset]));
-                // }
-                // self.emit(pop!(R0, R1, R2, R3));
-                // for i in 4..arg_count {
-                //     self.expr(&call.args.get(i).unwrap())?;
-                //     let offset = format!("{}", (i - 4) * ARM32_WORD_SIZE)
-                //         .parse::<String>()
-                //         .unwrap();
-                //     self.emit(str!(R0, [SP, offset]));
-                // }
-                // let call_stack_size = (arg_count - 4) * ARM32_WORD_SIZE;
-                // self.emit(bl!(func_name));
-                // // Clear stack after call
-                // self.emit(add!(SP, SP, #call_stack_size));
+            arg_count => {
+                // Make space on the stack for the extra arguments
+                let extra_args_stack_size = match arg_count % 2 == 0 {
+                    true => (arg_count - 4) * WORD_SIZE,
+                    // Keep 8-byte stack allignment
+                    false => (arg_count - 4) * WORD_SIZE + WORD_SIZE,
+                };
+                self.emit(sub!(SP, SP, #extra_args_stack_size));
+                for i in 4..arg_count {
+                    self.expr(&call.args.get(i).unwrap())?;
+                    let offset = format!("{}", (i - 4) * WORD_SIZE)
+                        .parse::<String>()
+                        .unwrap();
+                    self.emit(str!(R0, [SP, offset]));
+                }
+
+                // Emit first 4 args
+                self.emit(sub!(SP, SP, #16));
+                for i in 0..4 {
+                    self.expr(&call.args.get(i).unwrap())?;
+                    let offset = format!("{}", i * WORD_SIZE).parse::<String>().unwrap();
+                    self.emit(str!(R0, [SP, offset]));
+                }
+                self.emit(pop!(R0, R1, R2, R3));
+
+                self.emit(bl!(func_name));
+                // Clear stack for extra arguments
+                self.emit(add!(SP, SP, #extra_args_stack_size));
             }
         }
         Ok(())
