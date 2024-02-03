@@ -8,7 +8,7 @@ use ast::{
     blob_type::BlobType,
     expr::{Expr, ExprBinaryOp, ExprBooleanOp, ExprCall, ExprUnaryOp},
     op_type::{BinaryOpType, BooleanOpType, UnaryOpType},
-    stmt::{Stmt, StmtFuncDecl, StmtIf, StmtIfElse, StmtVarDecl, StmtAssign},
+    stmt::{Stmt, StmtAssign, StmtFuncDecl, StmtIf, StmtIfElse, StmtVarDecl, StmtWhile},
 };
 use std::{fs::File, io::Write, process::Command};
 
@@ -182,7 +182,7 @@ impl Arm32Compiler {
             Stmt::IfElse(if_else) => self.if_else_stmt(if_else),
             Stmt::VarDecl(var_decl) => self.var_decl_stmt(var_decl),
             Stmt::Assign(assign) => self.assign_stmt(assign),
-            Stmt::While(_) => todo!(),
+            Stmt::While(whilee) => self.while_stmt(whilee),
             Stmt::FuncDecl(_) => {
                 unreachable!("Did not expect a function decleration inside a block")
             }
@@ -289,6 +289,19 @@ impl Arm32Compiler {
         self.expr(&assign.to)?;
         let offset = self.current_func_env.get_var_offset(&assign.name);
         self.emit(str!(R0, [FP, offset]));
+        Ok(())
+    }
+
+    fn while_stmt(&mut self, whilee: &StmtWhile) -> CompilerResult {
+        let start_label = self.gen_in_func_label("whileStart");
+        let end_label = self.gen_in_func_label("whileEnd");
+
+        self.emit(start_label.clone());
+        self.expr(&whilee.condition)?;
+        self.emit_multiple(&mut vec![cmp!(R0, #0), b!(end_label.get_label(), Eq)]);
+        self.stmt(&whilee.body)?;
+        self.emit(b!(start_label.get_label()));
+        self.emit(end_label);
         Ok(())
     }
 

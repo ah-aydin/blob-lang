@@ -1,5 +1,6 @@
 use std::fmt;
 
+#[derive(Clone)]
 pub enum Arm32Reg {
     R0,
     R1,
@@ -55,7 +56,7 @@ fn join_regs(regs: &Vec<Arm32Reg>) -> String {
         .join(",")
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Arm32Condition {
     Eq,
     Ne,
@@ -102,6 +103,7 @@ impl fmt::Display for Arm32Condition {
     }
 }
 
+#[derive(Clone)]
 pub enum Arm32Offset {
     Number(String),
     PosReg(Arm32Reg),
@@ -118,6 +120,7 @@ impl fmt::Display for Arm32Offset {
     }
 }
 
+#[derive(Clone)]
 pub enum Arm32Ins {
     Label(String),
 
@@ -203,7 +206,7 @@ impl Arm32Ins {
     pub fn get_label(&self) -> &str {
         match self {
             Arm32Ins::Label(s) => s,
-            _ => unreachable!("Requested the label of a non label instruction")
+            _ => unreachable!("Requested the label of a non label instruction"),
         }
     }
 }
@@ -369,7 +372,7 @@ macro_rules! ldr {
             crate::arm32::assembly::Arm32Reg::$addr_reg,
             crate::arm32::assembly::Arm32Offset::Number($offset.to_string()),
             crate::arm32::assembly::Arm32Condition::None,
-         )
+        )
     };
 }
 
