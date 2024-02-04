@@ -57,15 +57,19 @@ func nested_scopes(): i32 {
   return v1;
 }
 
+func printChar(c: i32) {
+  putchar(c);
+}
+
 func main(): i32 {
-  var c: i32 = 2;
+  var c: i32 = 5;
   if (c == 1) {
     putchar(65);
-  } else if (c != 2) {
+  } else if (c == 2) {
     putchar(66);
-  } else if (c != 3) {
+  } else if (c == 3) {
     putchar(67);
-  } else {
+  } else if (c == 4) {
     putchar(68);
   }
   var i: i32 = 0;
@@ -74,5 +78,12 @@ func main(): i32 {
     s = s + i;
     i = i + 1;
   }
-  return s;
+  s = s + add_2_numbers(10, 20) + 5;
+  printChar(72);
+  printChar(97);
+  printChar(109);
+  printChar(122);
+  printChar(97);
+  printChar(10);
+  return s + add_3_numbers(1, 1, 1);
 }

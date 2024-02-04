@@ -3,7 +3,7 @@ mod common;
 
 use arm32::Arm32Compiler;
 use parser::{Parser, ParserStatus};
-use std::{env, path::Path};
+use std::{env, path::Path, collections::btree_map::Keys};
 
 fn cmain() -> Result<i32, i32> {
     let args: Vec<String> = env::args().collect();
@@ -35,6 +35,10 @@ fn cmain() -> Result<i32, i32> {
             Err(1)
         }
     }?;
+
+    // TODO add checks
+    // 1. Varaible type check
+    // 2. Function/var declaration check
 
     let mut arm32compiler = Arm32Compiler::new();
     match arm32compiler.compile(
