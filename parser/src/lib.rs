@@ -5,7 +5,7 @@ use crate::token::TokenType;
 use ast::{
     blob_type::BlobType,
     expr::{Expr, ExprBinaryOp, ExprBooleanOp, ExprCall, ExprUnaryOp},
-    op_type::{BinaryOpType, BooleanOpType, UnaryOpType},
+    op_type::{BooleanOpType, UnaryOpType},
     stmt::{Stmt, StmtAssign, StmtFuncDecl, StmtIf, StmtIfElse, StmtVarDecl, StmtWhile},
     FileCoords,
 };

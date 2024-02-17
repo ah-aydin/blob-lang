@@ -9,44 +9,74 @@ pub fn get_exit_instructions() -> Vec<Arm32Ins> {
 }
 
 /// Required, since there isn't `sdiv` or 'udiv` instructions on arm32 :(
-pub fn goto_div_instructions() -> Vec<Arm32Ins> {
-    vec![mov!(R4, PC), b!(DIV_START)]
+pub fn goto_divide_instructions() -> Vec<Arm32Ins> {
+    vec![b!(DIV_START)]
 }
 
 /// Required, since there isn't `sdiv` or 'udiv` instructions on arm32 :(
-pub fn div_instructions() -> Vec<Arm32Ins> {
+pub fn divide_instructions() -> Vec<Arm32Ins> {
+    let zero = "0";
+    let one = "1";
+    let minus12 = "-12";
+    let minus16 = "-16";
     vec![
-        // R1 / R0
-        // R0 will hold the result
-        label!(DIV_START),
-        mov!(R5, #0),
-        // Negate R1 if negative number
-        cmp!(R1, #0),
-        neg!(R1, R1, Lt),
-        add!(R5, R5, #1, Lt),
-        // Negate R0 if negative number and goto exit fail if it is 0
+        label!("divide"),
+        push!(FP, LR),
+        mov!(FP, SP),
+        push!(R0, R1),
+        ldr!(R0, zero),
+        sub!(SP, SP, #8),
+        str!(R0, [SP, 4]),
+        ldr!(R0, zero),
+        str!(R0, [SP, 0]),
+        label!(".L_divide__whileStart"),
+        ldr!(R0, [FP, #-12]),
+        push!(R0, IP),
+        ldr!(R0, [FP, #-4]),
+        pop!(R1, IP),
+        cmp!(R1, R0),
+        mov!(R0, #1, Lt),
+        mov!(R0, #0, Ge),
         cmp!(R0, #0),
-        neg!(R0, R0, Lt),
-        add!(R5, R5, #1, Lt),
-        b!(EXIT_FAIL, Eq), // This causes an illegal hardware instruction, but it will go on an
-        // infinte loop otherwise.
-        //  Start division
-        mov!(R2, R0),
-        mov!(R3, #0), // R3 holds the sum
-        mov!(R0, #0),
-        label!("div_loop"),
-        add!(R3, R3, R2),
-        cmp!(R3, R1),
-        b!("div_end", Ge),
-        add!(R0, R0, #1),
-        b!("div_loop"),
-        label!("div_end"),
-        cmp!(R3, R1),
-        add!(R0, R0, #1, Eq),
-        // Negate result if one of the terms is negative
-        cmp!(R5, #1),
-        neg!(R0, R0, Eq),
-        // R4 will have the return address
-        bx!(R4),
+        b!(".L_divide__whileEnd", Eq),
+        ldr!(R0, [FP, #-12]),
+        push!(R0, IP),
+        ldr !(R0, [FP, #-8]),
+        pop!(R1, IP),
+        add!(R0, R0, R1),
+        str!(R0, [FP, minus12]),
+        ldr!(R0, [FP, #-16]),
+        push!(R0, IP),
+        ldr!(R0, one),
+        pop!(R1, IP),
+        add!(R0, R0, R1),
+        str!(R0, [FP, minus16]),
+        add!(SP, SP, #0),
+        b!(".L_divide__whileStart"),
+        label!(".L_divide__whileEnd"),
+        ldr!(R0, [FP, #-12]),
+        push!(R0, IP),
+        ldr!(R0, [FP, #-4]),
+        pop!(R1, IP),
+        cmp!(R1, R0),
+        mov!(R0, #1, Gt),
+        mov!(R0, #0, Le),
+        cmp!(R0, #0),
+        b!(".L_divide__ifEnd", Eq),
+        ldr!(R0, [FP, #-16]),
+        push!(R0, IP),
+        ldr!(R0, one),
+        pop!(R1, IP),
+        sub!(R0, R1, R0),
+        mov!(SP, FP),
+        pop!(FP, PC),
+        add!(SP, SP, #0),
+        label!(".L_divide__ifEnd"),
+        ldr!(R0, [FP, #-16]),
+        mov!(SP, FP),
+        pop!(FP, PC),
+        add!(SP, SP, #8),
+        mov!(SP, FP),
+        pop!(FP, PC),
     ]
 }

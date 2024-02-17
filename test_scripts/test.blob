@@ -13,5 +13,6 @@ func main(): i32 {
     sum = new_sum;
     i = i + 1;
   }
+  return divide(3, 20);
   return a + b + c + d + e + f;
 }

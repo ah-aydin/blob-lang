@@ -174,7 +174,7 @@ impl Arm32Compiler {
         self.reset();
 
         self.instructions
-            .append(&mut builtin_instructions::div_instructions());
+            .append(&mut builtin_instructions::divide_instructions());
 
         for stmt in &stmts {
             self.current_func_env.label_count = 0;
@@ -372,7 +372,7 @@ impl Arm32Compiler {
             BinaryOpType::Multiply => self.emit(mul!(R0, R0, R1)),
             BinaryOpType::Divide => self
                 .instructions
-                .append(&mut builtin_instructions::goto_div_instructions()),
+                .append(&mut builtin_instructions::goto_divide_instructions()),
         };
         Ok(())
     }
