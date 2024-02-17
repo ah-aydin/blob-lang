@@ -6,11 +6,14 @@ use std::{collections::HashMap, iter::Peekable, str::Chars};
 lazy_static! {
     static ref KEYWORDS: HashMap<&'static str, TokenType> = {
         let mut map = HashMap::new();
+        map.insert("bool", TokenType::Bool);
         map.insert("else", TokenType::Else);
+        map.insert("false", TokenType::False);
         map.insert("func", TokenType::Func);
         map.insert("if", TokenType::If);
         map.insert("i32", TokenType::I32);
         map.insert("return", TokenType::Return);
+        map.insert("true", TokenType::True);
         map.insert("var", TokenType::Var);
         map.insert("while", TokenType::While);
         map

@@ -34,6 +34,7 @@ pub struct ExprCall {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expr {
+    Bool(bool),
     Number(String),
     Identifier(String),
     UnaryOp(ExprUnaryOp),

@@ -1,6 +1,5 @@
 use super::assembly::Arm32Ins;
 
-pub const DIV_START: &'static str = "div_start";
 pub const EXIT_FAIL: &'static str = "exit_fail";
 pub const EXIT: &'static str = "exit";
 
@@ -10,7 +9,7 @@ pub fn get_exit_instructions() -> Vec<Arm32Ins> {
 
 /// Required, since there isn't `sdiv` or 'udiv` instructions on arm32 :(
 pub fn goto_divide_instructions() -> Vec<Arm32Ins> {
-    vec![b!(DIV_START)]
+    vec![b!("divide")]
 }
 
 /// Required, since there isn't `sdiv` or 'udiv` instructions on arm32 :(

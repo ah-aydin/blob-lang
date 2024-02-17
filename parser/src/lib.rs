@@ -681,6 +681,8 @@ impl Parser {
     fn primary(&mut self) -> ExprResult {
         let token = self.next_token()?;
         match token.token_type {
+            TokenType::True => Ok(Expr::Bool(true)),
+            TokenType::False => Ok(Expr::Bool(false)),
             TokenType::Number => Ok(Expr::Number(token.lexeme.as_ref().unwrap().clone())),
             TokenType::Identifier => Ok(Expr::Identifier(token.lexeme.as_ref().unwrap().clone())),
             TokenType::LeftParen => {
@@ -711,8 +713,12 @@ impl Parser {
         if self.match_token(TokenType::Colon)? {
             return match self.peek_token()?.token_type {
                 TokenType::I32 => {
-                    let _ = self.next_token()?;
+                    self.next_token()?;
                     Ok(Some(BlobType::I32))
+                }
+                TokenType::Bool => {
+                    self.next_token()?;
+                    Ok(Some(BlobType::Bool))
                 }
                 TokenType::Identifier => Ok(Some(BlobType::Custom(
                     self.next_token()?.lexeme.as_ref().unwrap().clone(),

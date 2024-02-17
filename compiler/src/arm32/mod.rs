@@ -46,7 +46,7 @@ impl ScopeEnv {
 
     fn get_var_offset(&self, var_name: &str) -> Option<i32> {
         let index = self.vars.iter().position(|(name, _)| name == var_name)?;
-        Some(((index + 1 ) * WORD_SIZE) as i32 + self.scope_stack_start)
+        Some(((index + 1) * WORD_SIZE) as i32 + self.scope_stack_start)
     }
 
     fn flip_dead_stack_space(&mut self) {
@@ -326,6 +326,7 @@ impl Arm32Compiler {
 
     fn expr(&mut self, expr: &Expr) -> CompilerResult {
         match expr {
+            Expr::Bool(b) => self.bool_expr(b.clone()),
             Expr::Number(number) => self.i32_expr(number),
             Expr::Identifier(name) => self.identifier_expr(name),
             Expr::UnaryOp(unary_op) => self.unary_expr(unary_op),
@@ -333,6 +334,17 @@ impl Arm32Compiler {
             Expr::BooleanOp(boolean_op) => self.boolean_expr(boolean_op),
             Expr::Call(call) => self.call(call),
         }
+    }
+
+    fn bool_expr(&mut self, b: bool) -> CompilerResult {
+        if b {
+            let one = "1";
+            self.emit(ldr!(R0, one));
+        } else {
+            let zero = "0";
+            self.emit(ldr!(R0, zero));
+        }
+        Ok(())
     }
 
     fn i32_expr(&mut self, number: &str) -> CompilerResult {

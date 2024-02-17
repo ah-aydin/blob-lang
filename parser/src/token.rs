@@ -37,6 +37,8 @@ pub enum TokenType {
     PipePipe,
 
     // Literal
+    True,
+    False,
     Number,
     Identifier,
 
@@ -47,7 +49,9 @@ pub enum TokenType {
     Return,
     Var,
     While,
+
     // Types
+    Bool,
     I32,
 
     Blank,

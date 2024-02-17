@@ -3,7 +3,7 @@ mod common;
 
 use arm32::Arm32Compiler;
 use parser::{Parser, ParserStatus};
-use std::{env, path::Path, collections::btree_map::Keys};
+use std::{env, path::Path};
 
 fn cmain() -> Result<i32, i32> {
     let args: Vec<String> = env::args().collect();
