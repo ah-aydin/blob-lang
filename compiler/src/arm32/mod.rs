@@ -20,6 +20,7 @@ type CompilerResult = Result<(), CompileError>;
 struct ScopeEnv {
     scope_stack_start: i32,
     vars: Vec<(String, BlobType)>,
+    has_dead_stack_space: bool,
 }
 
 impl ScopeEnv {
@@ -27,11 +28,16 @@ impl ScopeEnv {
         ScopeEnv {
             scope_stack_start: prev_scope_stack_size,
             vars: Vec::new(),
+            has_dead_stack_space: false,
         }
     }
 
     fn get_scope_size(&self) -> i32 {
-        (self.vars.len() * WORD_SIZE * 2) as i32
+        let size = (self.vars.len() * WORD_SIZE) as i32;
+        if self.has_dead_stack_space {
+            return size + WORD_SIZE as i32;
+        }
+        size
     }
 
     fn add_var(&mut self, var: (String, BlobType)) {
@@ -40,7 +46,11 @@ impl ScopeEnv {
 
     fn get_var_offset(&self, var_name: &str) -> Option<i32> {
         let index = self.vars.iter().position(|(name, _)| name == var_name)?;
-        Some(((index + 1) * WORD_SIZE * 2) as i32 + self.scope_stack_start)
+        Some(((index + 1 ) * WORD_SIZE) as i32 + self.scope_stack_start)
+    }
+
+    fn flip_dead_stack_space(&mut self) {
+        self.has_dead_stack_space = !self.has_dead_stack_space;
     }
 }
 
@@ -156,6 +166,10 @@ impl Arm32Compiler {
         Ok(())
     }
 
+    fn get_current_func_env(&mut self) -> &mut ScopeEnv {
+        self.current_func_env.scopes.last_mut().unwrap()
+    }
+
     pub fn compile(&mut self, stmts: Vec<Stmt>, file_name: &str) -> CompilerResult {
         self.reset();
 
@@ -234,7 +248,7 @@ impl Arm32Compiler {
             self.stmt(stmt)?;
         }
         let scope_stack_size = self.current_func_env.scopes.pop().unwrap().get_scope_size();
-        self.emit(sub!(SP, SP, #scope_stack_size));
+        self.emit(add!(SP, SP, #scope_stack_size));
         Ok(())
     }
 
@@ -276,12 +290,17 @@ impl Arm32Compiler {
     }
 
     fn var_decl_stmt(&mut self, var_decl: &StmtVarDecl) -> CompilerResult {
-        let var = (var_decl.name.clone(), var_decl.blob_type.clone().unwrap());
-        let scope = self.current_func_env.scopes.last_mut().unwrap();
-        scope.add_var(var);
-
         self.expr(&var_decl.to)?;
-        self.emit(push!(R0, IP));
+
+        let var = (var_decl.name.clone(), var_decl.blob_type.clone().unwrap());
+        self.get_current_func_env().add_var(var);
+        if self.get_current_func_env().has_dead_stack_space {
+            self.emit(str!(R0, [SP, 0]));
+        } else {
+            self.emit(sub!(SP, SP, #8));
+            self.emit(str!(R0, [SP, 4]));
+        }
+        self.get_current_func_env().flip_dead_stack_space();
         Ok(())
     }
 

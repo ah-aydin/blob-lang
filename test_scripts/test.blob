@@ -1,89 +1,17 @@
-func get_number(meh: i32): i32 {
-  return 2 + meh;
-}
-
-func add_2_numbers(a: i32, b: i32): i32 {
-  return a + b;
-}
-
-func add_3_numbers(a: i32, b: i32, c: i32): i32 {
-  return a + b + c;
-}
-
-func add_4_numbers(a: i32, b: i32, c: i32, d: i32): i32 {
-  return a + b + c + d;
-}
-
-func add_5_numbers(a: i32, b: i32, c: i32, d: i32, e: i32): i32 {
-  return a + b + c + d + e;
-}
-
-func get_6th_number(a: i32, b: i32, c: i32, d: i32, e: i32, f: i32): i32 {
-  return f;
-}
-
-func my_sum(a: i32): i32 {
-  if (a == 0) {
-    return 0;
-  }
-  return a + my_sum(a - 1);
-}
-
-func add_6_numbers(a: i32, b: i32, c: i32, d: i32, e: i32, f: i32): i32 {
-  return a + b + c + d + e + f;
-}
-
-func add_7_numbers(a: i32, b: i32, c: i32, d: i32, e: i32, f: i32, g: i32): i32 {
-  return a + b + c + d + e + f + g;
-}
-
-func local_vars(a: i32, b: i32, c: i32, d: i32, e: i32, f: i32): i32 {
-  var v1: i32 = 1;
-  var v2: i32 = 2;
-  var v3: i32 = v2 * 3 + v1;
-  return v3;
-}
-
-func nested_scopes(): i32 {
-  var v1: i32 = 10;
-  var v2: i32 = 3;
-  {
-    var v1: i32 = 20;
-    v1 = v2 * v2;
-    if (2 == 2) {
-      return v1;
-    }
-  }
-  return v1;
-}
-
-func printChar(c: i32) {
-  putchar(c);
-}
-
 func main(): i32 {
-  var c: i32 = 5;
-  if (c == 1) {
-    putchar(65);
-  } else if (c == 2) {
-    putchar(66);
-  } else if (c == 3) {
-    putchar(67);
-  } else if (c == 4) {
-    putchar(68);
-  }
+  var a: i32 = 1; # 0
+  var b: i32 = 2; # 4
+  var c: i32 = 3; # 8
+  var d: i32 = 4; # 12
+  var e: i32 = 5; # 16
+  var f: i32 = 6; # 20
   var i: i32 = 0;
-  var s: i32 = 0;
-  while (i <= 5) {
-    s = s + i;
+  var sum: i32 = 0;
+  while (i < 4) {
+    var i_power: i32 = i * i;
+    var new_sum: i32 = sum + i_power;
+    sum = new_sum;
     i = i + 1;
   }
-  s = s + add_2_numbers(10, 20) + 5;
-  printChar(72);
-  printChar(97);
-  printChar(109);
-  printChar(122);
-  printChar(97);
-  printChar(10);
-  return s + add_3_numbers(1, 1, 1);
+  return a + b + c + d + e + f;
 }
