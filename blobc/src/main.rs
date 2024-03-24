@@ -2,9 +2,10 @@ mod ast;
 mod compiler;
 mod parser;
 
-use compiler::arm32::Arm32Compiler;
 use parser::{Parser, ParserStatus};
 use std::{env, path::Path};
+
+use crate::compiler::compile;
 
 fn cmain() -> Result<i32, i32> {
     let args: Vec<String> = env::args().collect();
@@ -41,8 +42,7 @@ fn cmain() -> Result<i32, i32> {
     // 1. Varaible type check
     // 2. Function/var declaration check
 
-    let mut arm32compiler = Arm32Compiler::new();
-    match arm32compiler.compile(
+    match compile(
         stmts,
         Path::new(file_name).file_stem().unwrap().to_str().unwrap(),
     ) {
