@@ -138,6 +138,8 @@ pub enum Arm32Ins {
     Mul(Arm32Reg, Arm32Reg, Arm32Reg, Arm32Condition),
     /// Arithmetic ``` r1 = r2 * 123 ```
     MulImd(Arm32Reg, Arm32Reg, String, Arm32Condition),
+    /// Arithmetic ``` r1 = r2 / r3 ```
+    SDiv(Arm32Reg, Arm32Reg, Arm32Reg, Arm32Condition),
 
     /// Logic ``` r1 = r2 & ~r3 ```
     Bic(Arm32Reg, Arm32Reg, Arm32Reg, Arm32Condition),
@@ -237,6 +239,9 @@ impl fmt::Display for Arm32Ins {
             }
             Arm32Ins::MulImd(dest, reg, imd, cond) => {
                 write!(f, "\tmul{} {}, {}, #{}", cond, dest, reg, imd)
+            }
+            Arm32Ins::SDiv(dest, reg, reg2, cond) => {
+                write!(f, "\tsdiv{} {}, {}, {}", cond, dest, reg, reg2)
             }
 
             Arm32Ins::Bic(dest, reg1, reg2, cond) => {
@@ -497,6 +502,18 @@ macro_rules! sub {
 macro_rules! mul {
     ($dest_reg:ident, $reg1:ident, $reg2:ident) => {
         crate::compiler::arm32::assembly::Arm32Ins::Mul(
+            crate::compiler::arm32::assembly::Arm32Reg::$dest_reg,
+            crate::compiler::arm32::assembly::Arm32Reg::$reg1,
+            crate::compiler::arm32::assembly::Arm32Reg::$reg2,
+            crate::compiler::arm32::assembly::Arm32Condition::None,
+        )
+    };
+}
+
+#[macro_export]
+macro_rules! sdiv {
+    ($dest_reg:ident, $reg1:ident, $reg2:ident) => {
+        crate::compiler::arm32::assembly::Arm32Ins::SDiv(
             crate::compiler::arm32::assembly::Arm32Reg::$dest_reg,
             crate::compiler::arm32::assembly::Arm32Reg::$reg1,
             crate::compiler::arm32::assembly::Arm32Reg::$reg2,

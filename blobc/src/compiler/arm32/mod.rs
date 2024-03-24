@@ -1,6 +1,5 @@
 #[macro_use]
 mod assembly;
-mod builtin_instructions;
 
 use self::assembly::Arm32Ins;
 use super::common::CompileError;
@@ -140,7 +139,7 @@ impl Arm32Compiler {
 
         let which_gcc = match std::env::consts::ARCH {
             "arm" | "armv7" => "gcc",
-            "x86" | "x86_64" => "arm-linux-gnueabihf-gcc -static",
+            "x86" | "x86_64" => "arm-linux-gnueabihf-gcc -static -mcpu=cortex-a7",
             _ => {
                 eprintln!("Unsupported architecture: {}", std::env::consts::ARCH);
                 std::process::exit(1);
@@ -172,9 +171,6 @@ impl Arm32Compiler {
 
     pub fn compile(&mut self, stmts: Vec<Stmt>, file_name: &str) -> CompilerResult {
         self.reset();
-
-        self.instructions
-            .append(&mut builtin_instructions::divide_instructions());
 
         for stmt in &stmts {
             self.current_func_env.label_count = 0;
@@ -226,13 +222,13 @@ impl Arm32Compiler {
         self.stmt(&func_decl.body)?;
 
         // Epilogue
-        if is_main {
-            self.instructions
-                .append(&mut builtin_instructions::get_exit_instructions());
-        } else {
-            self.emit(mov!(SP, FP));
-        }
-        self.emit(pop!(FP, PC));
+        // if is_main {
+        //     self.instructions
+        //         .append(&mut builtin_instructions::get_exit_instructions());
+        // } else {
+        //     self.emit(mov!(SP, FP));
+        // }
+        // self.emit(pop!(FP, PC));
         Ok(())
     }
 
@@ -257,8 +253,10 @@ impl Arm32Compiler {
         Ok(())
     }
 
-    fn return_stmt(&mut self, expr: &Expr) -> CompilerResult {
-        self.expr(expr)?;
+    fn return_stmt(&mut self, expr: &Option<Expr>) -> CompilerResult {
+        if expr.is_some() {
+            self.expr(expr.as_ref().unwrap())?;
+        }
         self.emit(mov!(SP, FP));
         self.emit(pop!(FP, PC));
         Ok(())
@@ -382,9 +380,7 @@ impl Arm32Compiler {
             BinaryOpType::Add => self.emit(add!(R0, R0, R1)),
             BinaryOpType::Subtract => self.emit(sub!(R0, R1, R0)),
             BinaryOpType::Multiply => self.emit(mul!(R0, R0, R1)),
-            BinaryOpType::Divide => self
-                .instructions
-                .append(&mut builtin_instructions::goto_divide_instructions()),
+            BinaryOpType::Divide => self.emit(sdiv!(R0, R1, R0)),
         };
         Ok(())
     }

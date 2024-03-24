@@ -384,7 +384,8 @@ impl Parser {
             TokenType::LeftBrace,
             "Expected opening '{' for function body",
         )?;
-        let func_body = self.block_stmt()?;
+        let mut func_body = self.block_stmt()?;
+        func_body.insert_return_if_not_last_instruction();
 
         Ok(Stmt::FuncDecl(StmtFuncDecl::new(
             func_name,
@@ -396,9 +397,12 @@ impl Parser {
     }
 
     fn return_stmt(&mut self) -> StmtResult {
+        if self.match_token(TokenType::Semicolon)? {
+            return Ok(Stmt::Return(None));
+        }
         let expr = self.expr()?;
         self.consume(TokenType::Semicolon, "Expected ';' to end return statement")?;
-        Ok(Stmt::Return(expr))
+        Ok(Stmt::Return(Some(expr)))
     }
 
     fn if_else_stmt(&mut self) -> StmtResult {
