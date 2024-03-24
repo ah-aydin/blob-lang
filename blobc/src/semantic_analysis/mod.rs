@@ -10,7 +10,9 @@ pub fn analyze(stmts: &Vec<Stmt>) -> Result<(), ()> {
     }
 }
 
+#[derive(Debug, Default)]
 enum AnalyzerError {
+    #[default]
     Undefined,
 }
 

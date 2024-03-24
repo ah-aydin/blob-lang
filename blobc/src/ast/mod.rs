@@ -16,7 +16,17 @@ pub struct FileCoords {
     pub col: usize,
 }
 
-pub trait AstWalker<T, E> {
+pub trait AstWalker<T: Default, E: Default> {
+    fn walk(&mut self, stmts: &Vec<Stmt>) -> Result<T, E> {
+        for stmt in stmts {
+            let _ = match stmt {
+                Stmt::FuncDecl(stmt_func_decl) => self.func(&stmt_func_decl)?,
+                _ => unreachable!("Got unexpected global statement {:?}", stmt),
+            };
+        }
+        Ok(T::default())
+    }
+
     fn stmt(&mut self, stmt: &Stmt) -> Result<T, E> {
         match stmt {
             Stmt::Block(stmts) => self.block_stmt(stmts),

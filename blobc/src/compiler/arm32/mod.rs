@@ -172,15 +172,7 @@ impl Arm32Compiler {
 
     pub fn compile(&mut self, stmts: Vec<Stmt>, file_name: &str) -> CompilerResult {
         self.reset();
-
-        for stmt in &stmts {
-            self.current_func_env.label_count = 0;
-            let _ = match stmt {
-                Stmt::FuncDecl(stmt_func_decl) => self.func(&stmt_func_decl)?,
-                _ => unreachable!("Got unexpected global statement"),
-            };
-        }
-
+        self.walk(&stmts)?;
         self.link(file_name)
     }
 
@@ -215,6 +207,7 @@ impl AstWalker<(), CompileError> for Arm32Compiler {
         self.current_func_env.name = String::from(func_name);
         self.current_func_env.arg_count = func_decl.args.len();
         self.current_func_env.args = func_decl.args.clone();
+        self.current_func_env.label_count = 0;
         self.current_func_env.scopes.clear();
         self.emit(self.gen_func_label(func_name));
 
