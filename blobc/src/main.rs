@@ -6,8 +6,6 @@ mod semantic_analysis;
 use parser::{Parser, ParserStatus};
 use std::{env, path::Path};
 
-use crate::compiler::compile;
-
 fn cmain() -> Result<i32, i32> {
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
@@ -39,18 +37,15 @@ fn cmain() -> Result<i32, i32> {
         }
     }?;
 
-    // TODO add checks
-    // 1. Varaible type check
-    // 2. Function/var declaration check
     match semantic_analysis::analyze(&stmts) {
         Ok(()) => Ok(()),
-        Err(())  => {
+        Err(()) => {
             eprintln!("[ERROR] Semantic analysis failed");
             Err(1)
         }
     }?;
 
-    match compile(
+    match compiler::compile(
         stmts,
         Path::new(file_name).file_stem().unwrap().to_str().unwrap(),
     ) {
