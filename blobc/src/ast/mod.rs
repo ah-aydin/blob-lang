@@ -16,7 +16,7 @@ pub struct FileCoords {
     pub col: usize,
 }
 
-pub trait TreeWalker<T, E> {
+pub trait AstWalker<T, E> {
     fn stmt(&mut self, stmt: &Stmt) -> Result<T, E> {
         match stmt {
             Stmt::Block(stmts) => self.block_stmt(stmts),

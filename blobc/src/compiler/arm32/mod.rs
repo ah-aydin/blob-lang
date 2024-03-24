@@ -8,7 +8,7 @@ use crate::ast::{
     expr::{Expr, ExprBinaryOp, ExprBooleanOp, ExprCall, ExprUnaryOp},
     op_type::{BinaryOpType, BooleanOpType, UnaryOpType},
     stmt::{Stmt, StmtAssign, StmtFuncDecl, StmtIf, StmtIfElse, StmtVarDecl, StmtWhile},
-    TreeWalker,
+    AstWalker,
 };
 use std::{fs::File, io::Write, process::Command};
 
@@ -208,7 +208,7 @@ impl Arm32Compiler {
     }
 }
 
-impl TreeWalker<(), CompileError> for Arm32Compiler {
+impl AstWalker<(), CompileError> for Arm32Compiler {
     fn func(&mut self, func_decl: &StmtFuncDecl) -> CompilerResult {
         let func_name = func_decl.name.as_str();
         // Setup environment
