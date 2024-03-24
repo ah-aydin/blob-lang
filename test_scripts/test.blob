@@ -13,6 +13,5 @@ func main(): i32 {
     sum = new_sum;
     i = i + 1;
   }
-  var condition: bool = false;
-  return condition;
+  return sum;
 }

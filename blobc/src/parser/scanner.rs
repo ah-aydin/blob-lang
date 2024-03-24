@@ -1,5 +1,5 @@
 use super::token::{Token, TokenType};
-use ast::FileCoords;
+use crate::ast::FileCoords;
 use lazy_static::lazy_static;
 use std::{collections::HashMap, iter::Peekable, str::Chars};
 

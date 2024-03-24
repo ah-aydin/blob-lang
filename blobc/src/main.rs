@@ -1,7 +1,8 @@
-mod arm32;
-mod common;
+mod ast;
+mod compiler;
+mod parser;
 
-use arm32::Arm32Compiler;
+use compiler::arm32::Arm32Compiler;
 use parser::{Parser, ParserStatus};
 use std::{env, path::Path};
 

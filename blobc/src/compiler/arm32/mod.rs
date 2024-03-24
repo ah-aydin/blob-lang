@@ -3,8 +3,8 @@ mod assembly;
 mod builtin_instructions;
 
 use self::assembly::Arm32Ins;
-use crate::common::CompileError;
-use ast::{
+use super::common::CompileError;
+use crate::ast::{
     blob_type::BlobType,
     expr::{Expr, ExprBinaryOp, ExprBooleanOp, ExprCall, ExprUnaryOp},
     op_type::{BinaryOpType, BooleanOpType, UnaryOpType},

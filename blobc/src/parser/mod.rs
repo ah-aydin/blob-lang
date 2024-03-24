@@ -1,8 +1,8 @@
 pub mod scanner;
 pub mod token;
 
-use crate::token::TokenType;
-use ast::{
+use token::TokenType;
+use crate::ast::{
     blob_type::BlobType,
     expr::{Expr, ExprBinaryOp, ExprBooleanOp, ExprCall, ExprUnaryOp},
     op_type::{BooleanOpType, UnaryOpType},

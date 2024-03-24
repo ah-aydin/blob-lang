@@ -297,22 +297,22 @@ impl fmt::Display for Arm32Ins {
 #[macro_export]
 macro_rules! label {
     ($label:expr) => {
-        crate::arm32::assembly::Arm32Ins::Label(String::from($label))
+        crate::compiler::arm32::assembly::Arm32Ins::Label(String::from($label))
     };
 }
 
 #[macro_export]
 macro_rules! b {
     ($jump_to:expr) => {
-        crate::arm32::assembly::Arm32Ins::BLabel(
+        crate::compiler::arm32::assembly::Arm32Ins::BLabel(
             String::from($jump_to),
-            crate::arm32::assembly::Arm32Condition::None,
+            crate::compiler::arm32::assembly::Arm32Condition::None,
         )
     };
     ($jump_to:expr, $condition:ident) => {
-        crate::arm32::assembly::Arm32Ins::BLabel(
+        crate::compiler::arm32::assembly::Arm32Ins::BLabel(
             String::from($jump_to),
-            crate::arm32::assembly::Arm32Condition::$condition,
+            crate::compiler::arm32::assembly::Arm32Condition::$condition,
         )
     };
 }
@@ -320,9 +320,9 @@ macro_rules! b {
 #[macro_export]
 macro_rules! bl {
     ($label:expr) => {
-        crate::arm32::assembly::Arm32Ins::BL(
+        crate::compiler::arm32::assembly::Arm32Ins::BL(
             String::from($label),
-            crate::arm32::assembly::Arm32Condition::None,
+            crate::compiler::arm32::assembly::Arm32Condition::None,
         )
     };
 }
@@ -330,9 +330,9 @@ macro_rules! bl {
 #[macro_export]
 macro_rules! bx {
     ($jump_reg:ident) => {
-        crate::arm32::assembly::Arm32Ins::BX(
-            crate::arm32::assembly::Arm32Reg::$jump_reg,
-            crate::arm32::assembly::Arm32Condition::None,
+        crate::compiler::arm32::assembly::Arm32Ins::BX(
+            crate::compiler::arm32::assembly::Arm32Reg::$jump_reg,
+            crate::compiler::arm32::assembly::Arm32Condition::None,
         )
     };
 }
@@ -340,9 +340,9 @@ macro_rules! bx {
 #[macro_export]
 macro_rules! push {
     ($($reg:ident),+) => {
-        crate::arm32::assembly::Arm32Ins::Push(
-            vec![$(crate::arm32::assembly::Arm32Reg::$reg),+],
-            crate::arm32::assembly::Arm32Condition::None
+        crate::compiler::arm32::assembly::Arm32Ins::Push(
+            vec![$(crate::compiler::arm32::assembly::Arm32Reg::$reg),+],
+            crate::compiler::arm32::assembly::Arm32Condition::None
         )
     };
 }
@@ -350,9 +350,9 @@ macro_rules! push {
 #[macro_export]
 macro_rules! pop {
     ($($reg:ident),+) => {
-        crate::arm32::assembly::Arm32Ins::Pop(
-            vec![$(crate::arm32::assembly::Arm32Reg::$reg),+],
-            crate::arm32::assembly::Arm32Condition::None
+        crate::compiler::arm32::assembly::Arm32Ins::Pop(
+            vec![$(crate::compiler::arm32::assembly::Arm32Reg::$reg),+],
+            crate::compiler::arm32::assembly::Arm32Condition::None
         )
     };
 }
@@ -360,18 +360,18 @@ macro_rules! pop {
 #[macro_export]
 macro_rules! ldr {
     ($dest_reg:ident, $label:ident) => {
-        crate::arm32::assembly::Arm32Ins::Ldr(
-            crate::arm32::assembly::Arm32Reg::$dest_reg,
+        crate::compiler::arm32::assembly::Arm32Ins::Ldr(
+            crate::compiler::arm32::assembly::Arm32Reg::$dest_reg,
             String::from($label),
-            crate::arm32::assembly::Arm32Condition::None,
+            crate::compiler::arm32::assembly::Arm32Condition::None,
         )
     };
     ($dest_reg:ident, [$addr_reg:ident, #$offset:expr]) => {
-        crate::arm32::assembly::Arm32Ins::LdrRegOffset(
-            crate::arm32::assembly::Arm32Reg::$dest_reg,
-            crate::arm32::assembly::Arm32Reg::$addr_reg,
-            crate::arm32::assembly::Arm32Offset::Number($offset.to_string()),
-            crate::arm32::assembly::Arm32Condition::None,
+        crate::compiler::arm32::assembly::Arm32Ins::LdrRegOffset(
+            crate::compiler::arm32::assembly::Arm32Reg::$dest_reg,
+            crate::compiler::arm32::assembly::Arm32Reg::$addr_reg,
+            crate::compiler::arm32::assembly::Arm32Offset::Number($offset.to_string()),
+            crate::compiler::arm32::assembly::Arm32Condition::None,
         )
     };
 }
@@ -379,17 +379,17 @@ macro_rules! ldr {
 #[macro_export]
 macro_rules! neg {
     ($dest_reg:ident, $reg:ident) => {
-        crate::arm32::assembly::Arm32Ins::Neg(
-            crate::arm32::assembly::Arm32Reg::$dest_reg,
-            crate::arm32::assembly::Arm32Reg::$reg,
-            crate::arm32::assembly::Arm32Condition::None,
+        crate::compiler::arm32::assembly::Arm32Ins::Neg(
+            crate::compiler::arm32::assembly::Arm32Reg::$dest_reg,
+            crate::compiler::arm32::assembly::Arm32Reg::$reg,
+            crate::compiler::arm32::assembly::Arm32Condition::None,
         )
     };
     ($dest_reg:ident, $reg:ident, $condition:ident) => {
-        crate::arm32::assembly::Arm32Ins::Neg(
-            crate::arm32::assembly::Arm32Reg::$dest_reg,
-            crate::arm32::assembly::Arm32Reg::$reg,
-            crate::arm32::assembly::Arm32Condition::$condition,
+        crate::compiler::arm32::assembly::Arm32Ins::Neg(
+            crate::compiler::arm32::assembly::Arm32Reg::$dest_reg,
+            crate::compiler::arm32::assembly::Arm32Reg::$reg,
+            crate::compiler::arm32::assembly::Arm32Condition::$condition,
         )
     };
 }
@@ -397,17 +397,17 @@ macro_rules! neg {
 #[macro_export]
 macro_rules! cmp {
     ($reg1:ident, $reg2:ident) => {
-        crate::arm32::assembly::Arm32Ins::Cmp(
-            crate::arm32::assembly::Arm32Reg::$reg1,
-            crate::arm32::assembly::Arm32Reg::$reg2,
-            crate::arm32::assembly::Arm32Condition::None,
+        crate::compiler::arm32::assembly::Arm32Ins::Cmp(
+            crate::compiler::arm32::assembly::Arm32Reg::$reg1,
+            crate::compiler::arm32::assembly::Arm32Reg::$reg2,
+            crate::compiler::arm32::assembly::Arm32Condition::None,
         )
     };
     ($reg:ident, #$imd:tt) => {
-        crate::arm32::assembly::Arm32Ins::CmpImd(
-            crate::arm32::assembly::Arm32Reg::$reg,
+        crate::compiler::arm32::assembly::Arm32Ins::CmpImd(
+            crate::compiler::arm32::assembly::Arm32Reg::$reg,
             String::from($imd.to_string()),
-            crate::arm32::assembly::Arm32Condition::None,
+            crate::compiler::arm32::assembly::Arm32Condition::None,
         )
     };
 }
@@ -415,24 +415,24 @@ macro_rules! cmp {
 #[macro_export]
 macro_rules! mov {
     ($dest_reg:ident, $source_reg:ident) => {
-        crate::arm32::assembly::Arm32Ins::Mov(
-            crate::arm32::assembly::Arm32Reg::$dest_reg,
-            crate::arm32::assembly::Arm32Reg::$source_reg,
-            crate::arm32::assembly::Arm32Condition::None,
+        crate::compiler::arm32::assembly::Arm32Ins::Mov(
+            crate::compiler::arm32::assembly::Arm32Reg::$dest_reg,
+            crate::compiler::arm32::assembly::Arm32Reg::$source_reg,
+            crate::compiler::arm32::assembly::Arm32Condition::None,
         )
     };
     ($dest_reg:ident, #$imd:tt) => {
-        crate::arm32::assembly::Arm32Ins::MovImd(
-            crate::arm32::assembly::Arm32Reg::$dest_reg,
+        crate::compiler::arm32::assembly::Arm32Ins::MovImd(
+            crate::compiler::arm32::assembly::Arm32Reg::$dest_reg,
             String::from($imd.to_string()),
-            crate::arm32::assembly::Arm32Condition::None,
+            crate::compiler::arm32::assembly::Arm32Condition::None,
         )
     };
     ($dest_reg:ident, #$imd:tt, $condition:ident) => {
-        crate::arm32::assembly::Arm32Ins::MovImd(
-            crate::arm32::assembly::Arm32Reg::$dest_reg,
+        crate::compiler::arm32::assembly::Arm32Ins::MovImd(
+            crate::compiler::arm32::assembly::Arm32Reg::$dest_reg,
             String::from($imd.to_string()),
-            crate::arm32::assembly::Arm32Condition::$condition,
+            crate::compiler::arm32::assembly::Arm32Condition::$condition,
         )
     };
 }
@@ -440,35 +440,35 @@ macro_rules! mov {
 #[macro_export]
 macro_rules! add {
     ($dest_reg:ident, $reg1:ident, $reg2:ident) => {
-        crate::arm32::assembly::Arm32Ins::Add(
-            crate::arm32::assembly::Arm32Reg::$dest_reg,
-            crate::arm32::assembly::Arm32Reg::$reg1,
-            crate::arm32::assembly::Arm32Reg::$reg2,
-            crate::arm32::assembly::Arm32Condition::None,
+        crate::compiler::arm32::assembly::Arm32Ins::Add(
+            crate::compiler::arm32::assembly::Arm32Reg::$dest_reg,
+            crate::compiler::arm32::assembly::Arm32Reg::$reg1,
+            crate::compiler::arm32::assembly::Arm32Reg::$reg2,
+            crate::compiler::arm32::assembly::Arm32Condition::None,
         )
     };
     ($dest_reg:ident, $reg:ident, #$imd:tt) => {
-        crate::arm32::assembly::Arm32Ins::AddImd(
-            crate::arm32::assembly::Arm32Reg::$dest_reg,
-            crate::arm32::assembly::Arm32Reg::$reg,
+        crate::compiler::arm32::assembly::Arm32Ins::AddImd(
+            crate::compiler::arm32::assembly::Arm32Reg::$dest_reg,
+            crate::compiler::arm32::assembly::Arm32Reg::$reg,
             String::from($imd.to_string()),
-            crate::arm32::assembly::Arm32Condition::None,
+            crate::compiler::arm32::assembly::Arm32Condition::None,
         )
     };
     ($dest_reg:ident, $reg:ident, #$imd:tt) => {
-        crate::arm32::assembly::Arm32Ins::AddImd(
-            crate::arm32::assembly::Arm32Reg::$dest_reg,
-            crate::arm32::assembly::Arm32Reg::$reg,
+        crate::compiler::arm32::assembly::Arm32Ins::AddImd(
+            crate::compiler::arm32::assembly::Arm32Reg::$dest_reg,
+            crate::compiler::arm32::assembly::Arm32Reg::$reg,
             String::from($imd.to_string()),
-            crate::arm32::assembly::Arm32Condition::None,
+            crate::compiler::arm32::assembly::Arm32Condition::None,
         )
     };
     ($dest_reg:ident, $reg:ident, #$imd:tt, $cond:ident) => {
-        crate::arm32::assembly::Arm32Ins::AddImd(
-            crate::arm32::assembly::Arm32Reg::$dest_reg,
-            crate::arm32::assembly::Arm32Reg::$reg,
+        crate::compiler::arm32::assembly::Arm32Ins::AddImd(
+            crate::compiler::arm32::assembly::Arm32Reg::$dest_reg,
+            crate::compiler::arm32::assembly::Arm32Reg::$reg,
             String::from($imd.to_string()),
-            crate::arm32::assembly::Arm32Condition::$cond,
+            crate::compiler::arm32::assembly::Arm32Condition::$cond,
         )
     };
 }
@@ -476,19 +476,19 @@ macro_rules! add {
 #[macro_export]
 macro_rules! sub {
     ($dest_reg:ident, $reg1:ident, $reg2:ident) => {
-        crate::arm32::assembly::Arm32Ins::Sub(
-            crate::arm32::assembly::Arm32Reg::$dest_reg,
-            crate::arm32::assembly::Arm32Reg::$reg1,
-            crate::arm32::assembly::Arm32Reg::$reg2,
-            crate::arm32::assembly::Arm32Condition::None,
+        crate::compiler::arm32::assembly::Arm32Ins::Sub(
+            crate::compiler::arm32::assembly::Arm32Reg::$dest_reg,
+            crate::compiler::arm32::assembly::Arm32Reg::$reg1,
+            crate::compiler::arm32::assembly::Arm32Reg::$reg2,
+            crate::compiler::arm32::assembly::Arm32Condition::None,
         )
     };
     ($dest_reg:ident, $reg:ident, #$value:tt) => {
-        crate::arm32::assembly::Arm32Ins::SubImd(
-            crate::arm32::assembly::Arm32Reg::$dest_reg,
-            crate::arm32::assembly::Arm32Reg::$reg,
+        crate::compiler::arm32::assembly::Arm32Ins::SubImd(
+            crate::compiler::arm32::assembly::Arm32Reg::$dest_reg,
+            crate::compiler::arm32::assembly::Arm32Reg::$reg,
             String::from($value.to_string()),
-            crate::arm32::assembly::Arm32Condition::None,
+            crate::compiler::arm32::assembly::Arm32Condition::None,
         )
     };
 }
@@ -496,11 +496,11 @@ macro_rules! sub {
 #[macro_export]
 macro_rules! mul {
     ($dest_reg:ident, $reg1:ident, $reg2:ident) => {
-        crate::arm32::assembly::Arm32Ins::Mul(
-            crate::arm32::assembly::Arm32Reg::$dest_reg,
-            crate::arm32::assembly::Arm32Reg::$reg1,
-            crate::arm32::assembly::Arm32Reg::$reg2,
-            crate::arm32::assembly::Arm32Condition::None,
+        crate::compiler::arm32::assembly::Arm32Ins::Mul(
+            crate::compiler::arm32::assembly::Arm32Reg::$dest_reg,
+            crate::compiler::arm32::assembly::Arm32Reg::$reg1,
+            crate::compiler::arm32::assembly::Arm32Reg::$reg2,
+            crate::compiler::arm32::assembly::Arm32Condition::None,
         )
     };
 }
@@ -508,11 +508,11 @@ macro_rules! mul {
 #[macro_export]
 macro_rules! str {
     ($source_reg:ident, [$addr_reg:ident, $offset:expr]) => {
-        crate::arm32::assembly::Arm32Ins::StrOffset(
-            crate::arm32::assembly::Arm32Reg::$source_reg,
-            crate::arm32::assembly::Arm32Reg::$addr_reg,
-            crate::arm32::assembly::Arm32Offset::Number($offset.to_string()),
-            crate::arm32::assembly::Arm32Condition::None,
+        crate::compiler::arm32::assembly::Arm32Ins::StrOffset(
+            crate::compiler::arm32::assembly::Arm32Reg::$source_reg,
+            crate::compiler::arm32::assembly::Arm32Reg::$addr_reg,
+            crate::compiler::arm32::assembly::Arm32Offset::Number($offset.to_string()),
+            crate::compiler::arm32::assembly::Arm32Condition::None,
         )
     };
 }
