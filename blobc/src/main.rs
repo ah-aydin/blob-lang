@@ -42,7 +42,7 @@ fn cmain() -> Result<i32, i32> {
     // TODO add checks
     // 1. Varaible type check
     // 2. Function/var declaration check
-    match semantic_analysis::anayalyze(&stmts) {
+    match semantic_analysis::analyze(&stmts) {
         Ok(()) => Ok(()),
         Err(())  => {
             eprintln!("[ERROR] Semantic analysis failed");
