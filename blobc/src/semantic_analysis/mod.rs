@@ -12,7 +12,6 @@ pub fn analyze(stmts: &Vec<Stmt>) -> Result<(), ()> {
 
 #[derive(Debug, Default)]
 enum AnalyzerError {
-    #[default]
     Undefined,
 }
 
@@ -29,7 +28,9 @@ impl<'a> Analyzer<'a> {
         }
     }
 
-    pub fn analyze(&mut self) {}
+    pub fn analyze(&mut self) {
+        self.walk(&self.stmts);
+    }
 }
 
 impl<'a> AstWalker<(), AnalyzerError> for Analyzer<'a> {
