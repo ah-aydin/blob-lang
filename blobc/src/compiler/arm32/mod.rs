@@ -8,6 +8,7 @@ use crate::ast::{
     expr::{Expr, ExprBinaryOp, ExprBooleanOp, ExprCall, ExprUnaryOp},
     op_type::{BinaryOpType, BooleanOpType, UnaryOpType},
     stmt::{Stmt, StmtAssign, StmtFuncDecl, StmtIf, StmtIfElse, StmtVarDecl, StmtWhile},
+    TreeWalker,
 };
 use std::{fs::File, io::Write, process::Command};
 
@@ -183,31 +184,38 @@ impl Arm32Compiler {
         self.link(file_name)
     }
 
-    fn stmt(&mut self, stmt: &Stmt) -> CompilerResult {
-        match stmt {
-            Stmt::Block(stmts) => self.block_stmt(stmts),
-            Stmt::ExprStmt(expr) => self.expr_stmt(expr),
-            Stmt::Return(expr) => self.return_stmt(expr),
-            Stmt::If(iff) => self.if_stmt(iff),
-            Stmt::IfElse(if_else) => self.if_else_stmt(if_else),
-            Stmt::VarDecl(var_decl) => self.var_decl_stmt(var_decl),
-            Stmt::Assign(assign) => self.assign_stmt(assign),
-            Stmt::While(whilee) => self.while_stmt(whilee),
-            Stmt::FuncDecl(_) => {
-                unreachable!("Did not expect a function decleration inside a block")
-            }
-        }
+    fn emit(&mut self, ins: Arm32Ins) {
+        self.instructions.push(ins);
     }
 
+    fn emit_multiple(&mut self, ins: &mut Vec<Arm32Ins>) {
+        self.instructions.append(ins);
+    }
+
+    /////////////////////////////////////////////////////////////////
+    /// Label generators
+    /////////////////////////////////////////////////////////////////
+    fn gen_func_label(&self, func_name: &str) -> Arm32Ins {
+        Arm32Ins::Label(String::from(func_name))
+    }
+
+    fn gen_in_func_label(&mut self, s: &str) -> Arm32Ins {
+        self.current_func_env.label_count += 1;
+        Arm32Ins::Label(format!(
+            ".L_{}__{}_{}",
+            self.current_func_env.name, s, self.current_func_env.label_count
+        ))
+    }
+}
+
+impl TreeWalker<(), CompileError> for Arm32Compiler {
     fn func(&mut self, func_decl: &StmtFuncDecl) -> CompilerResult {
         let func_name = func_decl.name.as_str();
-        let is_main = func_name == "main";
         // Setup environment
         self.current_func_env.name = String::from(func_name);
         self.current_func_env.arg_count = func_decl.args.len();
         self.current_func_env.args = func_decl.args.clone();
         self.current_func_env.scopes.clear();
-        // TODO put `.global` in here for the function name
         self.emit(self.gen_func_label(func_name));
 
         // Prologue
@@ -221,14 +229,6 @@ impl Arm32Compiler {
 
         self.stmt(&func_decl.body)?;
 
-        // Epilogue
-        // if is_main {
-        //     self.instructions
-        //         .append(&mut builtin_instructions::get_exit_instructions());
-        // } else {
-        //     self.emit(mov!(SP, FP));
-        // }
-        // self.emit(pop!(FP, PC));
         Ok(())
     }
 
@@ -320,18 +320,6 @@ impl Arm32Compiler {
         self.emit(b!(start_label.get_label()));
         self.emit(end_label);
         Ok(())
-    }
-
-    fn expr(&mut self, expr: &Expr) -> CompilerResult {
-        match expr {
-            Expr::Bool(b) => self.bool_expr(b.clone()),
-            Expr::Number(number) => self.i32_expr(number),
-            Expr::Identifier(name) => self.identifier_expr(name),
-            Expr::UnaryOp(unary_op) => self.unary_expr(unary_op),
-            Expr::BinaryOp(binary_op) => self.binary_expr(binary_op),
-            Expr::BooleanOp(boolean_op) => self.boolean_expr(boolean_op),
-            Expr::Call(call) => self.call(call),
-        }
     }
 
     fn bool_expr(&mut self, b: bool) -> CompilerResult {
@@ -500,28 +488,5 @@ impl Arm32Compiler {
             }
         }
         Ok(())
-    }
-
-    fn emit(&mut self, ins: Arm32Ins) {
-        self.instructions.push(ins);
-    }
-
-    fn emit_multiple(&mut self, ins: &mut Vec<Arm32Ins>) {
-        self.instructions.append(ins);
-    }
-
-    /////////////////////////////////////////////////////////////////
-    /// Label generators
-    /////////////////////////////////////////////////////////////////
-    fn gen_func_label(&self, func_name: &str) -> Arm32Ins {
-        Arm32Ins::Label(String::from(func_name))
-    }
-
-    fn gen_in_func_label(&mut self, s: &str) -> Arm32Ins {
-        self.current_func_env.label_count += 1;
-        Arm32Ins::Label(format!(
-            ".L_{}__{}_{}",
-            self.current_func_env.name, s, self.current_func_env.label_count
-        ))
     }
 }
