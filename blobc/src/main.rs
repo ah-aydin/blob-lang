@@ -1,6 +1,7 @@
 mod ast;
 mod compiler;
 mod parser;
+mod semantic_analysis;
 
 use parser::{Parser, ParserStatus};
 use std::{env, path::Path};
@@ -41,6 +42,13 @@ fn cmain() -> Result<i32, i32> {
     // TODO add checks
     // 1. Varaible type check
     // 2. Function/var declaration check
+    match semantic_analysis::anayalyze(&stmts) {
+        Ok(()) => Ok(()),
+        Err(())  => {
+            eprintln!("[ERROR] Semantic analysis failed");
+            Err(1)
+        }
+    }?;
 
     match compile(
         stmts,
