@@ -10,7 +10,7 @@ func add2(a: i32, b: i32, add: bool) : i32 {
   if (add) {
     return a + b;
   }
-  return true;
+  return a;
 }
 
 func main(): i32 {
