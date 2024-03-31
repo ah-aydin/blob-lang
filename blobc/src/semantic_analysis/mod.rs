@@ -374,7 +374,7 @@ impl<'a> AstWalker<BlobType, AnalyzerError> for Analyzer<'a> {
             let expr_type = self.expr(&call.args.get(i).unwrap())?;
             if expected_type != expr_type {
                 eprintln!(
-                    "[ERROR] Line {}: Arugment {} is of type '{:?}' but '{:?}' was given",
+                    "[ERROR] Line {}: Arugment '{}' is of type '{:?}' but expression of type '{:?}' was given",
                     call.line,
                     args.get(i).unwrap().name,
                     expected_type,
