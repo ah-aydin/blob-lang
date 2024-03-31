@@ -5,10 +5,7 @@ use derive_new::new;
 use crate::ast::{
     blob_type::BlobType,
     expr::{Expr, ExprBinaryOp, ExprBooleanOp, ExprCall, ExprUnaryOp},
-    stmt::{
-        Stmt, StmtAssign, StmtExpr, StmtFuncDecl, StmtIf, StmtIfElse, StmtReturn, StmtVarDecl,
-        StmtWhile,
-    },
+    stmt::{Stmt, StmtAssign, StmtFuncDecl, StmtIf, StmtIfElse, StmtVarDecl, StmtWhile},
     AstWalker,
 };
 
@@ -50,7 +47,6 @@ impl Scope {
 enum AnalyzerError {
     #[default]
     Undefined,
-    TypeMismatch,
 }
 
 struct Analyzer<'a> {
@@ -58,7 +54,6 @@ struct Analyzer<'a> {
     funcs: Vec<FuncData>,
     scopes: Vec<Scope>,
     errored: bool,
-    current_func_ret_type: BlobType,
 }
 
 impl<'a> Analyzer<'a> {
@@ -75,27 +70,24 @@ impl<'a> Analyzer<'a> {
             funcs,
             scopes: vec![],
             errored: false,
-            current_func_ret_type: BlobType::None,
         }
     }
 
     pub fn analyze(&mut self) {
-        for func in &self.funcs {
-            let mut args: Vec<String> = vec![];
-            for arg_data in &func.args {
+        for func in self.funcs {
+            let args: Vec<String> = vec![];
+            for arg_data in func.args {
                 if args.contains(&arg_data.name) {
-                    eprintln!(
-                        "[ERROR] Line {}: function argument '{}' is already defined",
-                        func.line, arg_data.name
-                    );
-                    self.errored = true;
-                    break;
+                    self.error("[ERROR] function argument {} is already defined");
                 }
-                args.push(arg_data.name.clone());
             }
         }
+        let _ = self.walk(&self.stmts);
+    }
 
-        // let _ = self.walk(&self.stmts);
+    fn error(&mut self, msg: &str) {
+        eprintln!("{}", msg);
+        self.errored = true;
     }
 }
 
@@ -103,7 +95,6 @@ impl<'a> AstWalker<BlobType, AnalyzerError> for Analyzer<'a> {
     fn func(&mut self, func_decl: &StmtFuncDecl) -> Result<BlobType, AnalyzerError> {
         self.scopes
             .push(Scope::new(VarData::from_func_decl_args(&func_decl.args)));
-        self.current_func_ret_type = func_decl.return_type.clone().unwrap_or(BlobType::None);
         self.stmt(&func_decl.body)?;
         self.scopes.pop();
         Ok(BlobType::None)
@@ -118,26 +109,12 @@ impl<'a> AstWalker<BlobType, AnalyzerError> for Analyzer<'a> {
         Ok(BlobType::None)
     }
 
-    fn expr_stmt(&mut self, expr: &StmtExpr) -> Result<BlobType, AnalyzerError> {
-        self.expr(&expr.expr)
+    fn expr_stmt(&mut self, expr: &Expr) -> Result<BlobType, AnalyzerError> {
+        self.expr(expr)
     }
 
-    fn return_stmt(&mut self, returnn: &StmtReturn) -> Result<BlobType, AnalyzerError> {
-        let expr_type = match &returnn.expr {
-            Some(e) => self.expr(e)?,
-            None => BlobType::None,
-        };
-
-        if expr_type != self.current_func_ret_type {
-            eprintln!(
-                "Expected return type '{:?}' but got '{:?}'",
-                self.current_func_ret_type, expr_type
-            );
-            self.errored = true;
-            return Err(AnalyzerError::TypeMismatch);
-        }
-
-        Ok(expr_type)
+    fn return_stmt(&mut self, expr: &Option<Expr>) -> Result<BlobType, AnalyzerError> {
+        todo!("Implement semantic analysis for return stmt")
     }
 
     fn if_stmt(&mut self, iff: &StmtIf) -> Result<BlobType, AnalyzerError> {

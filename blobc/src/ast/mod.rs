@@ -2,7 +2,10 @@ use derive_new::new;
 
 use self::{
     expr::{Expr, ExprBinaryOp, ExprBooleanOp, ExprCall, ExprUnaryOp},
-    stmt::{Stmt, StmtAssign, StmtFuncDecl, StmtIf, StmtIfElse, StmtVarDecl, StmtWhile},
+    stmt::{
+        Stmt, StmtAssign, StmtExpr, StmtFuncDecl, StmtIf, StmtIfElse, StmtReturn, StmtVarDecl,
+        StmtWhile,
+    },
 };
 
 pub mod blob_type;
@@ -30,8 +33,8 @@ pub trait AstWalker<T: Default, E: Default> {
     fn stmt(&mut self, stmt: &Stmt) -> Result<T, E> {
         match stmt {
             Stmt::Block(stmts) => self.block_stmt(stmts),
-            Stmt::ExprStmt(expr) => self.expr_stmt(expr),
-            Stmt::Return(expr) => self.return_stmt(expr),
+            Stmt::Expr(expr) => self.expr_stmt(expr),
+            Stmt::Return(returnn) => self.return_stmt(returnn),
             Stmt::If(iff) => self.if_stmt(iff),
             Stmt::IfElse(if_else) => self.if_else_stmt(if_else),
             Stmt::VarDecl(var_decl) => self.var_decl_stmt(var_decl),
@@ -57,8 +60,8 @@ pub trait AstWalker<T: Default, E: Default> {
 
     fn func(&mut self, func_decl: &StmtFuncDecl) -> Result<T, E>;
     fn block_stmt(&mut self, stmts: &Vec<Stmt>) -> Result<T, E>;
-    fn expr_stmt(&mut self, expr: &Expr) -> Result<T, E>;
-    fn return_stmt(&mut self, expr: &Option<Expr>) -> Result<T, E>;
+    fn expr_stmt(&mut self, expr: &StmtExpr) -> Result<T, E>;
+    fn return_stmt(&mut self, expr: &StmtReturn) -> Result<T, E>;
     fn if_stmt(&mut self, iff: &StmtIf) -> Result<T, E>;
     fn if_else_stmt(&mut self, if_else: &StmtIfElse) -> Result<T, E>;
     fn var_decl_stmt(&mut self, var_decl: &StmtVarDecl) -> Result<T, E>;

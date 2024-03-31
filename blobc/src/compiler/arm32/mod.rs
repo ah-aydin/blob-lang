@@ -5,9 +5,12 @@ use self::assembly::Arm32Ins;
 use super::common::CompileError;
 use crate::ast::{
     blob_type::BlobType,
-    expr::{Expr, ExprBinaryOp, ExprBooleanOp, ExprCall, ExprUnaryOp},
+    expr::{ExprBinaryOp, ExprBooleanOp, ExprCall, ExprUnaryOp},
     op_type::{BinaryOpType, BooleanOpType, UnaryOpType},
-    stmt::{Stmt, StmtAssign, StmtFuncDecl, StmtIf, StmtIfElse, StmtVarDecl, StmtWhile},
+    stmt::{
+        Stmt, StmtAssign, StmtExpr, StmtFuncDecl, StmtIf, StmtIfElse, StmtReturn, StmtVarDecl,
+        StmtWhile,
+    },
     AstWalker,
 };
 use std::{fs::File, io::Write, process::Command};
@@ -241,12 +244,13 @@ impl AstWalker<(), CompileError> for Arm32Compiler {
         Ok(())
     }
 
-    fn expr_stmt(&mut self, expr: &Expr) -> CompilerResult {
-        self.expr(expr)?;
+    fn expr_stmt(&mut self, expr: &StmtExpr) -> CompilerResult {
+        self.expr(&expr.expr)?;
         Ok(())
     }
 
-    fn return_stmt(&mut self, expr: &Option<Expr>) -> CompilerResult {
+    fn return_stmt(&mut self, returnn: &StmtReturn) -> CompilerResult {
+        let expr = &returnn.expr;
         if expr.is_some() {
             self.expr(expr.as_ref().unwrap())?;
         }

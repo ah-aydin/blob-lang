@@ -3,6 +3,18 @@ use derive_new::new;
 use super::{blob_type::BlobType, expr::Expr};
 
 #[derive(Debug, Clone, PartialEq, Eq, new)]
+pub struct StmtExpr {
+    pub expr: Expr,
+    pub line: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, new)]
+pub struct StmtReturn {
+    pub expr: Option<Expr>,
+    pub line: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, new)]
 pub struct StmtFuncDecl {
     pub name: String,
     pub args: Vec<(String, BlobType)>,
@@ -50,9 +62,9 @@ pub struct StmtWhile {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Stmt {
-    ExprStmt(Expr),
+    Expr(StmtExpr),
     Block(Vec<Stmt>),
-    Return(Option<Expr>),
+    Return(StmtReturn),
     FuncDecl(StmtFuncDecl),
     If(StmtIf),
     IfElse(StmtIfElse),
@@ -67,11 +79,14 @@ impl Stmt {
             match block.last() {
                 Some(Stmt::Return(_)) => {}
                 _ => {
-                    block.push(Stmt::Return(None));
+                    block.push(Stmt::Return(StmtReturn::new(None, 0)));
                 }
             }
             return;
         }
-        unreachable!("How the heck did a function end up with a non block body? {:?}", self);
+        unreachable!(
+            "How the heck did a function end up with a non block body? {:?}",
+            self
+        );
     }
 }

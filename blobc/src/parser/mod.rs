@@ -1,12 +1,14 @@
 pub mod scanner;
 pub mod token;
 
-use token::TokenType;
 use crate::ast::{
     blob_type::BlobType,
     expr::{Expr, ExprBinaryOp, ExprBooleanOp, ExprCall, ExprUnaryOp},
     op_type::{BooleanOpType, UnaryOpType},
-    stmt::{Stmt, StmtAssign, StmtFuncDecl, StmtIf, StmtIfElse, StmtVarDecl, StmtWhile},
+    stmt::{
+        Stmt, StmtAssign, StmtExpr, StmtFuncDecl, StmtIf, StmtIfElse, StmtReturn, StmtVarDecl,
+        StmtWhile,
+    },
     FileCoords,
 };
 use std::{
@@ -14,6 +16,7 @@ use std::{
     fs::File,
     io::{BufReader, Read},
 };
+use token::TokenType;
 
 use self::{scanner::Scanner, token::Token};
 
@@ -398,11 +401,11 @@ impl Parser {
 
     fn return_stmt(&mut self) -> StmtResult {
         if self.match_token(TokenType::Semicolon)? {
-            return Ok(Stmt::Return(None));
+            return Ok(Stmt::Return(StmtReturn::new(None, self.get_line())));
         }
         let expr = self.expr()?;
         self.consume(TokenType::Semicolon, "Expected ';' to end return statement")?;
-        Ok(Stmt::Return(Some(expr)))
+        Ok(Stmt::Return(StmtReturn::new(Some(expr), self.get_line())))
     }
 
     fn if_else_stmt(&mut self) -> StmtResult {
@@ -533,12 +536,15 @@ impl Parser {
                 }
                 // TODO print warning here for unimpactfull instruction
                 self.consume(TokenType::Semicolon, "Expected ';' after expression")?;
-                Ok(Stmt::ExprStmt(Expr::Identifier(ident)))
+                Ok(Stmt::Expr(StmtExpr::new(
+                    Expr::Identifier(ident),
+                    self.get_line(),
+                )))
             }
             other => {
                 // TODO add checks for unimpactfull instructions
                 self.consume(TokenType::Semicolon, "Expected ';' after expression")?;
-                Ok(Stmt::ExprStmt(other))
+                Ok(Stmt::Expr(StmtExpr::new(other, self.get_line())))
             }
         }
     }
