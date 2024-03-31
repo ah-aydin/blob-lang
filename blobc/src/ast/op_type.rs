@@ -18,6 +18,15 @@ pub enum BooleanOpType {
     LessOrEqual,
 }
 
+impl BooleanOpType {
+    pub fn is_boolean_specific(&self) -> bool {
+        match self  {
+            BooleanOpType::And | BooleanOpType::Or => true,
+            _ => false
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UnaryOpType {
     Negate,

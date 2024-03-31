@@ -331,7 +331,7 @@ impl<'a> AstWalker<BlobType, AnalyzerError> for Analyzer<'a> {
             self.errored = true;
             return Err(AnalyzerError::TypeMismatch);
         }
-        if left_type != BlobType::Bool {
+        if boolean_op.op_type.is_boolean_specific() && left_type != BlobType::Bool {
             eprintln!(
                 "[ERROR] Line {}: Cannot apply operation '{:?}' on type '{:?}'",
                 boolean_op.line, boolean_op.op_type, left_type
