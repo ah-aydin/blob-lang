@@ -19,7 +19,7 @@ impl FuncData {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VarData {
     pub name: String,
     pub blob_type: BlobType,

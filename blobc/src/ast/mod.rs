@@ -67,7 +67,7 @@ pub trait AstWalker<T: Default, E: Default> {
     fn var_decl_stmt(&mut self, var_decl: &StmtVarDecl) -> Result<T, E>;
     fn assign_stmt(&mut self, assign: &StmtAssign) -> Result<T, E>;
     fn while_stmt(&mut self, whilee: &StmtWhile) -> Result<T, E>;
-    fn bool_expr(&mut self, b: bool) -> Result<T, E>;
+    fn bool_expr(&mut self, booll: bool) -> Result<T, E>;
     fn i32_expr(&mut self, number: &str) -> Result<T, E>;
     fn identifier_expr(&mut self, name: &str) -> Result<T, E>;
     fn unary_expr(&mut self, unary_op: &ExprUnaryOp) -> Result<T, E>;
