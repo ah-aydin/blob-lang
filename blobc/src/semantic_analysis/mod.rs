@@ -13,6 +13,7 @@ use crate::ast::{
 
 use self::symbols::{FuncData, VarData};
 
+// TODO add checks for unused variables and functions
 pub fn analyze(stmts: &Vec<Stmt>) -> Result<(), ()> {
     let mut analyzer = Analyzer::new(stmts);
     analyzer.analyze();
@@ -201,7 +202,7 @@ impl<'a> AstWalker<BlobType, AnalyzerError> for Analyzer<'a> {
     fn var_decl_stmt(&mut self, var_decl: &StmtVarDecl) -> Result<BlobType, AnalyzerError> {
         if self.scope_contains_var(&var_decl.name) {
             eprintln!(
-                "[ERROR] Line {}: Variable '{:?}' is allready defined in this scope",
+                "[ERROR] Line {}: Variable '{}' is allready defined in this scope",
                 var_decl.line, var_decl.name
             );
             self.errored = true;
@@ -291,7 +292,7 @@ impl<'a> AstWalker<BlobType, AnalyzerError> for Analyzer<'a> {
             (op_type, blob_type) => {
                 eprintln!(
                     "[ERROR] Line {}: Cannot apply operation '{:?}' on type '{:?}'",
-                    unary_op.line, blob_type, op_type
+                    unary_op.line, op_type, blob_type
                 );
                 self.errored = true;
                 Err(AnalyzerError::UnsupportedOpration)
@@ -340,7 +341,7 @@ impl<'a> AstWalker<BlobType, AnalyzerError> for Analyzer<'a> {
             return Err(AnalyzerError::UnsupportedOpration);
         }
 
-        Ok(left_type)
+        Ok(BlobType::Bool)
     }
 
     fn call(&mut self, call: &ExprCall) -> Result<BlobType, AnalyzerError> {
