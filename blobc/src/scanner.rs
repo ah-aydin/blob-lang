@@ -13,7 +13,7 @@ lazy_static! {
         let mut map = HashMap::new();
 
         map.insert("bool", TokenType::BTypeBool);
-        map.insert("i64", TokenType::BTypeI64);
+        map.insert("i32", TokenType::BTypeI32);
         map.insert("str", TokenType::BTypeStr);
 
         map.insert("else", TokenType::Else);
@@ -183,8 +183,8 @@ impl Scanner {
                     let file_coords = self.file_coords.new_offset(0, -(lexeme.len() as isize));
                     if lexeme.len() == 0 {
                         Ok(self.build_single_char_token(TokenType::EOF))
-                    } else if lexeme.parse::<i64>().is_ok() {
-                        Ok(Token::new_with_lexeme(TokenType::I64, file_coords, lexeme))
+                    } else if lexeme.parse::<i32>().is_ok() {
+                        Ok(Token::new_with_lexeme(TokenType::I32, file_coords, lexeme))
                     } else if let Some(token_type) = KEYWORDS.get(lexeme.as_str()) {
                         Ok(Token::new(*token_type, file_coords))
                     } else {

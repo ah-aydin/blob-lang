@@ -43,7 +43,7 @@ pub enum TokenType {
     // Literal
     True,
     False,
-    I64,
+    I32,
     String,
     Identifier,
 
@@ -57,7 +57,7 @@ pub enum TokenType {
 
     // Types
     BTypeBool,
-    BTypeI64,
+    BTypeI32,
     BTypeStr,
 
     EOF,
@@ -66,7 +66,7 @@ pub enum TokenType {
 impl TokenType {
     fn requires_lexeme(&self) -> bool {
         match self {
-            TokenType::I64 | TokenType::String | TokenType::Identifier => true,
+            TokenType::I32 | TokenType::String | TokenType::Identifier => true,
             _ => false,
         }
     }
@@ -151,7 +151,7 @@ impl Token {
     pub fn get_btype(&self) -> BType {
         match self.token_type {
             TokenType::BTypeBool => BType::Bool,
-            TokenType::BTypeI64 => BType::I64,
+            TokenType::BTypeI32 => BType::I32,
             TokenType::BTypeStr => BType::Str,
             _ => unreachable!("{:?} does not have a BType", self.token_type),
         }

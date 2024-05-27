@@ -2,6 +2,6 @@
 pub enum BType {
     None,
     Bool,
-    I64,
+    I32,
     Str,
 }

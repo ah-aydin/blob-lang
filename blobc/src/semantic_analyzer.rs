@@ -6,7 +6,7 @@ use crate::{
     ast::{
         btype::BType,
         expr::{
-            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprI64, ExprIdenifier, ExprString, ExprUnaryOp,
+            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprI32, ExprIdenifier, ExprString, ExprUnaryOp,
         },
         op::OpBTypes,
         stmt::{
@@ -125,7 +125,7 @@ impl<'a> Analyzer<'a> {
     fn expr(&mut self, expr: &Expr) -> AnalyzerRetType {
         match expr {
             Expr::Bool(expr_bool) => self.expr_bool(expr_bool),
-            Expr::I64(expr_i64) => self.expr_i64(expr_i64),
+            Expr::I32(expr_i32) => self.expr_i32(expr_i32),
             Expr::String(expr_string) => self.expr_string(&expr_string),
             Expr::Identifier(expr_identifier) => self.expr_identifier(expr_identifier),
             Expr::BinaryOp(expr_binary_op) => self.expr_binary_op(expr_binary_op),
@@ -370,8 +370,8 @@ impl<'a> Analyzer<'a> {
         Ok(BType::Bool)
     }
 
-    fn expr_i64(&mut self, _expr_i64: &ExprI64) -> AnalyzerRetType {
-        Ok(BType::I64)
+    fn expr_i32(&mut self, _expr_i32: &ExprI32) -> AnalyzerRetType {
+        Ok(BType::I32)
     }
 
     fn expr_string(&mut self, _expr_string: &ExprString) -> AnalyzerRetType {

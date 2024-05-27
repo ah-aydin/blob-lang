@@ -1,8 +1,8 @@
-func func1(a: i64): bool {
+func func1(a: i32): bool {
   return !(1 <= 2);
 }
 
-func func2(a: i64, b: bool): str {
+func func2(a: i32, b: bool): str {
   if (1 == 2) {
   }
   if (2 == 2) {
@@ -18,7 +18,7 @@ func func2(a: i64, b: bool): str {
   return "gigel";
 }
 
-func gib(): i64 {
+func gib(): i32 {
   if (1 == 1) {
     return 10;
   } else {
@@ -30,13 +30,13 @@ func gib2() {
   return;
 }
 
-func main(): i64 {
+func main(): i32 {
   var a = 3 + 2;
   var b: str = "mamaliga";
   var c: bool = 3 != 0;
-  var d: i64 = 10;
+  var d: i32 = 10;
   if (a == 1) {
-    var a: i64 = 1;
+    var a: i32 = 1;
     var e: str = "Mamalige";
     a + 2;
   } else {

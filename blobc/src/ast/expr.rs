@@ -9,8 +9,8 @@ pub struct ExprBool {
 }
 
 #[derive(Debug, Clone)]
-pub struct ExprI64 {
-    pub value: i64,
+pub struct ExprI32 {
+    pub value: i32,
     pub file_coords: FileCoords,
 }
 
@@ -50,7 +50,7 @@ pub struct ExprCall {
 #[derive(Debug, Clone)]
 pub enum Expr {
     Bool(ExprBool),
-    I64(ExprI64),
+    I32(ExprI32),
     Identifier(ExprIdenifier),
     String(ExprString),
 
@@ -64,7 +64,7 @@ impl Expr {
     pub fn get_file_coords(&self) -> FileCoords {
         match self {
             Expr::Bool(expr) => expr.file_coords,
-            Expr::I64(expr) => expr.file_coords,
+            Expr::I32(expr) => expr.file_coords,
             Expr::Identifier(expr) => expr.file_coords,
             Expr::String(expr) => expr.file_coords,
             Expr::BinaryOp(expr) => expr.file_coords,

@@ -41,9 +41,9 @@ impl OpBTypes for BinaryOp {
             | BinaryOp::Gt
             | BinaryOp::Gte
             | BinaryOp::Lt
-            | BinaryOp::Lte => vec![BType::I64],
+            | BinaryOp::Lte => vec![BType::I32],
             BinaryOp::BooleanOr | BinaryOp::BooleanAnd => vec![BType::Bool],
-            BinaryOp::Eq | BinaryOp::Neq => vec![BType::Bool, BType::I64],
+            BinaryOp::Eq | BinaryOp::Neq => vec![BType::Bool, BType::I32],
         }
     }
 
@@ -54,7 +54,7 @@ impl OpBTypes for BinaryOp {
             | BinaryOp::Mul
             | BinaryOp::Div
             | BinaryOp::BitwiseOr
-            | BinaryOp::BitwiseAnd => BType::I64,
+            | BinaryOp::BitwiseAnd => BType::I32,
             BinaryOp::BooleanOr
             | BinaryOp::BooleanAnd
             | BinaryOp::Eq
@@ -70,14 +70,14 @@ impl OpBTypes for BinaryOp {
 impl OpBTypes for UnaryOp {
     fn get_supported_btypes(&self) -> Vec<BType> {
         match self {
-            UnaryOp::Neg => vec![BType::I64],
+            UnaryOp::Neg => vec![BType::I32],
             UnaryOp::Not => vec![BType::Bool],
         }
     }
 
     fn get_result_btype(&self) -> BType {
         match self {
-            UnaryOp::Neg => BType::I64,
+            UnaryOp::Neg => BType::I32,
             UnaryOp::Not => BType::Bool,
         }
     }

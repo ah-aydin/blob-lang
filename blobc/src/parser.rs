@@ -6,7 +6,7 @@ use crate::{
     ast::{
         btype::BType,
         expr::{
-            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprI64, ExprIdenifier, ExprString, ExprUnaryOp,
+            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprI32, ExprIdenifier, ExprString, ExprUnaryOp,
         },
         op::BinaryOp,
         stmt::{
@@ -77,8 +77,8 @@ enum Scope {
 /// expr_unary -> ("!" | "-") expr_unary | expr_call
 /// expr_call -> expr_primary | IDENTIFIER ("(" expr_arguments? ")")?
 /// expr_arguments -> expr ("," expr )*
-/// expr_primary -> I64 | IDENTIFIER | STRING | TRUE | FALSE | "(" expr ")"
-/// expr_type -> ":" IDENTIFIER | "i64" | "str" | "bool"
+/// expr_primary -> I32 | IDENTIFIER | STRING | TRUE | FALSE | "(" expr ")"
+/// expr_type -> ":" IDENTIFIER | "i32" | "str" | "bool"
 /// ```
 struct Parser {
     tokens: Vec<Token>,
@@ -489,8 +489,8 @@ impl Parser {
     fn expr_primary(&mut self) -> ExprResult {
         let token = self.next_token()?;
         match token.token_type {
-            TokenType::I64 => Ok(Expr::I64(ExprI64 {
-                value: token.lexeme.as_ref().unwrap().parse::<i64>().unwrap(),
+            TokenType::I32 => Ok(Expr::I32(ExprI32 {
+                value: token.lexeme.as_ref().unwrap().parse::<i32>().unwrap(),
                 file_coords: token.file_coords,
             })),
             TokenType::Identifier => Ok(Expr::Identifier(ExprIdenifier {
@@ -529,7 +529,7 @@ impl Parser {
         Ok(self
             .consume_any(vec![
                 TokenType::BTypeBool,
-                TokenType::BTypeI64,
+                TokenType::BTypeI32,
                 TokenType::BTypeStr,
             ])?
             .get_btype())
