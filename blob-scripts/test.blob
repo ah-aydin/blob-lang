@@ -19,7 +19,15 @@ func func2(a: i64, b: bool): str {
 }
 
 func gib(): i64 {
-  return 10;
+  if (1 == 1) {
+    return 10;
+  } else {
+    return 10;
+  }
+}
+
+func gib2() {
+  return;
 }
 
 func main(): i64 {

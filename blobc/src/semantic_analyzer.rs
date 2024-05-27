@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use log::{error, info, warn};
+use log::{error, info};
 
 use crate::{
     ast::{
@@ -20,21 +20,19 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum AnalyzerError {
-    Type(String, FileCoords),
-    Function(String, FileCoords),
-    Defined(String, FileCoords),
-    Undefined(String, FileCoords),
+    ErrorFC(String, FileCoords),
+    Error(String),
     Tombstone,
 }
 
 impl Display for AnalyzerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AnalyzerError::Type(msg, file_coords)
-            | AnalyzerError::Function(msg, file_coords)
-            | AnalyzerError::Undefined(msg, file_coords)
-            | AnalyzerError::Defined(msg, file_coords) => {
+            AnalyzerError::ErrorFC(msg, file_coords) => {
                 write!(f, "{}:{} {}", file_coords.line, file_coords.col, msg)
+            }
+            AnalyzerError::Error(msg) => {
+                write!(f, "{}", msg)
             }
             AnalyzerError::Tombstone => unreachable!("Tombstone AnalyzerError cannot be printed"),
         }
@@ -103,6 +101,7 @@ impl<'a> Analyzer<'a> {
                 _ => unreachable!("Did not expect a non function Stmt at the top level"),
             };
             if result.is_err() {
+                error!("{}", result.err().unwrap());
                 return Err(());
             }
         }
@@ -138,6 +137,19 @@ impl<'a> Analyzer<'a> {
     fn stmt_func_decl(&mut self, stmt_func_decl: &StmtFuncDecl) -> AnalyzerRetType {
         let ret_type = stmt_func_decl.ret_type;
         self.current_func_ret_type = ret_type;
+        if self
+            .envs
+            .get(0)
+            .unwrap()
+            .funcs
+            .iter()
+            .any(|func_data| func_data.ident == stmt_func_decl.ident)
+        {
+            return Err(AnalyzerError::Error(format!(
+                "Function '{}' is already defined",
+                stmt_func_decl.ident
+            )));
+        }
         // Insert func data to the root environment
         (&mut self.envs.get_mut(0).unwrap().funcs).push(Func::new(
             stmt_func_decl.ident.clone(),
@@ -146,7 +158,52 @@ impl<'a> Analyzer<'a> {
         ));
 
         self.stmt(&stmt_func_decl.body)?;
+        if self.current_func_ret_type != BType::None {
+            self.check_last_ret_stmt(&stmt_func_decl.body)?;
+        }
         Ok(ret_type)
+    }
+
+    fn check_last_ret_stmt(&mut self, stmt: &Stmt) -> Result<(), AnalyzerError> {
+        match stmt {
+            Stmt::Expr(_) => unreachable!("Shouldn't be processing expressions here"),
+            Stmt::Block(stmt_block) => match stmt_block.stmts.last() {
+                Some(last_stmt) => self.check_last_ret_stmt(last_stmt),
+                None => Err(AnalyzerError::Error(format!(
+                    "Missing return statement on required function"
+                ))),
+            },
+            Stmt::Return(_) => Ok(()),
+            Stmt::FuncDecl(_) => unreachable!("Function in function is not possible"),
+            Stmt::If(stmt_if) => Err(AnalyzerError::ErrorFC(
+                "Not all paths leads to a return statement".to_string(),
+                stmt_if.condition.get_file_coords(),
+            )),
+            Stmt::IfElse(if_else_stmt) => {
+                if self.check_last_ret_stmt(&if_else_stmt.if_body).is_ok()
+                    && self.check_last_ret_stmt(&if_else_stmt.else_body).is_ok()
+                {
+                    Ok(())
+                } else {
+                    Err(AnalyzerError::ErrorFC(
+                        "Both branches should have a return statement".to_string(),
+                        if_else_stmt.condition.get_file_coords(),
+                    ))
+                }
+            }
+            Stmt::VarDecl(stmt_var_decl) => Err(AnalyzerError::ErrorFC(
+                "Last statment must be for return".to_string(),
+                stmt_var_decl.expr.get_file_coords(),
+            )),
+            Stmt::Assign(stmt_assign) => Err(AnalyzerError::ErrorFC(
+                "Last statment must be for return".to_string(),
+                stmt_assign.expr.get_file_coords(),
+            )),
+            Stmt::While(stmt_while) => Err(AnalyzerError::ErrorFC(
+                "Last statment must be for return".to_string(),
+                stmt_while.condition.get_file_coords(),
+            )),
+        }
     }
 
     fn stmt_expr(&mut self, stmt_expr: &StmtExpr) -> AnalyzerRetType {
@@ -156,11 +213,13 @@ impl<'a> Analyzer<'a> {
     fn stmt_block(&mut self, stmt_block: &StmtBlock) -> AnalyzerRetType {
         self.envs.push(Env::new());
         let mut errored = false;
+        let mut error = AnalyzerError::Tombstone;
         for stmt in &stmt_block.stmts {
             match self.stmt(stmt) {
                 Err(err) => {
                     errored = true;
-                    error!("{}", err);
+                    error = err;
+                    error!("{}", error);
                 }
 
                 _ => {}
@@ -168,7 +227,7 @@ impl<'a> Analyzer<'a> {
         }
         self.envs.pop();
         if errored {
-            return Err(AnalyzerError::Tombstone);
+            return Err(error);
         }
         Ok(BType::None)
     }
@@ -180,7 +239,7 @@ impl<'a> Analyzer<'a> {
             None => BType::None,
         };
         if expr_type != self.current_func_ret_type {
-            return Err(AnalyzerError::Type(
+            return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Expected return type '{:?}' by got '{:?}'",
                     self.current_func_ret_type, expr_type
@@ -194,7 +253,7 @@ impl<'a> Analyzer<'a> {
     fn stmt_if(&mut self, stmt_if: &StmtIf) -> AnalyzerRetType {
         let condition_btype = self.expr(&stmt_if.condition)?;
         if condition_btype != BType::Bool {
-            return Err(AnalyzerError::Type(
+            return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Expected if condition to have a 'Bool' result but got '{:?}'",
                     condition_btype
@@ -209,7 +268,7 @@ impl<'a> Analyzer<'a> {
     fn stmt_if_else(&mut self, stmt_if_else: &StmtIfElse) -> AnalyzerRetType {
         let condition_btype = self.expr(&stmt_if_else.condition)?;
         if condition_btype != BType::Bool {
-            return Err(AnalyzerError::Type(
+            return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Expected if condition to have a 'Bool' result but got '{:?}'",
                     condition_btype
@@ -231,7 +290,7 @@ impl<'a> Analyzer<'a> {
             .iter()
             .any(|var| var.ident == stmt_var_decl.ident)
         {
-            return Err(AnalyzerError::Defined(
+            return Err(AnalyzerError::ErrorFC(
                 format!("Var '{}' is already defined", stmt_var_decl.ident),
                 stmt_var_decl.expr.get_file_coords(),
             ));
@@ -241,7 +300,7 @@ impl<'a> Analyzer<'a> {
         let expr_btype = self.expr(&stmt_var_decl.expr)?;
 
         if var_btype != BType::None && var_btype != expr_btype {
-            return Err(AnalyzerError::Type(
+            return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Var has type '{:?}' but right expression has '{:?}'",
                     var_btype, expr_btype
@@ -272,7 +331,7 @@ impl<'a> Analyzer<'a> {
         }
 
         if !found {
-            return Err(AnalyzerError::Undefined(
+            return Err(AnalyzerError::ErrorFC(
                 format!("{:?} is undefined", ident),
                 stmt_assign.expr.get_file_coords(),
             ));
@@ -280,7 +339,7 @@ impl<'a> Analyzer<'a> {
 
         let expr_btype = self.expr(&stmt_assign.expr)?;
         if var_btype != expr_btype {
-            return Err(AnalyzerError::Undefined(
+            return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Variable {} has type '{:?}' but '{:?}' was given",
                     ident, var_btype, expr_btype
@@ -295,7 +354,7 @@ impl<'a> Analyzer<'a> {
     fn stmt_while(&mut self, stmt_while: &StmtWhile) -> AnalyzerRetType {
         let condition_btype = self.expr(&stmt_while.condition)?;
         if condition_btype != BType::Bool {
-            return Err(AnalyzerError::Type(
+            return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Expected while condition to have a 'Bool' result but got '{:?}'",
                     condition_btype
@@ -328,7 +387,7 @@ impl<'a> Analyzer<'a> {
             }
         }
 
-        Err(AnalyzerError::Undefined(
+        Err(AnalyzerError::ErrorFC(
             format!("'{:?}' is undefined", ident),
             expr_identifier.file_coords,
         ))
@@ -340,7 +399,7 @@ impl<'a> Analyzer<'a> {
 
         let supported_btypes = expr_binary_op.op.get_supported_btypes();
         if !supported_btypes.contains(&left_btype) {
-            return Err(AnalyzerError::Type(
+            return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Op '{:?}' expects '{:?}' types but it got '{:?}' in the left term",
                     expr_binary_op.op, supported_btypes, left_btype
@@ -349,7 +408,7 @@ impl<'a> Analyzer<'a> {
             ));
         }
         if !supported_btypes.contains(&right_btype) {
-            return Err(AnalyzerError::Type(
+            return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Op '{:?}' expects '{:?}' types but it got '{:?}' in the right term",
                     expr_binary_op.op, supported_btypes, right_btype
@@ -359,7 +418,7 @@ impl<'a> Analyzer<'a> {
         }
 
         if left_btype != right_btype {
-            return Err(AnalyzerError::Type(
+            return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Mismatched types '{:?}' and '{:?}'",
                     left_btype, right_btype
@@ -376,7 +435,7 @@ impl<'a> Analyzer<'a> {
 
         let supported_btypes = expr_unary_op.op.get_supported_btypes();
         if !supported_btypes.contains(&btype) {
-            return Err(AnalyzerError::Type(
+            return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Op '{:?}' expects '{:?}' types but it got '{:?}'",
                     expr_unary_op.op, supported_btypes, btype
@@ -397,7 +456,7 @@ impl<'a> Analyzer<'a> {
             .iter()
             .find(|func| func.ident == expr_call.name);
         if func_data.is_none() {
-            return Err(AnalyzerError::Undefined(
+            return Err(AnalyzerError::ErrorFC(
                 format!("Function '{}' is not defined", expr_call.name),
                 expr_call.file_coords,
             ));
@@ -405,7 +464,7 @@ impl<'a> Analyzer<'a> {
         let func_data = func_data.unwrap().clone();
 
         if func_data.arg_types.len() != expr_call.args.len() {
-            return Err(AnalyzerError::Function(
+            return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Function '{} 'takes {} arguments but {} where given",
                     func_data.ident,
@@ -424,7 +483,7 @@ impl<'a> Analyzer<'a> {
         {
             let expr_btype = self.expr(expr)?;
             if expr_btype != *expected_btype {
-                return Err(AnalyzerError::Function(
+                return Err(AnalyzerError::ErrorFC(
                     format!(
                         "Function arg {} expecetd type {:?} but got {:?}",
                         i + 1,
