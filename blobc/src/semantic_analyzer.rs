@@ -21,6 +21,7 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum AnalyzerError {
     Type(String, FileCoords),
+    Function(String, FileCoords),
     Defined(String, FileCoords),
     Undefined(String, FileCoords),
     Tombstone,
@@ -30,6 +31,7 @@ impl Display for AnalyzerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             AnalyzerError::Type(msg, file_coords)
+            | AnalyzerError::Function(msg, file_coords)
             | AnalyzerError::Undefined(msg, file_coords)
             | AnalyzerError::Defined(msg, file_coords) => {
                 write!(f, "{}:{} {}", file_coords.line, file_coords.col, msg)
@@ -60,12 +62,6 @@ impl Func {
 struct Var {
     ident: String,
     btype: BType,
-}
-
-impl Var {
-    fn new(ident: String, btype: BType) -> Var {
-        Var { ident, btype }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -393,7 +389,54 @@ impl<'a> Analyzer<'a> {
     }
 
     fn expr_call(&mut self, expr_call: &ExprCall) -> AnalyzerRetType {
-        todo!("expr_call")
+        let func_data = self
+            .envs
+            .get(0)
+            .unwrap()
+            .funcs
+            .iter()
+            .find(|func| func.ident == expr_call.name);
+        if func_data.is_none() {
+            return Err(AnalyzerError::Undefined(
+                format!("Function '{}' is not defined", expr_call.name),
+                expr_call.file_coords,
+            ));
+        }
+        let func_data = func_data.unwrap().clone();
+
+        if func_data.arg_types.len() != expr_call.args.len() {
+            return Err(AnalyzerError::Function(
+                format!(
+                    "Function '{} 'takes {} arguments but {} where given",
+                    func_data.ident,
+                    func_data.arg_types.len(),
+                    expr_call.args.len()
+                ),
+                expr_call.file_coords,
+            ));
+        }
+
+        for (i, (expected_btype, expr)) in func_data
+            .arg_types
+            .iter()
+            .zip(expr_call.args.iter())
+            .enumerate()
+        {
+            let expr_btype = self.expr(expr)?;
+            if expr_btype != *expected_btype {
+                return Err(AnalyzerError::Function(
+                    format!(
+                        "Function arg {} expecetd type {:?} but got {:?}",
+                        i + 1,
+                        expected_btype,
+                        expr_btype
+                    ),
+                    expr_call.file_coords,
+                ));
+            }
+        }
+
+        Ok(func_data.ret_type)
     }
 }
 

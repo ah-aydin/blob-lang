@@ -18,6 +18,10 @@ func func2(a: i64, b: bool): str {
   return "gigel";
 }
 
+func gib(): i64 {
+  return 10;
+}
+
 func main(): i64 {
   var a = 3 + 2;
   var b: str = "mamaliga";
@@ -31,5 +35,9 @@ func main(): i64 {
     (a + d + 2 / 3) & 10;
   }
   d = ((1111 - 123) / 2);
+  var sss: str = "some string";
+  sss = func2(123, false);
+  var ssss = func1(123);
+  sss = func2(gib(), func1(gib()));
   return 1;
 }
