@@ -1,44 +1,48 @@
-use derive_new::new;
+use super::op::{BinaryOp, BooleanOp, CmpOp, UnaryOp};
 
-use super::op_type::{BinaryOpType, BooleanOpType, UnaryOpType};
-
-#[derive(Debug, Clone, PartialEq, Eq, new)]
-pub struct ExprUnaryOp {
-    pub op_type: UnaryOpType,
-    pub term: Box<Expr>,
-    pub line: usize,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, new)]
+#[derive(Debug, Clone)]
 pub struct ExprBinaryOp {
-    pub left_term: Box<Expr>,
-    pub op_type: BinaryOpType,
-    pub right_term: Box<Expr>,
-    pub line: usize,
+    pub left: Box<Expr>,
+    pub op: BinaryOp,
+    pub right: Box<Expr>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, new)]
+#[derive(Debug, Clone)]
 pub struct ExprBooleanOp {
-    pub left_term: Box<Expr>,
-    pub op_type: BooleanOpType,
-    pub right_term: Box<Expr>,
-    pub line: usize,
+    pub left: Box<Expr>,
+    pub op: BooleanOp,
+    pub right: Box<Expr>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, new)]
+#[derive(Debug, Clone)]
+pub struct ExprCmpOp {
+    pub left: Box<Expr>,
+    pub op: CmpOp,
+    pub right: Box<Expr>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExprUnaryOp {
+    pub op: UnaryOp,
+    pub term: Box<Expr>,
+}
+
+#[derive(Debug, Clone)]
 pub struct ExprCall {
     pub name: String,
     pub args: Vec<Expr>,
-    pub line: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum Expr {
     Bool(bool),
-    Number(String),
+    I64(i64),
     Identifier(String),
-    UnaryOp(ExprUnaryOp),
+
     BinaryOp(ExprBinaryOp),
     BooleanOp(ExprBooleanOp),
+    CmpOp(ExprCmpOp),
+    UnaryOp(ExprUnaryOp),
+
     Call(ExprCall),
 }

@@ -1,69 +1,68 @@
-use derive_new::new;
+use super::{btype::BType, expr::Expr};
 
-use super::{blob_type::BlobType, expr::Expr};
-
-#[derive(Debug, Clone, PartialEq, Eq, new)]
+#[derive(Debug, Clone)]
 pub struct StmtExpr {
     pub expr: Expr,
-    pub line: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, new)]
+#[derive(Debug, Clone)]
+pub struct StmtBlock {
+    pub stmts: Vec<Stmt>,
+}
+
+#[derive(Debug, Clone)]
 pub struct StmtReturn {
-    pub expr: Option<Expr>,
-    pub line: usize,
+    pub expr: Expr,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, new)]
+#[derive(Debug, Clone)]
+pub struct FuncDeclArg {
+    pub name: String,
+    pub bytpe: BType,
+}
+
+#[derive(Debug, Clone)]
 pub struct StmtFuncDecl {
     pub name: String,
-    pub args: Vec<(String, BlobType)>,
-    pub return_type: Option<BlobType>,
-    pub body: Box<Stmt>,
-    pub line: usize,
+    pub args: Vec<FuncDeclArg>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, new)]
+#[derive(Debug, Clone)]
 pub struct StmtIf {
-    pub condition: Expr,
-    pub clause: Box<Stmt>,
-    pub line: usize,
+    condition: Expr,
+    clause: Box<Stmt>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, new)]
+#[derive(Debug, Clone)]
 pub struct StmtIfElse {
-    pub condition: Expr,
-    pub if_clause: Box<Stmt>,
-    pub else_clause: Box<Stmt>,
-    pub line: usize,
+    condition: Expr,
+    if_clause: Box<Stmt>,
+    else_clause: Box<Stmt>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, new)]
+#[derive(Debug, Clone)]
 pub struct StmtVarDecl {
     pub name: String,
-    pub blob_type: Option<BlobType>,
-    pub to: Expr,
-    pub line: usize,
+    pub btype: Option<BType>,
+    pub expr: Expr,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, new)]
+#[derive(Debug, Clone)]
 pub struct StmtAssign {
     pub name: String,
-    pub to: Expr,
-    pub line: usize,
+    pub expr: Expr,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, new)]
+#[derive(Debug, Clone)]
 pub struct StmtWhile {
     pub condition: Expr,
     pub body: Box<Stmt>,
-    pub line: usize,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum Stmt {
     Expr(StmtExpr),
-    Block(Vec<Stmt>),
+    Block(StmtBlock),
     Return(StmtReturn),
     FuncDecl(StmtFuncDecl),
     If(StmtIf),
@@ -71,22 +70,4 @@ pub enum Stmt {
     VarDecl(StmtVarDecl),
     Assign(StmtAssign),
     While(StmtWhile),
-}
-
-impl Stmt {
-    pub fn insert_return_if_not_last_instruction(&mut self) {
-        if let Stmt::Block(block) = self {
-            match block.last() {
-                Some(Stmt::Return(_)) => {}
-                _ => {
-                    block.push(Stmt::Return(StmtReturn::new(None, 0)));
-                }
-            }
-            return;
-        }
-        unreachable!(
-            "How the heck did a function end up with a non block body? {:?}",
-            self
-        );
-    }
 }
