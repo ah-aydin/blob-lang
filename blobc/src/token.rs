@@ -27,6 +27,7 @@ pub enum TokenType {
     LeftBrace,
     RightBrace,
     Comma,
+    Dot,
 
     // Double character
     EqualEqual,
@@ -40,6 +41,7 @@ pub enum TokenType {
     True,
     False,
     I64,
+    String,
     Identifier,
 
     // Keywords
@@ -54,15 +56,13 @@ pub enum TokenType {
     BTypeBool,
     BTypeI64,
 
-    Blank,
-
     EOF,
 }
 
 impl TokenType {
     fn requires_lexeme(&self) -> bool {
         match self {
-            TokenType::I64 | TokenType::Identifier => true,
+            TokenType::I64 | TokenType::String | TokenType::Identifier => true,
             _ => false,
         }
     }
@@ -106,37 +106,34 @@ pub struct Token {
 }
 
 impl Token {
-    pub fn new(token_type: TokenType, line: usize, col: usize) -> Token {
+    pub fn new(token_type: TokenType, file_coords: FileCoords) -> Token {
         assert!(
             !token_type.requires_lexeme(),
-            "Did not expecdt a lexeme for {:?} {}:{}",
+            "Did not expecdt a lexeme for {:?} {}",
             token_type,
-            line,
-            col
+            file_coords
         );
         Token {
             token_type,
-            file_coords: FileCoords { line, col },
+            file_coords,
             lexeme: None,
         }
     }
 
     pub fn new_with_lexeme(
         token_type: TokenType,
-        line: usize,
-        col: usize,
+        file_coords: FileCoords,
         lexeme: String,
     ) -> Token {
         assert!(
             token_type.requires_lexeme(),
-            "Expected a lexeme for {:?} {}:{}",
+            "Expected a lexeme for {:?} {}",
             token_type,
-            line,
-            col
+            file_coords
         );
         Token {
             token_type,
-            file_coords: FileCoords { line, col },
+            file_coords,
             lexeme: Some(lexeme),
         }
     }
@@ -144,14 +141,6 @@ impl Token {
     pub fn eof(file_coords: FileCoords) -> Token {
         Token {
             token_type: TokenType::EOF,
-            file_coords,
-            lexeme: None,
-        }
-    }
-
-    pub fn blank(file_coords: FileCoords) -> Token {
-        Token {
-            token_type: TokenType::Blank,
             file_coords,
             lexeme: None,
         }
