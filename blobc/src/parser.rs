@@ -3,10 +3,9 @@ use std::fmt::Display;
 use crate::{
     ast::{
         expr::{
-            Expr, ExprBinaryOp, ExprBitwiseOp, ExprBool, ExprCall, ExprCmpOp, ExprI64,
-            ExprIdenifier, ExprString, ExprUnaryOp,
+            Expr, ExprBinaryOp, ExprBitwiseOp, ExprBool, ExprBooleanOp, ExprCall, ExprCmpOp, ExprI64, ExprIdenifier, ExprString, ExprUnaryOp
         },
-        stmt::{Stmt, StmtExpr, StmtReturn},
+        stmt::{Stmt, StmtExpr},
     },
     common::FileCoords,
     token::{Token, TokenType},
@@ -55,14 +54,14 @@ struct Parser {
 /// Parsing rules
 /// ```
 /// // Statement grammar
-/// stmt -> func_decl_stmt / return_stmt / if_else_stmt / var_decl_stmt / while_stmt / block_stmt / assignment_stmt
-/// func_decl_stmt -> "func" "(" (IDENTIFIER type_expr ("," IDENTIFIER type_expr)*)? ")" type_expr? block_stmt
-/// return_stmt -> "return" expr ";"
-/// if_else_stmt -> "if" "(" expr ")" block_stmt ("else" block_stmt | "else" if_else_stmt)?
-/// var_decl_stmt -> "var" IDENTIFIER type_expr? "=" expr ";"
-/// while_stmt -> "while" "(" expr ")" block_stmt
-/// block_stmt -> "{" stmt* "}"
-/// assignment_stmt -> ((IDENTIFIER "=")? expr | IDENTIFIER) ";"
+/// stmt -> stmt_func_decl / stmt_return / stmt_if_else / stmt_var_decl / stmt_while / stmt_block / stmt_assignment
+/// stmt_func_decl -> "func" "(" (IDENTIFIER type_expr ("," IDENTIFIER type_expr)*)? ")" type_expr? block_stmt
+/// stmt_return -> "return" expr ";"
+/// stmt_if_else -> "if" "(" expr ")" block_stmt ("else" block_stmt | "else" if_else_stmt)?
+/// stmt_var_decl -> "var" IDENTIFIER type_expr? "=" expr ";"
+/// stmt_while -> "while" "(" expr ")" block_stmt
+/// stmt_block -> "{" stmt* "}"
+/// stmt_assignment -> ((IDENTIFIER "=")? expr | IDENTIFIER) ";"
 ///
 /// // Expression grammar
 /// expr -> expr_boolean_or
@@ -122,9 +121,9 @@ impl Parser {
         while let Some(token_type) = self.match_any(vec![TokenType::PipePipe]) {
             let file_coords = self.get_prev_file_coords();
             let right_term = self.expr_boolean_and()?;
-            expr = Expr::CmpOp(ExprCmpOp {
+            expr = Expr::BooleanOp(ExprBooleanOp {
                 left: Box::new(expr),
-                op: token_type.get_cmp_op_type(),
+                op: token_type.get_boolean_op_type(),
                 right: Box::new(right_term),
                 file_coords,
             });
@@ -137,9 +136,9 @@ impl Parser {
         while let Some(token_type) = self.match_any(vec![TokenType::AmpersandAmpersand]) {
             let file_coords = self.get_prev_file_coords();
             let right_term = self.expr_bitwise_or()?;
-            expr = Expr::CmpOp(ExprCmpOp {
+            expr = Expr::BooleanOp(ExprBooleanOp {
                 left: Box::new(expr),
-                op: token_type.get_cmp_op_type(),
+                op: token_type.get_boolean_op_type(),
                 right: Box::new(right_term),
                 file_coords,
             });
