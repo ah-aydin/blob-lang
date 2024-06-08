@@ -55,14 +55,19 @@ impl Scanner {
             loop {
                 match src_iter.peek() {
                     // Whitespace and comments
-                    Some(' ') | Some('\r') | Some('\t') => self.advance(),
-                    Some('\n') => self.new_line(),
+                    Some(' ') | Some('\r') | Some('\t') => {
+                        self.advance();
+                        src_iter.next();
+                    }
+                    Some('\n') => {
+                        self.new_line();
+                        src_iter.next();
+                    }
                     Some('#') => {
                         self.advance();
+                        src_iter.next();
                         while let Some(c) = src_iter.peek() {
                             if *c == '\n' {
-                                self.new_line();
-                                src_iter.next();
                                 break;
                             }
                             self.advance();
@@ -71,7 +76,6 @@ impl Scanner {
                     }
                     _ => break,
                 };
-                src_iter.next();
             }
 
             let token = match src_iter.next() {
@@ -204,9 +208,9 @@ impl Scanner {
     }
 
     fn new_line(&mut self) {
+        self.current_index += 1;
         self.file_coords.line += 1;
-        self.file_coords.col = 0;
-        self.advance();
+        self.file_coords.col = 1;
     }
 
     fn build_single_char_token(&mut self, token_type: TokenType) -> Token {

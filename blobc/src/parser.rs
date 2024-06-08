@@ -7,7 +7,7 @@ use crate::{
             Expr, ExprBinaryOp, ExprBitwiseOp, ExprBool, ExprBooleanOp, ExprCall, ExprCmpOp,
             ExprI64, ExprIdenifier, ExprString, ExprUnaryOp,
         },
-        stmt::{Stmt, StmtAssign, StmtBlock, StmtExpr, StmtVarDecl, StmtWhile},
+        stmt::{Stmt, StmtAssign, StmtBlock, StmtExpr, StmtIf, StmtIfElse, StmtVarDecl, StmtWhile},
     },
     common::FileCoords,
     token::{Token, TokenType},
@@ -15,13 +15,13 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParserError {
-    WrongToken(String),
+    WrongToken(String, FileCoords),
 }
 
 impl Display for ParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::WrongToken(msg) => write!(f, "{}", msg),
+            Self::WrongToken(msg, file_coords) => write!(f, "{} {}", file_coords, msg),
         }
     }
 }
@@ -34,7 +34,6 @@ enum ScopeType {
     While,
     Block,
 }
-
 
 type StmtResult = Result<Stmt, ParserError>;
 type ExprResult = Result<Expr, ParserError>;
@@ -58,7 +57,7 @@ struct Parser {
 /// stmt_var_decl -> "var" IDENTIFIER expr_type? "=" expr ";"
 /// stmt_while -> "while" "(" expr ")" block_stmt
 /// stmt_block -> "{" stmt* "}"
-/// stmt_assignment -> ((IDENTIFIER "=")? expr | IDENTIFIER) ";"
+/// stmt_assignment -> (IDENTIFIER "=")? expr ";"
 ///
 /// // Expression grammar
 /// expr -> expr_boolean_or
@@ -105,11 +104,44 @@ impl Parser {
 
     fn stmt(&mut self) -> StmtResult {
         match self.peek_token().token_type {
+            TokenType::If => self.stmt_if_else(),
             TokenType::Var => self.stmt_var_decl(),
             TokenType::While => self.stmt_while(),
             TokenType::LeftBrace => self.stmt_block(),
             _ => self.stmt_assignment(),
         }
+    }
+
+    fn stmt_if_else(&mut self) -> StmtResult {
+        self.consume(TokenType::If)?;
+        self.consume(TokenType::LeftParen)?;
+        let condition = self.expr()?;
+        self.consume(TokenType::RightParen)?;
+        let body = self.stmt_block()?;
+
+        if self.match_exact(TokenType::Else) {
+            return match self.peek_token().token_type {
+                TokenType::LeftBrace => Ok(Stmt::IfElse(StmtIfElse {
+                    condition,
+                    if_body: Box::new(body),
+                    else_body: Box::new(self.stmt_block()?),
+                })),
+                TokenType::If => Ok(Stmt::IfElse(StmtIfElse {
+                    condition,
+                    if_body: Box::new(body),
+                    else_body: Box::new(self.stmt_if_else()?),
+                })),
+                _ => Err(ParserError::WrongToken(
+                    "Expected 'if' or '{' after 'else'".to_string(),
+                    self.get_prev_file_coords(),
+                )),
+            };
+        }
+
+        Ok(Stmt::If(StmtIf {
+            condition,
+            body: Box::new(body),
+        }))
     }
 
     fn stmt_var_decl(&mut self) -> StmtResult {
@@ -146,7 +178,6 @@ impl Parser {
     }
 
     fn stmt_block(&mut self) -> StmtResult {
-        // TODO add scope checks
         self.consume(TokenType::LeftBrace)?;
         let mut stmts = vec![];
         while !self.match_exact(TokenType::RightBrace) {
@@ -333,6 +364,7 @@ impl Parser {
             }
             return Err(ParserError::WrongToken(
                 "Expected identifier after '('".to_string(),
+                self.get_prev_file_coords(),
             ));
         }
         Ok(term)
@@ -380,10 +412,13 @@ impl Parser {
                 self.consume(TokenType::RightParen)?;
                 Ok(expr)
             }
-            _ => Err(ParserError::WrongToken(format!(
-                "Can't start statement or expression with {:?} token",
-                token.token_type
-            ))),
+            _ => Err(ParserError::WrongToken(
+                format!(
+                    "Can't start statement or expression with {:?} token",
+                    token.token_type
+                ),
+                token.file_coords,
+            )),
         }
     }
 
@@ -415,10 +450,13 @@ impl Parser {
     fn consume(&mut self, token_type: TokenType) -> TokenRefResult {
         let token = self.next_token();
         if token.token_type != token_type {
-            return Err(ParserError::WrongToken(format!(
-                "Expected token of type {:?} but got {:?}.",
-                token_type, token.token_type
-            )));
+            return Err(ParserError::WrongToken(
+                format!(
+                    "Expected token of type {:?} but got {:?}.",
+                    token_type, token.token_type
+                ),
+                token.file_coords,
+            ));
         }
         Ok(token)
     }
@@ -426,10 +464,13 @@ impl Parser {
     fn consume_any(&mut self, token_types: Vec<TokenType>) -> TokenRefResult {
         let token = self.next_token();
         if !token_types.contains(&token.token_type) {
-            return Err(ParserError::WrongToken(format!(
-                "Expected token of any type {:?} but got {:?}.",
-                token_types, token.token_type
-            )));
+            return Err(ParserError::WrongToken(
+                format!(
+                    "Expected token of any type {:?} but got {:?}.",
+                    token_types, token.token_type
+                ),
+                token.file_coords,
+            ));
         }
         Ok(token)
     }
