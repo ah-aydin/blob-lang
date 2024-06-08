@@ -26,3 +26,5 @@ if (true) {
 } else {
   var b: str = 2;
 }
+
+return 10 - 2 / 4;

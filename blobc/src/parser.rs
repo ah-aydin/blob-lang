@@ -7,7 +7,10 @@ use crate::{
             Expr, ExprBinaryOp, ExprBitwiseOp, ExprBool, ExprBooleanOp, ExprCall, ExprCmpOp,
             ExprI64, ExprIdenifier, ExprString, ExprUnaryOp,
         },
-        stmt::{Stmt, StmtAssign, StmtBlock, StmtExpr, StmtIf, StmtIfElse, StmtVarDecl, StmtWhile},
+        stmt::{
+            Stmt, StmtAssign, StmtBlock, StmtExpr, StmtIf, StmtIfElse, StmtReturn, StmtVarDecl,
+            StmtWhile,
+        },
     },
     common::FileCoords,
     token::{Token, TokenType},
@@ -102,14 +105,24 @@ impl Parser {
         Ok(stmts)
     }
 
+    ///////////////////////////////////////////////////////////////////////////
+    /// Statement rules
+    ///////////////////////////////////////////////////////////////////////////
+
     fn stmt(&mut self) -> StmtResult {
         match self.peek_token().token_type {
+            TokenType::Return => self.stmt_return(),
             TokenType::If => self.stmt_if_else(),
             TokenType::Var => self.stmt_var_decl(),
             TokenType::While => self.stmt_while(),
             TokenType::LeftBrace => self.stmt_block(),
             _ => self.stmt_assignment(),
         }
+    }
+
+    fn stmt_return(&mut self) -> StmtResult {
+        self.consume(TokenType::Return)?;
+        Ok(Stmt::Return(StmtReturn { expr: self.expr()? }))
     }
 
     fn stmt_if_else(&mut self) -> StmtResult {
