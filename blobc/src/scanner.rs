@@ -150,7 +150,7 @@ impl Scanner {
                     if !closed {
                         return Err(ScannerError::IncompleteString);
                     }
-                    let lexeme = src[start_index+1..self.current_index].to_string();
+                    let lexeme = src[start_index + 1..self.current_index].to_string();
                     Ok(Token::new_with_lexeme(
                         TokenType::String,
                         self.file_coords.clone(),
@@ -172,20 +172,17 @@ impl Scanner {
                     }
 
                     let lexeme = src[start_index..self.current_index].to_string();
+                    let file_coords = self.file_coords.new_offset(0, -(lexeme.len() as isize));
                     if lexeme.len() == 0 {
                         Ok(self.build_single_char_token(TokenType::EOF))
                     } else if lexeme.parse::<i64>().is_ok() {
-                        Ok(Token::new_with_lexeme(
-                            TokenType::I64,
-                            self.file_coords.clone(),
-                            lexeme,
-                        ))
+                        Ok(Token::new_with_lexeme(TokenType::I64, file_coords, lexeme))
                     } else if let Some(token_type) = KEYWORDS.get(lexeme.as_str()) {
-                        Ok(Token::new(*token_type, self.file_coords.clone()))
+                        Ok(Token::new(*token_type, file_coords))
                     } else {
                         Ok(Token::new_with_lexeme(
                             TokenType::Identifier,
-                            self.file_coords.clone(),
+                            file_coords,
                             lexeme,
                         ))
                     }
@@ -212,13 +209,13 @@ impl Scanner {
 
     fn build_single_char_token(&mut self, token_type: TokenType) -> Token {
         self.advance();
-        Token::new(token_type, self.file_coords.clone())
+        Token::new(token_type, self.file_coords.new_offset(0, -1))
     }
 
     fn build_double_char_token(&mut self, token_type: TokenType) -> Token {
         self.advance();
         self.advance();
-        Token::new(token_type, self.file_coords.clone())
+        Token::new(token_type, self.file_coords.new_offset(0, -2))
     }
 }
 
