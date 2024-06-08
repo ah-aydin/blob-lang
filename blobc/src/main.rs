@@ -35,7 +35,7 @@ fn main() -> Result<(), i32> {
 
     let tokens = scanner::scan(&src).unwrap();
     let ast = parser::parse(tokens).unwrap();
-    ast.iter().for_each(|a| println!("{:?}", a));
+    ast.iter().for_each(|a| println!("\n{:?}", a));
 
     Ok(())
 }

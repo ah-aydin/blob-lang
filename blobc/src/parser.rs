@@ -2,10 +2,12 @@ use std::fmt::Display;
 
 use crate::{
     ast::{
+        btype::BType,
         expr::{
-            Expr, ExprBinaryOp, ExprBitwiseOp, ExprBool, ExprBooleanOp, ExprCall, ExprCmpOp, ExprI64, ExprIdenifier, ExprString, ExprUnaryOp
+            Expr, ExprBinaryOp, ExprBitwiseOp, ExprBool, ExprBooleanOp, ExprCall, ExprCmpOp,
+            ExprI64, ExprIdenifier, ExprString, ExprUnaryOp,
         },
-        stmt::{Stmt, StmtExpr},
+        stmt::{Stmt, StmtAssign, StmtBlock, StmtExpr, StmtVarDecl, StmtWhile},
     },
     common::FileCoords,
     token::{Token, TokenType},
@@ -33,11 +35,6 @@ enum ScopeType {
     Block,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct Scope {
-    scope_type: ScopeType,
-    file_coords: FileCoords,
-}
 
 type StmtResult = Result<Stmt, ParserError>;
 type ExprResult = Result<Expr, ParserError>;
@@ -46,7 +43,7 @@ type TokenRefResult<'a> = Result<&'a Token, ParserError>;
 struct Parser {
     tokens: Vec<Token>,
     index: usize,
-    scopes: Vec<Scope>,
+    scopes: Vec<ScopeType>,
 }
 
 /// Top down parser.
@@ -58,7 +55,7 @@ struct Parser {
 /// stmt_func_decl -> "func" "(" (IDENTIFIER type_expr ("," IDENTIFIER type_expr)*)? ")" type_expr? block_stmt
 /// stmt_return -> "return" expr ";"
 /// stmt_if_else -> "if" "(" expr ")" block_stmt ("else" block_stmt | "else" if_else_stmt)?
-/// stmt_var_decl -> "var" IDENTIFIER type_expr? "=" expr ";"
+/// stmt_var_decl -> "var" IDENTIFIER expr_type? "=" expr ";"
 /// stmt_while -> "while" "(" expr ")" block_stmt
 /// stmt_block -> "{" stmt* "}"
 /// stmt_assignment -> ((IDENTIFIER "=")? expr | IDENTIFIER) ";"
@@ -107,10 +104,77 @@ impl Parser {
     }
 
     fn stmt(&mut self) -> StmtResult {
+        match self.peek_token().token_type {
+            TokenType::Var => self.stmt_var_decl(),
+            TokenType::While => self.stmt_while(),
+            TokenType::LeftBrace => self.stmt_block(),
+            _ => self.stmt_assignment(),
+        }
+    }
+
+    fn stmt_var_decl(&mut self) -> StmtResult {
+        self.consume(TokenType::Var)?;
+        let ident = self
+            .consume(TokenType::Identifier)?
+            .lexeme
+            .as_ref()
+            .unwrap()
+            .clone();
+        let btype;
+        if self.peek_token().token_type == TokenType::Colon {
+            btype = self.consume_type()?;
+        } else {
+            btype = BType::None;
+        }
+        self.consume(TokenType::Equal)?;
         let expr = self.expr()?;
+        self.consume(TokenType::Semicolon)?;
+        Ok(Stmt::VarDecl(StmtVarDecl { ident, btype, expr }))
+    }
+
+    fn stmt_while(&mut self) -> StmtResult {
+        self.consume(TokenType::While)?;
+        self.consume(TokenType::LeftParen)?;
+        let condition = self.expr()?;
+        self.consume(TokenType::RightParen)?;
+        let body = self.stmt_block()?;
+
+        Ok(Stmt::While(StmtWhile {
+            condition,
+            body: Box::new(body),
+        }))
+    }
+
+    fn stmt_block(&mut self) -> StmtResult {
+        // TODO add scope checks
+        self.consume(TokenType::LeftBrace)?;
+        let mut stmts = vec![];
+        while !self.match_exact(TokenType::RightBrace) {
+            stmts.push(self.stmt()?);
+        }
+        Ok(Stmt::Block(StmtBlock { stmts }))
+    }
+
+    fn stmt_assignment(&mut self) -> StmtResult {
+        let expr = self.expr()?;
+        if let Expr::Identifier(expr_identifier) = &expr {
+            if let Some(_) = self.match_any(vec![TokenType::Equal]) {
+                let expr_assign_to = self.expr()?;
+                let stmt_assign = Stmt::Assign(StmtAssign {
+                    ident: expr_identifier.ident.clone(),
+                    expr: expr_assign_to,
+                });
+                self.consume(TokenType::Semicolon)?;
+                return Ok(stmt_assign);
+            }
+        }
         self.consume(TokenType::Semicolon)?;
         Ok(Stmt::Expr(StmtExpr { expr }))
     }
+
+    ///////////////////////////////////////////////////////////////////////////
+    /// Expression rules
+    ///////////////////////////////////////////////////////////////////////////
 
     fn expr(&mut self) -> ExprResult {
         self.expr_boolean_or()
@@ -323,7 +387,16 @@ impl Parser {
         }
     }
 
-    //fn type_expr(&mut self) -> ExprResult {}
+    fn consume_type(&mut self) -> Result<BType, ParserError> {
+        self.consume(TokenType::Colon)?;
+        Ok(self
+            .consume_any(vec![
+                TokenType::BTypeBool,
+                TokenType::BTypeI64,
+                TokenType::BTypeStr,
+            ])?
+            .get_btype())
+    }
 
     ///////////////////////////////////////////////////////////////////////////
     /// Parer helper methods
@@ -348,6 +421,25 @@ impl Parser {
             )));
         }
         Ok(token)
+    }
+
+    fn consume_any(&mut self, token_types: Vec<TokenType>) -> TokenRefResult {
+        let token = self.next_token();
+        if !token_types.contains(&token.token_type) {
+            return Err(ParserError::WrongToken(format!(
+                "Expected token of any type {:?} but got {:?}.",
+                token_types, token.token_type
+            )));
+        }
+        Ok(token)
+    }
+
+    fn match_exact(&mut self, token_type: TokenType) -> bool {
+        if self.peek_token().token_type == token_type {
+            let _ = self.next_token();
+            return true;
+        }
+        return false;
     }
 
     fn match_any(&mut self, token_types: Vec<TokenType>) -> Option<TokenType> {

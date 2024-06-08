@@ -42,14 +42,14 @@ pub struct StmtIfElse {
 
 #[derive(Debug, Clone)]
 pub struct StmtVarDecl {
-    pub name: String,
-    pub btype: Option<BType>,
+    pub ident: String,
+    pub btype: BType,
     pub expr: Expr,
 }
 
 #[derive(Debug, Clone)]
 pub struct StmtAssign {
-    pub name: String,
+    pub ident: String,
     pub expr: Expr,
 }
 

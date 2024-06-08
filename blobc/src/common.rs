@@ -1,6 +1,6 @@
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub struct FileCoords {
     pub line: usize,
     pub col: usize,
@@ -16,6 +16,12 @@ impl FileCoords {
 }
 
 impl Display for FileCoords {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "({}, {})", self.line, self.col)
+    }
+}
+
+impl Debug for FileCoords {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "({}, {})", self.line, self.col)
     }

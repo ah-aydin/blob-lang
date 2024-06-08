@@ -1,7 +1,10 @@
 use std::fmt::Debug;
 
 use crate::{
-    ast::op::{BinaryOp, BitwiseOp, BooleanOp, CmpOp, UnaryOp},
+    ast::{
+        btype::BType,
+        op::{BinaryOp, BitwiseOp, BooleanOp, CmpOp, UnaryOp},
+    },
     common::FileCoords,
 };
 
@@ -160,6 +163,15 @@ impl Token {
             token_type: TokenType::EOF,
             file_coords,
             lexeme: None,
+        }
+    }
+
+    pub fn get_btype(&self) -> BType {
+        match self.token_type {
+            TokenType::BTypeBool => BType::Bool,
+            TokenType::BTypeI64 => BType::I64,
+            TokenType::BTypeStr => BType::Str,
+            _ => unreachable!("{:?} does not have a BType", self.token_type),
         }
     }
 }

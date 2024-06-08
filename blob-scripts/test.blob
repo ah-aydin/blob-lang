@@ -1,1 +1,9 @@
-1 && 2;
+a = 10;
+1 + 2;
+while (true) {
+}
+
+var c = 10;
+var d: i64 = 123;
+var e: bool = false;
+var f: str = "mamaliga";
