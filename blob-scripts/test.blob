@@ -28,3 +28,32 @@ if (true) {
 }
 
 return 10 - 2 / 4;
+
+func meh1() {
+  var b = 10;
+}
+
+func meh2(): i64 {
+  var b = 10;
+  return b;
+}
+
+func meh3(a: i64): str {
+  return "mamaliga cu carnati";
+}
+
+func meh4(a: i64, b: str): bool {
+  return false;
+}
+
+func meh5(a: i64, b: str, c: bool): bool {
+  return a + b + c;
+}
+
+#var b: str = "mamaliga";
+
+var b = meh5(1, 2) & 2;
+var b = meh5() | 2;
+meh5(2,3);
+
+var b = "gigel";

@@ -141,6 +141,7 @@ impl Scanner {
 
                 // Check for string literals
                 Some('"') => {
+                    self.advance();
                     let start_index = self.current_index;
                     let mut closed = false;
                     while let Some(c) = src_iter.peek() {
@@ -156,7 +157,7 @@ impl Scanner {
                     if !closed {
                         return Err(ScannerError::IncompleteString);
                     }
-                    let lexeme = src[start_index + 1..self.current_index].to_string();
+                    let lexeme = src[start_index..self.current_index - 1].to_string();
                     Ok(Token::new_with_lexeme(
                         TokenType::String,
                         self.file_coords.clone(),

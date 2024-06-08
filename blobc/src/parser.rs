@@ -8,8 +8,8 @@ use crate::{
             ExprI64, ExprIdenifier, ExprString, ExprUnaryOp,
         },
         stmt::{
-            Stmt, StmtAssign, StmtBlock, StmtExpr, StmtIf, StmtIfElse, StmtReturn, StmtVarDecl,
-            StmtWhile,
+            FuncDeclArg, Stmt, StmtAssign, StmtBlock, StmtExpr, StmtFuncDecl, StmtIf, StmtIfElse,
+            StmtReturn, StmtVarDecl, StmtWhile,
         },
     },
     common::FileCoords,
@@ -29,15 +29,6 @@ impl Display for ParserError {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ScopeType {
-    Func,
-    If,
-    Else,
-    While,
-    Block,
-}
-
 type StmtResult = Result<Stmt, ParserError>;
 type ExprResult = Result<Expr, ParserError>;
 type TokenRefResult<'a> = Result<&'a Token, ParserError>;
@@ -45,7 +36,6 @@ type TokenRefResult<'a> = Result<&'a Token, ParserError>;
 struct Parser {
     tokens: Vec<Token>,
     index: usize,
-    scopes: Vec<ScopeType>,
 }
 
 /// Top down parser.
@@ -54,7 +44,7 @@ struct Parser {
 /// ```
 /// // Statement grammar
 /// stmt -> stmt_func_decl / stmt_return / stmt_if_else / stmt_var_decl / stmt_while / stmt_block / stmt_assignment
-/// stmt_func_decl -> "func" "(" (IDENTIFIER type_expr ("," IDENTIFIER type_expr)*)? ")" type_expr? block_stmt
+/// stmt_func_decl -> "func" IDENTIFIER"(" (IDENTIFIER type_expr ("," IDENTIFIER type_expr)*)? ")" type_expr? block_stmt
 /// stmt_return -> "return" expr ";"
 /// stmt_if_else -> "if" "(" expr ")" block_stmt ("else" block_stmt | "else" if_else_stmt)?
 /// stmt_var_decl -> "var" IDENTIFIER expr_type? "=" expr ";"
@@ -80,11 +70,7 @@ struct Parser {
 /// ```
 impl Parser {
     fn new(tokens: Vec<Token>) -> Parser {
-        Parser {
-            tokens,
-            index: 0,
-            scopes: vec![],
-        }
+        Parser { tokens, index: 0 }
     }
 
     fn parse(&mut self) -> Result<Vec<Stmt>, ParserError> {
@@ -111,6 +97,7 @@ impl Parser {
 
     fn stmt(&mut self) -> StmtResult {
         match self.peek_token().token_type {
+            TokenType::Func => self.stmt_func_decl(),
             TokenType::Return => self.stmt_return(),
             TokenType::If => self.stmt_if_else(),
             TokenType::Var => self.stmt_var_decl(),
@@ -120,9 +107,52 @@ impl Parser {
         }
     }
 
+    fn stmt_func_decl(&mut self) -> StmtResult {
+        self.consume(TokenType::Func)?;
+        let ident = self
+            .consume(TokenType::Identifier)?
+            .lexeme
+            .as_ref()
+            .unwrap()
+            .clone();
+        self.consume(TokenType::LeftParen)?;
+        let mut args = vec![];
+        let mut first_iter = true;
+        while !self.match_exact(TokenType::RightParen) {
+            if !first_iter {
+                self.consume(TokenType::Comma)?;
+            }
+            let ident = self
+                .consume(TokenType::Identifier)?
+                .lexeme
+                .as_ref()
+                .unwrap()
+                .clone();
+            let btype = self.consume_type()?;
+            args.push(FuncDeclArg { ident, btype });
+            first_iter = false;
+        }
+
+        let ret_type;
+        if self.peek_token().token_type == TokenType::Colon {
+            ret_type = self.consume_type()?;
+        } else {
+            ret_type = BType::None;
+        }
+
+        Ok(Stmt::FuncDecl(StmtFuncDecl {
+            ident,
+            args,
+            ret_type,
+            body: Box::new(self.stmt_block()?),
+        }))
+    }
+
     fn stmt_return(&mut self) -> StmtResult {
         self.consume(TokenType::Return)?;
-        Ok(Stmt::Return(StmtReturn { expr: self.expr()? }))
+        let expr = self.expr()?;
+        self.consume(TokenType::Semicolon)?;
+        Ok(Stmt::Return(StmtReturn { expr }))
     }
 
     fn stmt_if_else(&mut self) -> StmtResult {
@@ -256,7 +286,7 @@ impl Parser {
 
     fn expr_bitwise_or(&mut self) -> ExprResult {
         let mut expr = self.expr_bitwise_and()?;
-        while let Some(token_type) = self.match_any(vec![TokenType::Ampersand]) {
+        while let Some(token_type) = self.match_any(vec![TokenType::Pipe]) {
             let file_coords = self.get_prev_file_coords();
             let right_term = self.expr_bitwise_and()?;
             expr = Expr::BitwiseOp(ExprBitwiseOp {

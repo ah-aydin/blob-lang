@@ -17,14 +17,16 @@ pub struct StmtReturn {
 
 #[derive(Debug, Clone)]
 pub struct FuncDeclArg {
-    pub name: String,
-    pub bytpe: BType,
+    pub ident: String,
+    pub btype: BType,
 }
 
 #[derive(Debug, Clone)]
 pub struct StmtFuncDecl {
-    pub name: String,
+    pub ident: String,
     pub args: Vec<FuncDeclArg>,
+    pub ret_type: BType,
+    pub body: Box<Stmt>,
 }
 
 #[derive(Debug, Clone)]
