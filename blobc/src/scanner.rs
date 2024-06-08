@@ -12,11 +12,13 @@ lazy_static! {
         let mut map = HashMap::new();
 
         map.insert("bool", TokenType::BTypeBool);
+        map.insert("i64", TokenType::BTypeI64);
+        map.insert("str", TokenType::BTypeStr);
+
         map.insert("else", TokenType::Else);
         map.insert("false", TokenType::False);
         map.insert("func", TokenType::Func);
         map.insert("if", TokenType::If);
-        map.insert("i64", TokenType::BTypeI64);
         map.insert("return", TokenType::Return);
         map.insert("true", TokenType::True);
         map.insert("var", TokenType::Var);
@@ -220,5 +222,8 @@ impl Scanner {
 }
 
 pub fn scan(src: &str) -> Result<Vec<Token>, ScannerError> {
-    Scanner::new().scan(src)
+    println!("Scanning...");
+    let result = Scanner::new().scan(src);
+    println!("Scanning comlpete!");
+    result
 }

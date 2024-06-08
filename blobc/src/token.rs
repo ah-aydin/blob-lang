@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use crate::{
-    ast::op::{BinaryOp, BooleanOp, CmpOp},
+    ast::op::{BinaryOp, BitwiseOp, BooleanOp, CmpOp, UnaryOp},
     common::FileCoords,
 };
 
@@ -55,6 +55,7 @@ pub enum TokenType {
     // Types
     BTypeBool,
     BTypeI64,
+    BTypeStr,
 
     EOF,
 }
@@ -77,6 +78,22 @@ impl TokenType {
         }
     }
 
+    pub fn get_bitwise_op_type(&self) -> BitwiseOp {
+        match self {
+            TokenType::Ampersand => BitwiseOp::And,
+            TokenType::Pipe => BitwiseOp::Or,
+            _ => unreachable!("{:?} does not have a BitwiseOp", self),
+        }
+    }
+
+    pub fn get_boolean_op_type(&self) -> BooleanOp {
+        match self {
+            TokenType::AmpersandAmpersand => BooleanOp::And,
+            TokenType::PipePipe => BooleanOp::Or,
+            _ => unreachable!("{:?} does not have a BooleanOpType", self),
+        }
+    }
+
     pub fn get_cmp_op_type(&self) -> CmpOp {
         match self {
             TokenType::Greater => CmpOp::Gt,
@@ -89,11 +106,11 @@ impl TokenType {
         }
     }
 
-    pub fn get_boolean_op_type(&self) -> BooleanOp {
+    pub fn get_unary_op_type(&self) -> UnaryOp {
         match self {
-            TokenType::AmpersandAmpersand => BooleanOp::And,
-            TokenType::PipePipe => BooleanOp::Or,
-            _ => unreachable!("{:?} does not have a BooleanOpType", self),
+            TokenType::Bang => UnaryOp::Not,
+            TokenType::Minus => UnaryOp::Neg,
+            _ => unreachable!("{:?} does not have a UnaryOp", self),
         }
     }
 }

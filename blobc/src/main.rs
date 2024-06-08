@@ -1,5 +1,6 @@
 mod ast;
 mod common;
+mod parser;
 mod scanner;
 mod token;
 
@@ -32,7 +33,9 @@ fn main() -> Result<(), i32> {
 
     println!("Compiling and running '{}'...", file_name);
 
-    println!("{:?}", scanner::scan(&src).unwrap());
+    let tokens = scanner::scan(&src).unwrap();
+    let ast = parser::parse(tokens).unwrap();
+    ast.iter().for_each(|a| println!("{:?}", a));
 
     Ok(())
 }

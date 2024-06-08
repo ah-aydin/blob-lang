@@ -1,5 +1,8 @@
 use self::{
-    expr::{Expr, ExprBinaryOp, ExprBooleanOp, ExprCall, ExprCmpOp, ExprUnaryOp},
+    expr::{
+        Expr, ExprBinaryOp, ExprBitwiseOp, ExprBool, ExprBooleanOp, ExprCall, ExprCmpOp, ExprI64,
+        ExprIdenifier, ExprString, ExprUnaryOp,
+    },
     stmt::{
         Stmt, StmtAssign, StmtBlock, StmtExpr, StmtFuncDecl, StmtIf, StmtIfElse, StmtReturn,
         StmtVarDecl, StmtWhile,
@@ -38,10 +41,12 @@ pub trait AstWalker<OkT: Default, ErrT: Default> {
 
     fn expr(&mut self, expr: &Expr) -> Result<OkT, ErrT> {
         match expr {
-            Expr::Bool(b) => self.expr_bool(b.clone()),
-            Expr::I64(i) => self.expr_i64(i.clone()),
-            Expr::Identifier(name) => self.expr_identifier(name),
+            Expr::Bool(expr_bool) => self.expr_bool(expr_bool),
+            Expr::I64(expr_i64) => self.expr_i64(expr_i64),
+            Expr::String(expr_string) => self.expr_string(&expr_string),
+            Expr::Identifier(expr_identifier) => self.expr_identifier(expr_identifier),
             Expr::BinaryOp(expr_binary_op) => self.expr_binary_op(expr_binary_op),
+            Expr::BitwiseOp(expr_bitwise_op) => self.expr_bitwise_op(expr_bitwise_op),
             Expr::BooleanOp(expr_boolean_op) => self.expr_boolean_op(expr_boolean_op),
             Expr::CmpOp(expr_cmp_op) => self.expr_cmp_op(expr_cmp_op),
             Expr::UnaryOp(expr_unary_op) => self.expr_unary_op(expr_unary_op),
@@ -61,10 +66,12 @@ pub trait AstWalker<OkT: Default, ErrT: Default> {
     fn stmt_assign(&mut self, stmt_assign: &StmtAssign) -> Result<OkT, ErrT>;
     fn stmt_while(&mut self, stmt_while: &StmtWhile) -> Result<OkT, ErrT>;
 
-    fn expr_bool(&mut self, b: bool) -> Result<OkT, ErrT>;
-    fn expr_i64(&mut self, i: i64) -> Result<OkT, ErrT>;
-    fn expr_identifier(&mut self, name: &str) -> Result<OkT, ErrT>;
+    fn expr_bool(&mut self, expr_bool: &ExprBool) -> Result<OkT, ErrT>;
+    fn expr_i64(&mut self, expr_i64: &ExprI64) -> Result<OkT, ErrT>;
+    fn expr_string(&mut self, expr_string: &ExprString) -> Result<OkT, ErrT>;
+    fn expr_identifier(&mut self, expr_identifier: &ExprIdenifier) -> Result<OkT, ErrT>;
     fn expr_binary_op(&mut self, expr_binary_op: &ExprBinaryOp) -> Result<OkT, ErrT>;
+    fn expr_bitwise_op(&mut self, expr_bitwise_op: &ExprBitwiseOp) -> Result<OkT, ErrT>;
     fn expr_boolean_op(&mut self, expr_boolean_op: &ExprBooleanOp) -> Result<OkT, ErrT>;
     fn expr_cmp_op(&mut self, expr_cmp_op: &ExprCmpOp) -> Result<OkT, ErrT>;
     fn expr_unary_op(&mut self, expr_unary_op: &ExprUnaryOp) -> Result<OkT, ErrT>;
