@@ -4,8 +4,7 @@ use crate::{
     ast::{
         btype::BType,
         expr::{
-            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprCmpOp, ExprI64, ExprIdenifier, ExprString,
-            ExprUnaryOp,
+            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprI64, ExprIdenifier, ExprString, ExprUnaryOp,
         },
         op::BinaryOp,
         stmt::{
@@ -376,9 +375,9 @@ impl Parser {
         {
             let file_coords = self.get_prev_file_coords();
             let right_term = self.expr_comparison()?;
-            expr = Expr::CmpOp(ExprCmpOp {
+            expr = Expr::BinaryOp(ExprBinaryOp {
                 left: Box::new(expr),
-                op: token_type.get_cmp_op_type(),
+                op: token_type.get_bin_op_type(),
                 right: Box::new(right_term),
                 file_coords,
             });
@@ -396,9 +395,9 @@ impl Parser {
         ])? {
             let file_coords = self.get_prev_file_coords();
             let right_term = self.expr_term()?;
-            expr = Expr::CmpOp(ExprCmpOp {
+            expr = Expr::BinaryOp(ExprBinaryOp {
                 left: Box::new(expr),
-                op: token_type.get_cmp_op_type(),
+                op: token_type.get_bin_op_type(),
                 right: Box::new(right_term),
                 file_coords,
             });

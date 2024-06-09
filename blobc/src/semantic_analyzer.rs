@@ -1,8 +1,7 @@
 use crate::ast::{
     btype::BType,
     expr::{
-        Expr, ExprBinaryOp, ExprBool, ExprCall, ExprCmpOp, ExprI64, ExprIdenifier, ExprString,
-        ExprUnaryOp,
+        Expr, ExprBinaryOp, ExprBool, ExprCall, ExprI64, ExprIdenifier, ExprString, ExprUnaryOp,
     },
     stmt::{
         Stmt, StmtAssign, StmtBlock, StmtExpr, StmtFuncDecl, StmtIf, StmtIfElse, StmtReturn,
@@ -57,7 +56,6 @@ impl<'a> Analyzer<'a> {
             Expr::String(expr_string) => self.expr_string(&expr_string),
             Expr::Identifier(expr_identifier) => self.expr_identifier(expr_identifier),
             Expr::BinaryOp(expr_binary_op) => self.expr_binary_op(expr_binary_op),
-            Expr::CmpOp(expr_cmp_op) => self.expr_cmp_op(expr_cmp_op),
             Expr::UnaryOp(expr_unary_op) => self.expr_unary_op(expr_unary_op),
             Expr::Call(expr_call) => self.expr_call(expr_call),
         }
@@ -115,10 +113,6 @@ impl<'a> Analyzer<'a> {
     }
 
     fn expr_binary_op(&mut self, expr_binary_op: &ExprBinaryOp) -> Result<BType, AnalyzerError> {
-        todo!()
-    }
-
-    fn expr_cmp_op(&mut self, expr_cmp_op: &ExprCmpOp) -> Result<BType, AnalyzerError> {
         todo!()
     }
 
