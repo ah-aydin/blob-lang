@@ -2,18 +2,10 @@ mod ast;
 mod common;
 mod parser;
 mod scanner;
+mod semantic_analyzer;
 mod token;
 
 use std::{env, fs::File, io::Read};
-
-macro_rules! get_some_or_error {
-    ($action: expr) => {
-        match $action {
-            Some(ret_val) => Ok(ret_val),
-            None => Err(1),
-        }?
-    };
-}
 
 fn main() -> Result<(), i32> {
     let args: Vec<String> = env::args().collect();
@@ -40,12 +32,13 @@ fn main() -> Result<(), i32> {
         }
     }?;
 
-    println!("Compiling and running '{}'...", file_name);
+    println!("Compiling and running '{}'...\n", file_name);
 
-    let tokens = get_some_or_error!(scanner::scan(&src));
-    let ast = get_some_or_error!(parser::parse(tokens));
+    let tokens = scanner::scan(&src);
+    let ast = parser::parse(tokens);
 
-    ast.iter().for_each(|a| println!("\n{:?}", a));
+    ast.iter().for_each(|a| println!("{:?}\n", a));
+    semantic_analyzer::analyze(&ast);
 
     Ok(())
 }

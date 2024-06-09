@@ -226,17 +226,17 @@ impl Scanner {
     }
 }
 
-pub fn scan(src: &str) -> Option<Vec<Token>> {
+pub fn scan(src: &str) -> Vec<Token> {
     println!("[INFO]  Scanning...");
     let result = Scanner::new().scan(src);
     match result {
         Ok(tokens) => {
-            println!("[INFO]  Scanning comlpete!");
-            Some(tokens)
+            println!("[INFO]  Scanning comlpete!\n");
+            tokens
         }
         Err(scanner_error) => {
-            println!("[ERROR] Scanning failed: {:?}!", scanner_error);
-            None
+            println!("[ERROR] Scanning failed: {:?}!\n", scanner_error);
+            std::process::exit(1);
         }
     }
 }

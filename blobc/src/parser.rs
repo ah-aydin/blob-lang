@@ -11,6 +11,7 @@ use crate::{
             FuncDeclArg, Stmt, StmtAssign, StmtBlock, StmtExpr, StmtFuncDecl, StmtIf, StmtIfElse,
             StmtReturn, StmtVarDecl, StmtWhile,
         },
+        Ast,
     },
     common::FileCoords,
     token::{Token, TokenType},
@@ -92,7 +93,7 @@ impl Parser {
         }
     }
 
-    fn parse(&mut self) -> Option<Vec<Stmt>> {
+    fn parse(&mut self) -> Option<Ast> {
         let mut stmts = vec![];
 
         let mut errored = false;
@@ -636,14 +637,16 @@ impl Parser {
     }
 }
 
-pub fn parse(tokens: Vec<Token>) -> Option<Vec<Stmt>> {
+pub fn parse(tokens: Vec<Token>) -> Ast {
     println!("[INFO]  Parsing...");
-    let result = Parser::new(tokens).parse();
-    if result.is_some() {
-        println!("[INFO]  Parsing complete!");
-    } else {
-        println!("[ERROR] Parsing failed!");
+    match Parser::new(tokens).parse() {
+        Some(ast) => {
+            println!("[INFO]  Parsing complete!\n");
+            ast
+        }
+        _ => {
+            println!("[ERROR] Parsing failed!");
+            std::process::exit(1);
+        }
     }
-    println!();
-    result
 }
