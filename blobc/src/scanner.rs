@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use lazy_static::lazy_static;
+use log::{error, info};
 
 use crate::{
     common::FileCoords,
@@ -227,15 +228,15 @@ impl Scanner {
 }
 
 pub fn scan(src: &str) -> Vec<Token> {
-    println!("[INFO]  Scanning...");
+    info!("Scanning...");
     let result = Scanner::new().scan(src);
     match result {
         Ok(tokens) => {
-            println!("[INFO]  Scanning comlpete!\n");
+            info!("Scanning comlpete!");
             tokens
         }
         Err(scanner_error) => {
-            println!("[ERROR] Scanning failed: {:?}!\n", scanner_error);
+            error!("Scanning failed: {:?}!", scanner_error);
             std::process::exit(1);
         }
     }

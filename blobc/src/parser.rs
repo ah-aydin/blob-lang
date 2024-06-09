@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use log::{error, info};
+
 use crate::{
     ast::{
         btype::BType,
@@ -48,12 +50,6 @@ enum Scope {
     Func,
 }
 
-struct Parser {
-    tokens: Vec<Token>,
-    index: usize,
-    scopes: Vec<Scope>,
-}
-
 /// Top down parser.
 ///
 /// Parsing rules
@@ -84,6 +80,12 @@ struct Parser {
 /// expr_primary -> I64 | IDENTIFIER | STRING | TRUE | FALSE | "(" expr ")"
 /// expr_type -> ":" IDENTIFIER | "i64" | "str" | "bool"
 /// ```
+struct Parser {
+    tokens: Vec<Token>,
+    index: usize,
+    scopes: Vec<Scope>,
+}
+
 impl Parser {
     fn new(tokens: Vec<Token>) -> Parser {
         Parser {
@@ -109,10 +111,10 @@ impl Parser {
                 Ok(stmt) => stmts.push(stmt),
                 Err(err) => {
                     errored = true;
-                    println!("{}", err);
+                    error!("{}", err);
                     match self.sync() {
                         Err(parser_error) => {
-                            println!("{}", parser_error);
+                            error!("{}", parser_error);
                             break;
                         }
                         _ => {}
@@ -641,14 +643,14 @@ impl Parser {
 }
 
 pub fn parse(tokens: Vec<Token>) -> Ast {
-    println!("[INFO]  Parsing...");
+    info!("Parsing...");
     match Parser::new(tokens).parse() {
         Some(ast) => {
-            println!("[INFO]  Parsing complete!\n");
+            info!("Parsing complete!");
             ast
         }
         _ => {
-            println!("[ERROR] Parsing failed!");
+            error!("Parsing failed!");
             std::process::exit(1);
         }
     }

@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use log::{error, info};
+
 use crate::{
     ast::{
         btype::BType,
@@ -237,14 +239,14 @@ impl<'a> Analyzer<'a> {
 }
 
 pub fn analyze(ast: &Ast) {
-    println!("[INFO]  Analyzing semantics...");
+    info!("Analyzing semantics...");
     match Analyzer::new(ast).analyze() {
         Err(_) => {
-            println!("[ERROR] Anaysis failed!\n");
+            error!("Anaysis failed!");
             std::process::exit(1);
         }
         _ => {
-            println!("[INFO]  Analysis complete!\n");
+            info!("Analysis complete!");
         }
     }
 }
