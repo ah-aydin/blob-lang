@@ -4,8 +4,8 @@ use crate::{
     ast::{
         btype::BType,
         expr::{
-            Expr, ExprBinaryOp, ExprBitwiseOp, ExprBool, ExprCall, ExprCmpOp, ExprI64,
-            ExprIdenifier, ExprString, ExprUnaryOp,
+            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprCmpOp, ExprI64, ExprIdenifier, ExprString,
+            ExprUnaryOp,
         },
         op::BinaryOp,
         stmt::{
@@ -311,7 +311,7 @@ impl Parser {
 
     fn expr_boolean_or(&mut self) -> ExprResult {
         let mut expr = self.expr_boolean_and()?;
-        while let Some(token_type) = self.match_any(vec![TokenType::PipePipe])? {
+        while self.match_exact(TokenType::PipePipe)? {
             let file_coords = self.get_prev_file_coords();
             let right_term = self.expr_boolean_and()?;
             expr = Expr::BinaryOp(ExprBinaryOp {
@@ -326,7 +326,7 @@ impl Parser {
 
     fn expr_boolean_and(&mut self) -> ExprResult {
         let mut expr = self.expr_bitwise_or()?;
-        while let Some(token_type) = self.match_any(vec![TokenType::AmpersandAmpersand])? {
+        while self.match_exact(TokenType::AmpersandAmpersand)? {
             let file_coords = self.get_prev_file_coords();
             let right_term = self.expr_bitwise_or()?;
             expr = Expr::BinaryOp(ExprBinaryOp {
@@ -341,12 +341,12 @@ impl Parser {
 
     fn expr_bitwise_or(&mut self) -> ExprResult {
         let mut expr = self.expr_bitwise_and()?;
-        while let Some(token_type) = self.match_any(vec![TokenType::Pipe])? {
+        while self.match_exact(TokenType::Pipe)? {
             let file_coords = self.get_prev_file_coords();
             let right_term = self.expr_bitwise_and()?;
-            expr = Expr::BitwiseOp(ExprBitwiseOp {
+            expr = Expr::BinaryOp(ExprBinaryOp {
                 left: Box::new(expr),
-                op: token_type.get_bitwise_op_type(),
+                op: BinaryOp::BitwiseOr,
                 right: Box::new(right_term),
                 file_coords,
             });
@@ -356,12 +356,12 @@ impl Parser {
 
     fn expr_bitwise_and(&mut self) -> ExprResult {
         let mut expr = self.expr_comparison_eq()?;
-        while let Some(token_type) = self.match_any(vec![TokenType::Ampersand])? {
+        while self.match_any(vec![TokenType::Ampersand])?.is_some() {
             let file_coords = self.get_prev_file_coords();
             let right_term = self.expr_comparison_eq()?;
-            expr = Expr::BitwiseOp(ExprBitwiseOp {
+            expr = Expr::BinaryOp(ExprBinaryOp {
                 left: Box::new(expr),
-                op: token_type.get_bitwise_op_type(),
+                op: BinaryOp::BitwiseAnd,
                 right: Box::new(right_term),
                 file_coords,
             });

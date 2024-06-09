@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use crate::{
     ast::{
         btype::BType,
-        op::{BinaryOp, BitwiseOp, CmpOp, UnaryOp},
+        op::{BinaryOp, UnaryOp},
     },
     common::FileCoords,
 };
@@ -79,27 +79,15 @@ impl TokenType {
             TokenType::Star => BinaryOp::Mul,
             TokenType::AmpersandAmpersand => BinaryOp::BooleanAnd,
             TokenType::PipePipe => BinaryOp::BooleanOr,
+            TokenType::Ampersand => BinaryOp::BitwiseAnd,
+            TokenType::Pipe => BinaryOp::BitwiseOr,
+            TokenType::Greater => BinaryOp::Gt,
+            TokenType::GreaterEqual => BinaryOp::Gte,
+            TokenType::Less => BinaryOp::Lt,
+            TokenType::LessEqual => BinaryOp::Lte,
+            TokenType::EqualEqual => BinaryOp::Eq,
+            TokenType::BangEqual => BinaryOp::Neq,
             _ => unreachable!("{:?} does not have a BinaryOp", self),
-        }
-    }
-
-    pub fn get_bitwise_op_type(&self) -> BitwiseOp {
-        match self {
-            TokenType::Ampersand => BitwiseOp::And,
-            TokenType::Pipe => BitwiseOp::Or,
-            _ => unreachable!("{:?} does not have a BitwiseOp", self),
-        }
-    }
-
-    pub fn get_cmp_op_type(&self) -> CmpOp {
-        match self {
-            TokenType::Greater => CmpOp::Gt,
-            TokenType::GreaterEqual => CmpOp::Gte,
-            TokenType::Less => CmpOp::Lt,
-            TokenType::LessEqual => CmpOp::Lte,
-            TokenType::EqualEqual => CmpOp::Eq,
-            TokenType::BangEqual => CmpOp::Neq,
-            _ => unreachable!("{:?} does not have a CmpOp", self),
         }
     }
 

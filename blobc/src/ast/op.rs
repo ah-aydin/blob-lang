@@ -5,17 +5,9 @@ pub enum BinaryOp {
     Mul,
     Div,
     BooleanOr,
-    BooleanAnd
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BitwiseOp {
-    And,
-    Or,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CmpOp {
+    BooleanAnd,
+    BitwiseAnd,
+    BitwiseOr,
     Eq,
     Neq,
     Gt,

@@ -1,6 +1,6 @@
 use crate::common::FileCoords;
 
-use super::op::{BinaryOp, BitwiseOp, CmpOp, UnaryOp};
+use super::op::{BinaryOp, CmpOp, UnaryOp};
 
 #[derive(Debug, Clone)]
 pub struct ExprBool {
@@ -35,14 +35,6 @@ pub struct ExprBinaryOp {
 }
 
 #[derive(Debug, Clone)]
-pub struct ExprBitwiseOp {
-    pub left: Box<Expr>,
-    pub op: BitwiseOp,
-    pub right: Box<Expr>,
-    pub file_coords: FileCoords,
-}
-
-#[derive(Debug, Clone)]
 pub struct ExprCmpOp {
     pub left: Box<Expr>,
     pub op: CmpOp,
@@ -71,7 +63,6 @@ pub enum Expr {
     String(ExprString),
 
     BinaryOp(ExprBinaryOp),
-    BitwiseOp(ExprBitwiseOp),
     CmpOp(ExprCmpOp),
     UnaryOp(ExprUnaryOp),
 
