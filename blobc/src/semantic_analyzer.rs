@@ -161,7 +161,7 @@ impl<'a> Analyzer<'a> {
             match self.stmt(stmt) {
                 Err(err) => {
                     errored = true;
-                    println!("[ERROR] {}", err);
+                    error!("{}", err);
                 }
 
                 _ => {}
@@ -193,23 +193,49 @@ impl<'a> Analyzer<'a> {
     }
 
     fn stmt_if(&mut self, stmt_if: &StmtIf) -> AnalyzerRetType {
-        todo!("stmt_if")
+        let condition_btype = self.expr(&stmt_if.condition)?;
+        if condition_btype != BType::Bool {
+            return Err(AnalyzerError::Type(
+                format!(
+                    "Expected if condition to have a 'Bool' result but got {:?}",
+                    condition_btype
+                ),
+                stmt_if.condition.get_file_coords(),
+            ));
+        }
+        self.stmt(&stmt_if.body)?;
+        Ok(BType::None)
     }
 
     fn stmt_if_else(&mut self, stmt_if_else: &StmtIfElse) -> AnalyzerRetType {
-        todo!("stmt_if_else")
+        let condition_btype = self.expr(&stmt_if_else.condition)?;
+        if condition_btype != BType::Bool {
+            return Err(AnalyzerError::Type(
+                format!(
+                    "Expected if condition to have a 'Bool' result but got {:?}",
+                    condition_btype
+                ),
+                stmt_if_else.condition.get_file_coords(),
+            ));
+        }
+        self.stmt(&stmt_if_else.if_body)?;
+        self.stmt(&stmt_if_else.else_body)?;
+        Ok(BType::None)
     }
 
     fn stmt_var_decl(&mut self, stmt_var_decl: &StmtVarDecl) -> AnalyzerRetType {
-        todo!("stmt_var_decl")
+        todo!("stmt_var_decl");
+        Ok(BType::None)
     }
 
     fn stmt_assign(&mut self, stmt_assign: &StmtAssign) -> AnalyzerRetType {
-        todo!("stmt_assign")
+        todo!("stmt_assign");
+        Ok(BType::None)
     }
 
     fn stmt_while(&mut self, stmt_while: &StmtWhile) -> AnalyzerRetType {
-        todo!("stmt_while")
+        todo!("stmt_while");
+        Ok(BType::None)
     }
 
     fn expr_bool(&mut self, _expr_bool: &ExprBool) -> AnalyzerRetType {
