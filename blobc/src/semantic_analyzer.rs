@@ -79,6 +79,8 @@ impl Env {
     }
 }
 
+type AnalyzerRetType = Result<BType, AnalyzerError>;
+
 struct Analyzer<'a> {
     ast: &'a Ast,
     envs: Vec<Env>,
@@ -107,7 +109,7 @@ impl<'a> Analyzer<'a> {
         Ok(())
     }
 
-    fn stmt(&mut self, stmt: &Stmt) -> Result<BType, AnalyzerError> {
+    fn stmt(&mut self, stmt: &Stmt) -> AnalyzerRetType {
         match stmt {
             Stmt::Expr(stmt_expr) => self.stmt_expr(stmt_expr),
             Stmt::Block(stmt_block) => self.stmt_block(stmt_block),
@@ -121,7 +123,7 @@ impl<'a> Analyzer<'a> {
         }
     }
 
-    fn expr(&mut self, expr: &Expr) -> Result<BType, AnalyzerError> {
+    fn expr(&mut self, expr: &Expr) -> AnalyzerRetType {
         match expr {
             Expr::Bool(expr_bool) => self.expr_bool(expr_bool),
             Expr::I64(expr_i64) => self.expr_i64(expr_i64),
@@ -133,7 +135,7 @@ impl<'a> Analyzer<'a> {
         }
     }
 
-    fn stmt_func_decl(&mut self, stmt_func_decl: &StmtFuncDecl) -> Result<BType, AnalyzerError> {
+    fn stmt_func_decl(&mut self, stmt_func_decl: &StmtFuncDecl) -> AnalyzerRetType {
         let ret_type = stmt_func_decl.ret_type;
         self.current_func_ret_type = ret_type;
         // Insert func data to the root environment
@@ -147,11 +149,11 @@ impl<'a> Analyzer<'a> {
         Ok(ret_type)
     }
 
-    fn stmt_expr(&mut self, stmt_expr: &StmtExpr) -> Result<BType, AnalyzerError> {
+    fn stmt_expr(&mut self, stmt_expr: &StmtExpr) -> AnalyzerRetType {
         self.expr(&stmt_expr.expr)
     }
 
-    fn stmt_block(&mut self, stmt_block: &StmtBlock) -> Result<BType, AnalyzerError> {
+    fn stmt_block(&mut self, stmt_block: &StmtBlock) -> AnalyzerRetType {
         self.envs.push(Env::new());
         let mut errored = false;
         for stmt in &stmt_block.stmts {
@@ -171,7 +173,7 @@ impl<'a> Analyzer<'a> {
         Ok(BType::None)
     }
 
-    fn stmt_return(&mut self, stmt_return: &StmtReturn) -> Result<BType, AnalyzerError> {
+    fn stmt_return(&mut self, stmt_return: &StmtReturn) -> AnalyzerRetType {
         let expr_maybe = &stmt_return.expr;
         let expr_type = match expr_maybe {
             Some(expr) => self.expr(expr)?,
@@ -189,51 +191,51 @@ impl<'a> Analyzer<'a> {
         Ok(expr_type)
     }
 
-    fn stmt_if(&mut self, stmt_if: &StmtIf) -> Result<BType, AnalyzerError> {
+    fn stmt_if(&mut self, stmt_if: &StmtIf) -> AnalyzerRetType {
         todo!()
     }
 
-    fn stmt_if_else(&mut self, stmt_if_else: &StmtIfElse) -> Result<BType, AnalyzerError> {
+    fn stmt_if_else(&mut self, stmt_if_else: &StmtIfElse) -> AnalyzerRetType {
         todo!()
     }
 
-    fn stmt_var_decl(&mut self, stmt_var_decl: &StmtVarDecl) -> Result<BType, AnalyzerError> {
+    fn stmt_var_decl(&mut self, stmt_var_decl: &StmtVarDecl) -> AnalyzerRetType {
         todo!()
     }
 
-    fn stmt_assign(&mut self, stmt_assign: &StmtAssign) -> Result<BType, AnalyzerError> {
+    fn stmt_assign(&mut self, stmt_assign: &StmtAssign) -> AnalyzerRetType {
         todo!()
     }
 
-    fn stmt_while(&mut self, stmt_while: &StmtWhile) -> Result<BType, AnalyzerError> {
+    fn stmt_while(&mut self, stmt_while: &StmtWhile) -> AnalyzerRetType {
         todo!()
     }
 
-    fn expr_bool(&mut self, _expr_bool: &ExprBool) -> Result<BType, AnalyzerError> {
+    fn expr_bool(&mut self, _expr_bool: &ExprBool) -> AnalyzerRetType {
         Ok(BType::Bool)
     }
 
-    fn expr_i64(&mut self, _expr_i64: &ExprI64) -> Result<BType, AnalyzerError> {
+    fn expr_i64(&mut self, _expr_i64: &ExprI64) -> AnalyzerRetType {
         Ok(BType::I64)
     }
 
-    fn expr_string(&mut self, _expr_string: &ExprString) -> Result<BType, AnalyzerError> {
+    fn expr_string(&mut self, _expr_string: &ExprString) -> AnalyzerRetType {
         Ok(BType::Str)
     }
 
-    fn expr_identifier(&mut self, expr_identifier: &ExprIdenifier) -> Result<BType, AnalyzerError> {
+    fn expr_identifier(&mut self, expr_identifier: &ExprIdenifier) -> AnalyzerRetType {
         todo!()
     }
 
-    fn expr_binary_op(&mut self, expr_binary_op: &ExprBinaryOp) -> Result<BType, AnalyzerError> {
+    fn expr_binary_op(&mut self, expr_binary_op: &ExprBinaryOp) -> AnalyzerRetType {
         todo!()
     }
 
-    fn expr_unary_op(&mut self, expr_unary_op: &ExprUnaryOp) -> Result<BType, AnalyzerError> {
+    fn expr_unary_op(&mut self, expr_unary_op: &ExprUnaryOp) -> AnalyzerRetType {
         todo!()
     }
 
-    fn expr_call(&mut self, expr_call: &ExprCall) -> Result<BType, AnalyzerError> {
+    fn expr_call(&mut self, expr_call: &ExprCall) -> AnalyzerRetType {
         todo!()
     }
 }
