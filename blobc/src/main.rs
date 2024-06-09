@@ -36,8 +36,6 @@ fn main() -> Result<(), i32> {
 
     let tokens = scanner::scan(&src);
     let ast = parser::parse(tokens);
-
-    ast.iter().for_each(|a| println!("{:?}\n", a));
     semantic_analyzer::analyze(&ast);
 
     Ok(())

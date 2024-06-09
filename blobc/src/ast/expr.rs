@@ -59,3 +59,17 @@ pub enum Expr {
 
     Call(ExprCall),
 }
+
+impl Expr {
+    pub fn get_file_coords(&self) -> FileCoords {
+        match self {
+            Expr::Bool(expr) => expr.file_coords,
+            Expr::I64(expr) => expr.file_coords,
+            Expr::Identifier(expr) => expr.file_coords,
+            Expr::String(expr) => expr.file_coords,
+            Expr::BinaryOp(expr) => expr.file_coords,
+            Expr::UnaryOp(expr) => expr.file_coords,
+            Expr::Call(expr) => expr.file_coords,
+        }
+    }
+}

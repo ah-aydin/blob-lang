@@ -1,25 +1,95 @@
-use crate::ast::{
-    btype::BType,
-    expr::{
-        Expr, ExprBinaryOp, ExprBool, ExprCall, ExprI64, ExprIdenifier, ExprString, ExprUnaryOp,
+use std::fmt::Display;
+
+use crate::{
+    ast::{
+        btype::BType,
+        expr::{
+            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprI64, ExprIdenifier, ExprString, ExprUnaryOp,
+        },
+        stmt::{
+            Stmt, StmtAssign, StmtBlock, StmtExpr, StmtFuncDecl, StmtIf, StmtIfElse, StmtReturn,
+            StmtVarDecl, StmtWhile,
+        },
+        Ast,
     },
-    stmt::{
-        Stmt, StmtAssign, StmtBlock, StmtExpr, StmtFuncDecl, StmtIf, StmtIfElse, StmtReturn,
-        StmtVarDecl, StmtWhile,
-    },
-    Ast,
+    common::FileCoords,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum AnalyzerError {}
+enum AnalyzerError {
+    Type(String, FileCoords),
+    Undefined(String, FileCoords),
+    Tombstone,
+}
+
+impl Display for AnalyzerError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AnalyzerError::Type(msg, file_coords) | AnalyzerError::Undefined(msg, file_coords) => {
+                write!(f, "{}:{} {}", file_coords.line, file_coords.col, msg)
+            }
+            AnalyzerError::Tombstone => unreachable!("Tombstone AnalyzerError cannot be printed"),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Func {
+    ident: String,
+    arg_types: Vec<BType>,
+    ret_type: BType,
+}
+
+impl Func {
+    fn new(ident: String, arg_types: Vec<BType>, ret_type: BType) -> Func {
+        Func {
+            ident,
+            arg_types,
+            ret_type,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Var {
+    ident: String,
+    btype: BType,
+}
+
+impl Var {
+    fn new(ident: String, btype: BType) -> Var {
+        Var { ident, btype }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct Env {
+    vars: Vec<Var>,
+    funcs: Vec<Func>,
+}
+
+impl Env {
+    fn new() -> Self {
+        Env {
+            vars: vec![],
+            funcs: vec![],
+        }
+    }
+}
 
 struct Analyzer<'a> {
     ast: &'a Ast,
+    envs: Vec<Env>,
+    current_func_ret_type: BType,
 }
 
 impl<'a> Analyzer<'a> {
     fn new(ast: &Ast) -> Analyzer {
-        Analyzer { ast }
+        Analyzer {
+            ast,
+            envs: vec![Env::new()],
+            current_func_ret_type: BType::None,
+        }
     }
 
     fn analyze(&mut self) -> Result<(), ()> {
@@ -32,6 +102,7 @@ impl<'a> Analyzer<'a> {
                 return Err(());
             }
         }
+        println!("{:?}", self.envs.get(0).unwrap().funcs);
         Ok(())
     }
 
@@ -60,8 +131,22 @@ impl<'a> Analyzer<'a> {
             Expr::Call(expr_call) => self.expr_call(expr_call),
         }
     }
+
     fn stmt_func_decl(&mut self, stmt_func_decl: &StmtFuncDecl) -> Result<BType, AnalyzerError> {
-        todo!()
+        self.envs.push(Env::new());
+
+        let ret_type = stmt_func_decl.ret_type;
+        self.current_func_ret_type = ret_type;
+        // Insert func data to the root environment
+        (&mut self.envs.get_mut(0).unwrap().funcs).push(Func::new(
+            stmt_func_decl.ident.clone(),
+            stmt_func_decl.args.iter().map(|arg| arg.btype).collect(),
+            ret_type,
+        ));
+
+        self.stmt(&stmt_func_decl.body)?;
+        self.envs.pop();
+        Ok(ret_type)
     }
 
     fn stmt_expr(&mut self, stmt_expr: &StmtExpr) -> Result<BType, AnalyzerError> {
@@ -69,11 +154,35 @@ impl<'a> Analyzer<'a> {
     }
 
     fn stmt_block(&mut self, stmt_block: &StmtBlock) -> Result<BType, AnalyzerError> {
-        todo!()
+        let mut errored = false;
+        for stmt in &stmt_block.stmts {
+            match self.stmt(stmt) {
+                Err(err) => {
+                    errored = true;
+                    println!("[ERROR] {}", err);
+                }
+
+                _ => {}
+            }
+        }
+        if errored {
+            return Err(AnalyzerError::Tombstone);
+        }
+        Ok(BType::None)
     }
 
     fn stmt_return(&mut self, stmt_return: &StmtReturn) -> Result<BType, AnalyzerError> {
-        todo!()
+        let expr_type = self.expr(&stmt_return.expr)?;
+        if expr_type != self.current_func_ret_type {
+            return Err(AnalyzerError::Type(
+                format!(
+                    "Expected return type '{:?}' by got '{:?}'",
+                    self.current_func_ret_type, expr_type
+                ),
+                stmt_return.expr.get_file_coords(),
+            ));
+        }
+        Ok(expr_type)
     }
 
     fn stmt_if(&mut self, stmt_if: &StmtIf) -> Result<BType, AnalyzerError> {
@@ -97,15 +206,15 @@ impl<'a> Analyzer<'a> {
     }
 
     fn expr_bool(&mut self, expr_bool: &ExprBool) -> Result<BType, AnalyzerError> {
-        todo!()
+        Ok(BType::Bool)
     }
 
     fn expr_i64(&mut self, expr_i64: &ExprI64) -> Result<BType, AnalyzerError> {
-        todo!()
+        Ok(BType::I64)
     }
 
     fn expr_string(&mut self, expr_string: &ExprString) -> Result<BType, AnalyzerError> {
-        todo!()
+        Ok(BType::Str)
     }
 
     fn expr_identifier(&mut self, expr_identifier: &ExprIdenifier) -> Result<BType, AnalyzerError> {
@@ -126,8 +235,14 @@ impl<'a> Analyzer<'a> {
 }
 
 pub fn analyze(ast: &Ast) {
+    println!("[INFO]  Analyzing semantics...");
     match Analyzer::new(ast).analyze() {
-        Err(_) => std::process::exit(1),
-        _ => {}
+        Err(_) => {
+            println!("[ERROR] Anaysis failed!\n");
+            std::process::exit(1);
+        }
+        _ => {
+            println!("[INFO]  Analysis complete!\n");
+        }
     }
 }
