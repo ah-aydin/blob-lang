@@ -19,12 +19,14 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ParserError {
     WrongToken(String, FileCoords),
+    EOF,
 }
 
 impl Display for ParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::WrongToken(msg, file_coords) => write!(f, "{} {}", file_coords, msg),
+            Self::EOF => write!(f, "Reached end of file before completing statement"),
         }
     }
 }
@@ -77,7 +79,7 @@ impl Parser {
         let mut stmts = vec![];
 
         loop {
-            if self.peek_token().token_type == TokenType::EOF {
+            if self.peek_token()?.token_type == TokenType::EOF {
                 break;
             }
             match self.stmt() {
@@ -96,7 +98,7 @@ impl Parser {
     ///////////////////////////////////////////////////////////////////////////
 
     fn stmt(&mut self) -> StmtResult {
-        match self.peek_token().token_type {
+        match self.peek_token()?.token_type {
             TokenType::Func => self.stmt_func_decl(),
             TokenType::Return => self.stmt_return(),
             TokenType::If => self.stmt_if_else(),
@@ -118,7 +120,7 @@ impl Parser {
         self.consume(TokenType::LeftParen)?;
         let mut args = vec![];
         let mut first_iter = true;
-        while !self.match_exact(TokenType::RightParen) {
+        while !self.match_exact(TokenType::RightParen)? {
             if !first_iter {
                 self.consume(TokenType::Comma)?;
             }
@@ -134,7 +136,7 @@ impl Parser {
         }
 
         let ret_type;
-        if self.peek_token().token_type == TokenType::Colon {
+        if self.peek_token()?.token_type == TokenType::Colon {
             ret_type = self.consume_type()?;
         } else {
             ret_type = BType::None;
@@ -162,8 +164,8 @@ impl Parser {
         self.consume(TokenType::RightParen)?;
         let body = self.stmt_block()?;
 
-        if self.match_exact(TokenType::Else) {
-            return match self.peek_token().token_type {
+        if self.match_exact(TokenType::Else)? {
+            return match self.peek_token()?.token_type {
                 TokenType::LeftBrace => Ok(Stmt::IfElse(StmtIfElse {
                     condition,
                     if_body: Box::new(body),
@@ -196,7 +198,7 @@ impl Parser {
             .unwrap()
             .clone();
         let btype;
-        if self.peek_token().token_type == TokenType::Colon {
+        if self.peek_token()?.token_type == TokenType::Colon {
             btype = self.consume_type()?;
         } else {
             btype = BType::None;
@@ -223,7 +225,7 @@ impl Parser {
     fn stmt_block(&mut self) -> StmtResult {
         self.consume(TokenType::LeftBrace)?;
         let mut stmts = vec![];
-        while !self.match_exact(TokenType::RightBrace) {
+        while !self.match_exact(TokenType::RightBrace)? {
             stmts.push(self.stmt()?);
         }
         Ok(Stmt::Block(StmtBlock { stmts }))
@@ -232,7 +234,7 @@ impl Parser {
     fn stmt_assignment(&mut self) -> StmtResult {
         let expr = self.expr()?;
         if let Expr::Identifier(expr_identifier) = &expr {
-            if let Some(_) = self.match_any(vec![TokenType::Equal]) {
+            if let Some(_) = self.match_any(vec![TokenType::Equal])? {
                 let expr_assign_to = self.expr()?;
                 let stmt_assign = Stmt::Assign(StmtAssign {
                     ident: expr_identifier.ident.clone(),
@@ -256,7 +258,7 @@ impl Parser {
 
     fn expr_boolean_or(&mut self) -> ExprResult {
         let mut expr = self.expr_boolean_and()?;
-        while let Some(token_type) = self.match_any(vec![TokenType::PipePipe]) {
+        while let Some(token_type) = self.match_any(vec![TokenType::PipePipe])? {
             let file_coords = self.get_prev_file_coords();
             let right_term = self.expr_boolean_and()?;
             expr = Expr::BooleanOp(ExprBooleanOp {
@@ -271,7 +273,7 @@ impl Parser {
 
     fn expr_boolean_and(&mut self) -> ExprResult {
         let mut expr = self.expr_bitwise_or()?;
-        while let Some(token_type) = self.match_any(vec![TokenType::AmpersandAmpersand]) {
+        while let Some(token_type) = self.match_any(vec![TokenType::AmpersandAmpersand])? {
             let file_coords = self.get_prev_file_coords();
             let right_term = self.expr_bitwise_or()?;
             expr = Expr::BooleanOp(ExprBooleanOp {
@@ -286,7 +288,7 @@ impl Parser {
 
     fn expr_bitwise_or(&mut self) -> ExprResult {
         let mut expr = self.expr_bitwise_and()?;
-        while let Some(token_type) = self.match_any(vec![TokenType::Pipe]) {
+        while let Some(token_type) = self.match_any(vec![TokenType::Pipe])? {
             let file_coords = self.get_prev_file_coords();
             let right_term = self.expr_bitwise_and()?;
             expr = Expr::BitwiseOp(ExprBitwiseOp {
@@ -301,7 +303,7 @@ impl Parser {
 
     fn expr_bitwise_and(&mut self) -> ExprResult {
         let mut expr = self.expr_comparison_eq()?;
-        while let Some(token_type) = self.match_any(vec![TokenType::Ampersand]) {
+        while let Some(token_type) = self.match_any(vec![TokenType::Ampersand])? {
             let file_coords = self.get_prev_file_coords();
             let right_term = self.expr_comparison_eq()?;
             expr = Expr::BitwiseOp(ExprBitwiseOp {
@@ -317,7 +319,7 @@ impl Parser {
     fn expr_comparison_eq(&mut self) -> ExprResult {
         let mut expr = self.expr_comparison()?;
         while let Some(token_type) =
-            self.match_any(vec![TokenType::EqualEqual, TokenType::BangEqual])
+            self.match_any(vec![TokenType::EqualEqual, TokenType::BangEqual])?
         {
             let file_coords = self.get_prev_file_coords();
             let right_term = self.expr_comparison()?;
@@ -338,7 +340,7 @@ impl Parser {
             TokenType::Greater,
             TokenType::LessEqual,
             TokenType::GreaterEqual,
-        ]) {
+        ])? {
             let file_coords = self.get_prev_file_coords();
             let right_term = self.expr_term()?;
             expr = Expr::CmpOp(ExprCmpOp {
@@ -353,7 +355,7 @@ impl Parser {
 
     fn expr_term(&mut self) -> ExprResult {
         let mut expr = self.expr_factor()?;
-        while let Some(token_type) = self.match_any(vec![TokenType::Plus, TokenType::Minus]) {
+        while let Some(token_type) = self.match_any(vec![TokenType::Plus, TokenType::Minus])? {
             let file_coords = self.get_prev_file_coords();
             let right_term = self.expr_factor()?;
             expr = Expr::BinaryOp(ExprBinaryOp {
@@ -368,7 +370,7 @@ impl Parser {
 
     fn expr_factor(&mut self) -> ExprResult {
         let mut expr = self.expr_unary()?;
-        while let Some(token_type) = self.match_any(vec![TokenType::Star, TokenType::Slash]) {
+        while let Some(token_type) = self.match_any(vec![TokenType::Star, TokenType::Slash])? {
             let file_coords = self.get_prev_file_coords();
             let right_term = self.expr_unary()?;
             expr = Expr::BinaryOp(ExprBinaryOp {
@@ -382,7 +384,7 @@ impl Parser {
     }
 
     fn expr_unary(&mut self) -> ExprResult {
-        if let Some(token_type) = self.match_any(vec![TokenType::Bang, TokenType::Minus]) {
+        if let Some(token_type) = self.match_any(vec![TokenType::Bang, TokenType::Minus])? {
             let term = self.expr_unary()?;
             return Ok(Expr::UnaryOp(ExprUnaryOp {
                 op: token_type.get_unary_op_type(),
@@ -395,7 +397,7 @@ impl Parser {
 
     fn expr_call(&mut self) -> ExprResult {
         let term = self.expr_primary()?;
-        if self.peek_token().token_type == TokenType::LeftParen {
+        if self.peek_token()?.token_type == TokenType::LeftParen {
             if let Expr::Identifier(ExprIdenifier { ident, file_coords }) = term {
                 self.consume(TokenType::LeftParen)?;
                 let args = self.expr_arguments()?;
@@ -416,7 +418,7 @@ impl Parser {
     fn expr_arguments(&mut self) -> Result<Vec<Expr>, ParserError> {
         let mut args = vec![];
         let mut first_pass = true;
-        while self.peek_token().token_type != TokenType::RightParen {
+        while self.peek_token()?.token_type != TokenType::RightParen {
             if !first_pass {
                 self.consume(TokenType::Comma)?;
             }
@@ -428,7 +430,7 @@ impl Parser {
     }
 
     fn expr_primary(&mut self) -> ExprResult {
-        let token = self.next_token();
+        let token = self.next_token()?;
         match token.token_type {
             TokenType::I64 => Ok(Expr::I64(ExprI64 {
                 value: token.lexeme.as_ref().unwrap().parse::<i64>().unwrap(),
@@ -477,21 +479,28 @@ impl Parser {
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    /// Parer helper methods
+    /// Parser helper methods
     ///////////////////////////////////////////////////////////////////////////
 
-    fn next_token(&mut self) -> &Token {
-        let token = self.tokens.get(self.index).unwrap();
-        self.index += 1;
-        token
+    fn next_token(&mut self) -> TokenRefResult {
+        match self.tokens.get(self.index) {
+            Some(token) => {
+                self.index += 1;
+                Ok(token)
+            }
+            None => Err(ParserError::EOF),
+        }
     }
 
-    fn peek_token(&mut self) -> &Token {
-        self.tokens.get(self.index).unwrap()
+    fn peek_token(&mut self) -> TokenRefResult {
+        match self.tokens.get(self.index) {
+            Some(token) => Ok(token),
+            None => Err(ParserError::EOF),
+        }
     }
 
     fn consume(&mut self, token_type: TokenType) -> TokenRefResult {
-        let token = self.next_token();
+        let token = self.next_token()?;
         if token.token_type != token_type {
             return Err(ParserError::WrongToken(
                 format!(
@@ -505,7 +514,7 @@ impl Parser {
     }
 
     fn consume_any(&mut self, token_types: Vec<TokenType>) -> TokenRefResult {
-        let token = self.next_token();
+        let token = self.next_token()?;
         if !token_types.contains(&token.token_type) {
             return Err(ParserError::WrongToken(
                 format!(
@@ -518,19 +527,19 @@ impl Parser {
         Ok(token)
     }
 
-    fn match_exact(&mut self, token_type: TokenType) -> bool {
-        if self.peek_token().token_type == token_type {
-            let _ = self.next_token();
-            return true;
+    fn match_exact(&mut self, token_type: TokenType) -> Result<bool, ParserError> {
+        if self.peek_token()?.token_type == token_type {
+            let _ = self.next_token()?;
+            return Ok(true);
         }
-        return false;
+        return Ok(false);
     }
 
-    fn match_any(&mut self, token_types: Vec<TokenType>) -> Option<TokenType> {
-        if token_types.contains(&self.peek_token().token_type) {
-            return Some(self.next_token().token_type);
+    fn match_any(&mut self, token_types: Vec<TokenType>) -> Result<Option<TokenType>, ParserError> {
+        if token_types.contains(&self.peek_token()?.token_type) {
+            return Ok(Some(self.next_token()?.token_type));
         }
-        None
+        Ok(None)
     }
 
     fn get_prev_file_coords(&self) -> FileCoords {
