@@ -197,7 +197,7 @@ impl<'a> Analyzer<'a> {
         if condition_btype != BType::Bool {
             return Err(AnalyzerError::Type(
                 format!(
-                    "Expected if condition to have a 'Bool' result but got {:?}",
+                    "Expected if condition to have a 'Bool' result but got '{:?}'",
                     condition_btype
                 ),
                 stmt_if.condition.get_file_coords(),
@@ -212,7 +212,7 @@ impl<'a> Analyzer<'a> {
         if condition_btype != BType::Bool {
             return Err(AnalyzerError::Type(
                 format!(
-                    "Expected if condition to have a 'Bool' result but got {:?}",
+                    "Expected if condition to have a 'Bool' result but got '{:?}'",
                     condition_btype
                 ),
                 stmt_if_else.condition.get_file_coords(),
@@ -234,7 +234,17 @@ impl<'a> Analyzer<'a> {
     }
 
     fn stmt_while(&mut self, stmt_while: &StmtWhile) -> AnalyzerRetType {
-        todo!("stmt_while");
+        let condition_btype = self.expr(&stmt_while.condition)?;
+        if condition_btype != BType::Bool {
+            return Err(AnalyzerError::Type(
+                format!(
+                    "Expected while condition to have a 'Bool' result but got '{:?}'",
+                    condition_btype
+                ),
+                stmt_while.condition.get_file_coords(),
+            ));
+        }
+        self.stmt(&stmt_while.body)?;
         Ok(BType::None)
     }
 

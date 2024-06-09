@@ -12,6 +12,9 @@ func func2(a: i64, b: bool): str {
   } else if (5 == (10 | 2)) {
 
   } else {}
+
+  while (3 < 2) {
+  }
   return "gigel";
 }
 
