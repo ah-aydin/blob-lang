@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use crate::{
     ast::{
         btype::BType,
-        op::{BinaryOp, BitwiseOp, BooleanOp, CmpOp, UnaryOp},
+        op::{BinaryOp, BitwiseOp, CmpOp, UnaryOp},
     },
     common::FileCoords,
 };
@@ -77,6 +77,8 @@ impl TokenType {
             TokenType::Minus => BinaryOp::Sub,
             TokenType::Slash => BinaryOp::Div,
             TokenType::Star => BinaryOp::Mul,
+            TokenType::AmpersandAmpersand => BinaryOp::BooleanAnd,
+            TokenType::PipePipe => BinaryOp::BooleanOr,
             _ => unreachable!("{:?} does not have a BinaryOp", self),
         }
     }
@@ -86,14 +88,6 @@ impl TokenType {
             TokenType::Ampersand => BitwiseOp::And,
             TokenType::Pipe => BitwiseOp::Or,
             _ => unreachable!("{:?} does not have a BitwiseOp", self),
-        }
-    }
-
-    pub fn get_boolean_op_type(&self) -> BooleanOp {
-        match self {
-            TokenType::AmpersandAmpersand => BooleanOp::And,
-            TokenType::PipePipe => BooleanOp::Or,
-            _ => unreachable!("{:?} does not have a BooleanOpType", self),
         }
     }
 

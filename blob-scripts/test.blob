@@ -1,36 +1,4 @@
-#var a = b + 1;
-#var a = b + 2;
-#var a = b + 3;
-#var a = b + 4;
-#var a = b + 5;
-#var a = b + 6;
-#var a = b + 7;
-#var a = b + 8;
-
-func meh1() {
-  var b = 10;
-  if (true) {
-    false;
-  } else if (false) {
-    true;
-  } else {
-    var b: str = 2;
-  }
-}
-
-func meh2(): i64 {
-  var b = 10;
-  return b;
-}
-
-func meh3(a: i64): str {
-  return "mamaliga cu carnati";
-}
-
-func meh4(a: i64, b: str): bool {
-  return false;
-}
-
-func meh5(a: i64, b: str, c: bool): bool {
-  return a + b + c;
+func main() {
+  a || b && c;
+  return 1;
 }

@@ -4,9 +4,10 @@ use crate::{
     ast::{
         btype::BType,
         expr::{
-            Expr, ExprBinaryOp, ExprBitwiseOp, ExprBool, ExprBooleanOp, ExprCall, ExprCmpOp,
-            ExprI64, ExprIdenifier, ExprString, ExprUnaryOp,
+            Expr, ExprBinaryOp, ExprBitwiseOp, ExprBool, ExprCall, ExprCmpOp, ExprI64,
+            ExprIdenifier, ExprString, ExprUnaryOp,
         },
+        op::BinaryOp,
         stmt::{
             FuncDeclArg, Stmt, StmtAssign, StmtBlock, StmtExpr, StmtFuncDecl, StmtIf, StmtIfElse,
             StmtReturn, StmtVarDecl, StmtWhile,
@@ -313,9 +314,9 @@ impl Parser {
         while let Some(token_type) = self.match_any(vec![TokenType::PipePipe])? {
             let file_coords = self.get_prev_file_coords();
             let right_term = self.expr_boolean_and()?;
-            expr = Expr::BooleanOp(ExprBooleanOp {
+            expr = Expr::BinaryOp(ExprBinaryOp {
                 left: Box::new(expr),
-                op: token_type.get_boolean_op_type(),
+                op: BinaryOp::BooleanOr,
                 right: Box::new(right_term),
                 file_coords,
             });
@@ -328,9 +329,9 @@ impl Parser {
         while let Some(token_type) = self.match_any(vec![TokenType::AmpersandAmpersand])? {
             let file_coords = self.get_prev_file_coords();
             let right_term = self.expr_bitwise_or()?;
-            expr = Expr::BooleanOp(ExprBooleanOp {
+            expr = Expr::BinaryOp(ExprBinaryOp {
                 left: Box::new(expr),
-                op: token_type.get_boolean_op_type(),
+                op: BinaryOp::BooleanAnd,
                 right: Box::new(right_term),
                 file_coords,
             });

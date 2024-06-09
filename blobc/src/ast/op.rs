@@ -4,16 +4,12 @@ pub enum BinaryOp {
     Sub,
     Mul,
     Div,
+    BooleanOr,
+    BooleanAnd
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BitwiseOp {
-    And,
-    Or,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum BooleanOp {
     And,
     Or,
 }

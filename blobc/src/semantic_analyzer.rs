@@ -1,7 +1,13 @@
 use crate::ast::{
     btype::BType,
-    expr::Expr,
-    stmt::{Stmt, StmtExpr},
+    expr::{
+        Expr, ExprBinaryOp, ExprBitwiseOp, ExprBool, ExprCall, ExprCmpOp, ExprI64, ExprIdenifier,
+        ExprString, ExprUnaryOp,
+    },
+    stmt::{
+        Stmt, StmtAssign, StmtBlock, StmtExpr, StmtFuncDecl, StmtIf, StmtIfElse, StmtReturn,
+        StmtVarDecl, StmtWhile,
+    },
     Ast,
 };
 
@@ -17,7 +23,7 @@ impl<'a> Analyzer<'a> {
         Analyzer { ast }
     }
 
-    fn walk(&mut self) -> Result<(), ()> {
+    fn analyze(&mut self) -> Result<(), ()> {
         for stmt in self.ast {
             let result = match stmt {
                 Stmt::FuncDecl(stmt_func_decl) => self.stmt_func_decl(&stmt_func_decl),
@@ -52,16 +58,12 @@ impl<'a> Analyzer<'a> {
             Expr::Identifier(expr_identifier) => self.expr_identifier(expr_identifier),
             Expr::BinaryOp(expr_binary_op) => self.expr_binary_op(expr_binary_op),
             Expr::BitwiseOp(expr_bitwise_op) => self.expr_bitwise_op(expr_bitwise_op),
-            Expr::BooleanOp(expr_boolean_op) => self.expr_boolean_op(expr_boolean_op),
             Expr::CmpOp(expr_cmp_op) => self.expr_cmp_op(expr_cmp_op),
             Expr::UnaryOp(expr_unary_op) => self.expr_unary_op(expr_unary_op),
             Expr::Call(expr_call) => self.expr_call(expr_call),
         }
     }
-    fn stmt_func_decl(
-        &mut self,
-        stmt_func_decl: &crate::ast::stmt::StmtFuncDecl,
-    ) -> Result<BType, AnalyzerError> {
+    fn stmt_func_decl(&mut self, stmt_func_decl: &StmtFuncDecl) -> Result<BType, AnalyzerError> {
         todo!()
     }
 
@@ -69,122 +71,73 @@ impl<'a> Analyzer<'a> {
         self.expr(&stmt_expr.expr)
     }
 
-    fn stmt_block(
-        &mut self,
-        stmt_block: &crate::ast::stmt::StmtBlock,
-    ) -> Result<BType, AnalyzerError> {
+    fn stmt_block(&mut self, stmt_block: &StmtBlock) -> Result<BType, AnalyzerError> {
         todo!()
     }
 
-    fn stmt_return(
-        &mut self,
-        stmt_return: &crate::ast::stmt::StmtReturn,
-    ) -> Result<BType, AnalyzerError> {
+    fn stmt_return(&mut self, stmt_return: &StmtReturn) -> Result<BType, AnalyzerError> {
         todo!()
     }
 
-    fn stmt_if(&mut self, stmt_if: &crate::ast::stmt::StmtIf) -> Result<BType, AnalyzerError> {
+    fn stmt_if(&mut self, stmt_if: &StmtIf) -> Result<BType, AnalyzerError> {
         todo!()
     }
 
-    fn stmt_if_else(
-        &mut self,
-        stmt_if_else: &crate::ast::stmt::StmtIfElse,
-    ) -> Result<BType, AnalyzerError> {
+    fn stmt_if_else(&mut self, stmt_if_else: &StmtIfElse) -> Result<BType, AnalyzerError> {
         todo!()
     }
 
-    fn stmt_var_decl(
-        &mut self,
-        stmt_var_decl: &crate::ast::stmt::StmtVarDecl,
-    ) -> Result<BType, AnalyzerError> {
+    fn stmt_var_decl(&mut self, stmt_var_decl: &StmtVarDecl) -> Result<BType, AnalyzerError> {
         todo!()
     }
 
-    fn stmt_assign(
-        &mut self,
-        stmt_assign: &crate::ast::stmt::StmtAssign,
-    ) -> Result<BType, AnalyzerError> {
+    fn stmt_assign(&mut self, stmt_assign: &StmtAssign) -> Result<BType, AnalyzerError> {
         todo!()
     }
 
-    fn stmt_while(
-        &mut self,
-        stmt_while: &crate::ast::stmt::StmtWhile,
-    ) -> Result<BType, AnalyzerError> {
+    fn stmt_while(&mut self, stmt_while: &StmtWhile) -> Result<BType, AnalyzerError> {
         todo!()
     }
 
-    fn expr_bool(
-        &mut self,
-        expr_bool: &crate::ast::expr::ExprBool,
-    ) -> Result<BType, AnalyzerError> {
+    fn expr_bool(&mut self, expr_bool: &ExprBool) -> Result<BType, AnalyzerError> {
         todo!()
     }
 
-    fn expr_i64(&mut self, expr_i64: &crate::ast::expr::ExprI64) -> Result<BType, AnalyzerError> {
+    fn expr_i64(&mut self, expr_i64: &ExprI64) -> Result<BType, AnalyzerError> {
         todo!()
     }
 
-    fn expr_string(
-        &mut self,
-        expr_string: &crate::ast::expr::ExprString,
-    ) -> Result<BType, AnalyzerError> {
+    fn expr_string(&mut self, expr_string: &ExprString) -> Result<BType, AnalyzerError> {
         todo!()
     }
 
-    fn expr_identifier(
-        &mut self,
-        expr_identifier: &crate::ast::expr::ExprIdenifier,
-    ) -> Result<BType, AnalyzerError> {
+    fn expr_identifier(&mut self, expr_identifier: &ExprIdenifier) -> Result<BType, AnalyzerError> {
         todo!()
     }
 
-    fn expr_binary_op(
-        &mut self,
-        expr_binary_op: &crate::ast::expr::ExprBinaryOp,
-    ) -> Result<BType, AnalyzerError> {
+    fn expr_binary_op(&mut self, expr_binary_op: &ExprBinaryOp) -> Result<BType, AnalyzerError> {
         todo!()
     }
 
-    fn expr_bitwise_op(
-        &mut self,
-        expr_bitwise_op: &crate::ast::expr::ExprBitwiseOp,
-    ) -> Result<BType, AnalyzerError> {
+    fn expr_bitwise_op(&mut self, expr_bitwise_op: &ExprBitwiseOp) -> Result<BType, AnalyzerError> {
         todo!()
     }
 
-    fn expr_boolean_op(
-        &mut self,
-        expr_boolean_op: &crate::ast::expr::ExprBooleanOp,
-    ) -> Result<BType, AnalyzerError> {
+    fn expr_cmp_op(&mut self, expr_cmp_op: &ExprCmpOp) -> Result<BType, AnalyzerError> {
         todo!()
     }
 
-    fn expr_cmp_op(
-        &mut self,
-        expr_cmp_op: &crate::ast::expr::ExprCmpOp,
-    ) -> Result<BType, AnalyzerError> {
+    fn expr_unary_op(&mut self, expr_unary_op: &ExprUnaryOp) -> Result<BType, AnalyzerError> {
         todo!()
     }
 
-    fn expr_unary_op(
-        &mut self,
-        expr_unary_op: &crate::ast::expr::ExprUnaryOp,
-    ) -> Result<BType, AnalyzerError> {
-        todo!()
-    }
-
-    fn expr_call(
-        &mut self,
-        expr_call: &crate::ast::expr::ExprCall,
-    ) -> Result<BType, AnalyzerError> {
+    fn expr_call(&mut self, expr_call: &ExprCall) -> Result<BType, AnalyzerError> {
         todo!()
     }
 }
 
 pub fn analyze(ast: &Ast) {
-    match Analyzer::new(ast).walk() {
+    match Analyzer::new(ast).analyze() {
         Err(_) => std::process::exit(1),
         _ => {}
     }
