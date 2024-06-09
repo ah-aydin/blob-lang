@@ -263,7 +263,36 @@ impl<'a> Analyzer<'a> {
     }
 
     fn stmt_assign(&mut self, stmt_assign: &StmtAssign) -> AnalyzerRetType {
-        todo!("stmt_assign");
+        let ident = &stmt_assign.ident;
+        let mut found = false;
+        let mut var_btype = BType::None;
+        for env in self.envs.iter().rev() {
+            let var_maybe = env.vars.iter().filter(|var| var.ident == *ident).last();
+            if let Some(var) = var_maybe {
+                found = true;
+                var_btype = var.btype;
+                break;
+            }
+        }
+
+        if !found {
+            return Err(AnalyzerError::Undefined(
+                format!("{:?} is undefined", ident),
+                stmt_assign.expr.get_file_coords(),
+            ));
+        }
+
+        let expr_btype = self.expr(&stmt_assign.expr)?;
+        if var_btype != expr_btype {
+            return Err(AnalyzerError::Undefined(
+                format!(
+                    "Variable {} has type '{:?}' but '{:?}' was given",
+                    ident, var_btype, expr_btype
+                ),
+                stmt_assign.expr.get_file_coords(),
+            ));
+        }
+
         Ok(BType::None)
     }
 
@@ -303,10 +332,10 @@ impl<'a> Analyzer<'a> {
             }
         }
 
-        return Err(AnalyzerError::Undefined(
+        Err(AnalyzerError::Undefined(
             format!("'{:?}' is undefined", ident),
             expr_identifier.file_coords,
-        ));
+        ))
     }
 
     fn expr_binary_op(&mut self, expr_binary_op: &ExprBinaryOp) -> AnalyzerRetType {

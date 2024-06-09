@@ -24,9 +24,12 @@ func main(): i64 {
   var c: bool = 3 != 0;
   var d: i64 = 10;
   if (a == 1) {
+    var a: i64 = 1;
+    var e: str = "Mamalige";
     a + 2;
   } else {
     (a + d + 2 / 3) & 10;
   }
+  d = ((1111 - 123) / 2);
   return 1;
 }
