@@ -6,6 +6,15 @@ mod token;
 
 use std::{env, fs::File, io::Read};
 
+macro_rules! get_some_or_error {
+    ($action: expr) => {
+        match $action {
+            Some(ret_val) => Ok(ret_val),
+            None => Err(1),
+        }?
+    };
+}
+
 fn main() -> Result<(), i32> {
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
@@ -33,8 +42,9 @@ fn main() -> Result<(), i32> {
 
     println!("Compiling and running '{}'...", file_name);
 
-    let tokens = scanner::scan(&src).unwrap();
-    let ast = parser::parse(tokens).unwrap();
+    let tokens = get_some_or_error!(scanner::scan(&src));
+    let ast = get_some_or_error!(parser::parse(tokens));
+
     ast.iter().for_each(|a| println!("\n{:?}", a));
 
     Ok(())

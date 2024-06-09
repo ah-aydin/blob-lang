@@ -25,8 +25,14 @@ pub enum ParserError {
 impl Display for ParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::WrongToken(msg, file_coords) => write!(f, "{} {}", file_coords, msg),
-            Self::EOF => write!(f, "Reached end of file before completing statement"),
+            Self::WrongToken(msg, file_coords) => {
+                write!(
+                    f,
+                    "[ERROR] {}:{} {}",
+                    file_coords.line, file_coords.col, msg
+                )
+            }
+            Self::EOF => write!(f, "[ERROR] Reached end of file before completing statement"),
         }
     }
 }
@@ -75,22 +81,39 @@ impl Parser {
         Parser { tokens, index: 0 }
     }
 
-    fn parse(&mut self) -> Result<Vec<Stmt>, ParserError> {
+    fn parse(&mut self) -> Option<Vec<Stmt>> {
         let mut stmts = vec![];
 
+        let mut errored = false;
         loop {
-            if self.peek_token()?.token_type == TokenType::EOF {
+            let peek_token_result = self.peek_token();
+            if peek_token_result.is_err() {
+                break;
+            }
+            if self.peek_token().unwrap().token_type == TokenType::EOF {
                 break;
             }
             match self.stmt() {
                 Ok(stmt) => stmts.push(stmt),
                 Err(err) => {
+                    errored = true;
                     println!("{}", err);
+                    match self.sync() {
+                        Err(parser_error) => {
+                            println!("{}", parser_error);
+                            break;
+                        }
+                        _ => {}
+                    }
                 }
             }
         }
 
-        Ok(stmts)
+        if errored {
+            return None;
+        }
+
+        Some(stmts)
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -545,11 +568,30 @@ impl Parser {
     fn get_prev_file_coords(&self) -> FileCoords {
         self.tokens.get(self.index - 1).unwrap().file_coords
     }
+
+    fn sync(&mut self) -> Result<(), ParserError> {
+        loop {
+            match self.peek_token()?.token_type {
+                TokenType::Semicolon | TokenType::RightBrace => {
+                    self.next_token()?;
+                    break;
+                }
+                TokenType::EOF => break,
+                _ => self.next_token()?,
+            };
+        }
+        Ok(())
+    }
 }
 
-pub fn parse(tokens: Vec<Token>) -> Result<Vec<Stmt>, ParserError> {
-    println!("Parsing...");
+pub fn parse(tokens: Vec<Token>) -> Option<Vec<Stmt>> {
+    println!("[INFO]  Parsing...");
     let result = Parser::new(tokens).parse();
-    println!("Parsing complete!");
+    if result.is_some() {
+        println!("[INFO]  Parsing complete!");
+    } else {
+        println!("[ERROR] Parsing failed!");
+    }
+    println!();
     result
 }

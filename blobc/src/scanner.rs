@@ -226,9 +226,17 @@ impl Scanner {
     }
 }
 
-pub fn scan(src: &str) -> Result<Vec<Token>, ScannerError> {
-    println!("Scanning...");
+pub fn scan(src: &str) -> Option<Vec<Token>> {
+    println!("[INFO]  Scanning...");
     let result = Scanner::new().scan(src);
-    println!("Scanning comlpete!");
-    result
+    match result {
+        Ok(tokens) => {
+            println!("[INFO]  Scanning comlpete!");
+            Some(tokens)
+        }
+        Err(scanner_error) => {
+            println!("[ERROR] Scanning failed: {:?}!", scanner_error);
+            None
+        }
+    }
 }
