@@ -8,6 +8,7 @@ use crate::{
         expr::{
             Expr, ExprBinaryOp, ExprBool, ExprCall, ExprI64, ExprIdenifier, ExprString, ExprUnaryOp,
         },
+        op::SupportedBTypes,
         stmt::{
             Stmt, StmtAssign, StmtBlock, StmtExpr, StmtFuncDecl, StmtIf, StmtIfElse, StmtReturn,
             StmtVarDecl, StmtWhile,
@@ -192,23 +193,23 @@ impl<'a> Analyzer<'a> {
     }
 
     fn stmt_if(&mut self, stmt_if: &StmtIf) -> AnalyzerRetType {
-        todo!()
+        todo!("stmt_if")
     }
 
     fn stmt_if_else(&mut self, stmt_if_else: &StmtIfElse) -> AnalyzerRetType {
-        todo!()
+        todo!("stmt_if_else")
     }
 
     fn stmt_var_decl(&mut self, stmt_var_decl: &StmtVarDecl) -> AnalyzerRetType {
-        todo!()
+        todo!("stmt_var_decl")
     }
 
     fn stmt_assign(&mut self, stmt_assign: &StmtAssign) -> AnalyzerRetType {
-        todo!()
+        todo!("stmt_assign")
     }
 
     fn stmt_while(&mut self, stmt_while: &StmtWhile) -> AnalyzerRetType {
-        todo!()
+        todo!("stmt_while")
     }
 
     fn expr_bool(&mut self, _expr_bool: &ExprBool) -> AnalyzerRetType {
@@ -224,19 +225,52 @@ impl<'a> Analyzer<'a> {
     }
 
     fn expr_identifier(&mut self, expr_identifier: &ExprIdenifier) -> AnalyzerRetType {
-        todo!()
+        todo!("expr_identifier")
     }
 
     fn expr_binary_op(&mut self, expr_binary_op: &ExprBinaryOp) -> AnalyzerRetType {
-        todo!()
+        let left_btype = self.expr(&expr_binary_op.left)?;
+        let right_btype = self.expr(&expr_binary_op.right)?;
+
+        let supported_btypes = expr_binary_op.op.get_supported_btypes();
+        if !supported_btypes.contains(&left_btype) {
+            return Err(AnalyzerError::Type(
+                format!(
+                    "Op '{:?}' expects '{:?}' types but it got '{:?}' in the left term",
+                    expr_binary_op.op, supported_btypes, left_btype
+                ),
+                expr_binary_op.file_coords,
+            ));
+        }
+        if !supported_btypes.contains(&right_btype) {
+            return Err(AnalyzerError::Type(
+                format!(
+                    "Op '{:?}' expects '{:?}' types but it got '{:?}' in the right term",
+                    expr_binary_op.op, supported_btypes, right_btype
+                ),
+                expr_binary_op.file_coords,
+            ));
+        }
+
+        if left_btype != right_btype {
+            return Err(AnalyzerError::Type(
+                format!(
+                    "Mismatched types '{:?}' and '{:?}'",
+                    left_btype, right_btype
+                ),
+                expr_binary_op.file_coords,
+            ));
+        }
+
+        Ok(left_btype)
     }
 
     fn expr_unary_op(&mut self, expr_unary_op: &ExprUnaryOp) -> AnalyzerRetType {
-        todo!()
+        todo!("expr_unary_op")
     }
 
     fn expr_call(&mut self, expr_call: &ExprCall) -> AnalyzerRetType {
-        todo!()
+        todo!("expr_call")
     }
 }
 
