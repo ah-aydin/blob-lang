@@ -170,14 +170,18 @@ impl<'a> Analyzer<'a> {
     }
 
     fn stmt_return(&mut self, stmt_return: &StmtReturn) -> Result<BType, AnalyzerError> {
-        let expr_type = self.expr(&stmt_return.expr)?;
+        let expr_maybe = &stmt_return.expr;
+        let expr_type = match expr_maybe {
+            Some(expr) => self.expr(expr)?,
+            None => BType::None,
+        };
         if expr_type != self.current_func_ret_type {
             return Err(AnalyzerError::Type(
                 format!(
                     "Expected return type '{:?}' by got '{:?}'",
                     self.current_func_ret_type, expr_type
                 ),
-                stmt_return.expr.get_file_coords(),
+                expr_maybe.as_ref().unwrap().get_file_coords(),
             ));
         }
         Ok(expr_type)

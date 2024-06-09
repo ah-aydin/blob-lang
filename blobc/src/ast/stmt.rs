@@ -12,7 +12,7 @@ pub struct StmtBlock {
 
 #[derive(Debug, Clone)]
 pub struct StmtReturn {
-    pub expr: Expr,
+    pub expr: Option<Expr>,
 }
 
 #[derive(Debug, Clone)]

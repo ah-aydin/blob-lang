@@ -1,6 +1,6 @@
-#func func1(a: i64) {
-#  return;
-#}
+func func1(a: i64) {
+  return;
+}
 
 func func2(a: i64, b: bool): str {
   return "gigel";

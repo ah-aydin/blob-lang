@@ -194,9 +194,12 @@ impl Parser {
         self.err_if_not_in_scope(Scope::Func)?;
 
         self.consume(TokenType::Return)?;
+        if self.match_exact(TokenType::Semicolon)? {
+            return Ok(Stmt::Return(StmtReturn { expr: None }));
+        }
         let expr = self.expr()?;
         self.consume(TokenType::Semicolon)?;
-        Ok(Stmt::Return(StmtReturn { expr }))
+        Ok(Stmt::Return(StmtReturn { expr: Some(expr) }))
     }
 
     fn stmt_if_else(&mut self) -> StmtResult {
