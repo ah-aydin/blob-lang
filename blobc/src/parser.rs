@@ -17,7 +17,8 @@ use crate::{
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ParserError {
+enum ParserError {
+    InvalidScope(String, FileCoords),
     WrongToken(String, FileCoords),
     EOF,
 }
@@ -25,7 +26,7 @@ pub enum ParserError {
 impl Display for ParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::WrongToken(msg, file_coords) => {
+            Self::WrongToken(msg, file_coords) | Self::InvalidScope(msg, file_coords) => {
                 write!(
                     f,
                     "[ERROR] {}:{} {}",
@@ -41,9 +42,15 @@ type StmtResult = Result<Stmt, ParserError>;
 type ExprResult = Result<Expr, ParserError>;
 type TokenRefResult<'a> = Result<&'a Token, ParserError>;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Scope {
+    Func,
+}
+
 struct Parser {
     tokens: Vec<Token>,
     index: usize,
+    scopes: Vec<Scope>,
 }
 
 /// Top down parser.
@@ -78,7 +85,11 @@ struct Parser {
 /// ```
 impl Parser {
     fn new(tokens: Vec<Token>) -> Parser {
-        Parser { tokens, index: 0 }
+        Parser {
+            tokens,
+            index: 0,
+            scopes: Vec::with_capacity(8),
+        }
     }
 
     fn parse(&mut self) -> Option<Vec<Stmt>> {
@@ -133,6 +144,9 @@ impl Parser {
     }
 
     fn stmt_func_decl(&mut self) -> StmtResult {
+        self.err_if_in_scope(Scope::Func)?;
+        self.scopes.push(Scope::Func);
+
         self.consume(TokenType::Func)?;
         let ident = self
             .consume(TokenType::Identifier)?
@@ -165,15 +179,19 @@ impl Parser {
             ret_type = BType::None;
         }
 
-        Ok(Stmt::FuncDecl(StmtFuncDecl {
+        let stmt_func_decl = Stmt::FuncDecl(StmtFuncDecl {
             ident,
             args,
             ret_type,
             body: Box::new(self.stmt_block()?),
-        }))
+        });
+        self.scopes.pop();
+        Ok(stmt_func_decl)
     }
 
     fn stmt_return(&mut self) -> StmtResult {
+        self.err_if_not_in_scope(Scope::Func)?;
+
         self.consume(TokenType::Return)?;
         let expr = self.expr()?;
         self.consume(TokenType::Semicolon)?;
@@ -181,6 +199,8 @@ impl Parser {
     }
 
     fn stmt_if_else(&mut self) -> StmtResult {
+        self.err_if_not_in_scope(Scope::Func)?;
+
         self.consume(TokenType::If)?;
         self.consume(TokenType::LeftParen)?;
         let condition = self.expr()?;
@@ -213,6 +233,8 @@ impl Parser {
     }
 
     fn stmt_var_decl(&mut self) -> StmtResult {
+        self.err_if_not_in_scope(Scope::Func)?;
+
         self.consume(TokenType::Var)?;
         let ident = self
             .consume(TokenType::Identifier)?
@@ -233,6 +255,8 @@ impl Parser {
     }
 
     fn stmt_while(&mut self) -> StmtResult {
+        self.err_if_not_in_scope(Scope::Func)?;
+
         self.consume(TokenType::While)?;
         self.consume(TokenType::LeftParen)?;
         let condition = self.expr()?;
@@ -246,6 +270,8 @@ impl Parser {
     }
 
     fn stmt_block(&mut self) -> StmtResult {
+        self.err_if_not_in_scope(Scope::Func)?;
+
         self.consume(TokenType::LeftBrace)?;
         let mut stmts = vec![];
         while !self.match_exact(TokenType::RightBrace)? {
@@ -255,6 +281,8 @@ impl Parser {
     }
 
     fn stmt_assignment(&mut self) -> StmtResult {
+        self.err_if_not_in_scope(Scope::Func)?;
+
         let expr = self.expr()?;
         if let Expr::Identifier(expr_identifier) = &expr {
             if let Some(_) = self.match_any(vec![TokenType::Equal])? {
@@ -569,6 +597,10 @@ impl Parser {
         self.tokens.get(self.index - 1).unwrap().file_coords
     }
 
+    fn get_current_file_coords(&self) -> FileCoords {
+        self.tokens.get(self.index).unwrap().file_coords
+    }
+
     fn sync(&mut self) -> Result<(), ParserError> {
         loop {
             match self.peek_token()?.token_type {
@@ -581,6 +613,26 @@ impl Parser {
             };
         }
         Ok(())
+    }
+
+    fn err_if_in_scope(&self, scope: Scope) -> Result<(), ParserError> {
+        if self.scopes.iter().find(|s| **s == scope).is_none() {
+            return Ok(());
+        }
+        Err(ParserError::InvalidScope(
+            format!("Can't have this statement inside '{:?}' scope", scope),
+            self.get_current_file_coords(),
+        ))
+    }
+
+    fn err_if_not_in_scope(&self, scope: Scope) -> Result<(), ParserError> {
+        if self.scopes.iter().find(|s| **s == scope).is_some() {
+            return Ok(());
+        }
+        Err(ParserError::InvalidScope(
+            format!("Statement must be inside of a '{:?}' scope", scope),
+            self.get_current_file_coords(),
+        ))
     }
 }
 
