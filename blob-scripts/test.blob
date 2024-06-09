@@ -19,5 +19,14 @@ func func2(a: i64, b: bool): str {
 }
 
 func main(): i64 {
+  var a = 3 + 2;
+  var b: str = "mamaliga";
+  var c: bool = 3 != 0;
+  var d: i64 = 10;
+  if (a == 1) {
+    a + 2;
+  } else {
+    (a + d + 2 / 3) & 10;
+  }
   return 1;
 }

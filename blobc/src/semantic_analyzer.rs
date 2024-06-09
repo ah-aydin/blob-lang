@@ -21,6 +21,7 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum AnalyzerError {
     Type(String, FileCoords),
+    Defined(String, FileCoords),
     Undefined(String, FileCoords),
     Tombstone,
 }
@@ -28,7 +29,9 @@ enum AnalyzerError {
 impl Display for AnalyzerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AnalyzerError::Type(msg, file_coords) | AnalyzerError::Undefined(msg, file_coords) => {
+            AnalyzerError::Type(msg, file_coords)
+            | AnalyzerError::Undefined(msg, file_coords)
+            | AnalyzerError::Defined(msg, file_coords) => {
                 write!(f, "{}:{} {}", file_coords.line, file_coords.col, msg)
             }
             AnalyzerError::Tombstone => unreachable!("Tombstone AnalyzerError cannot be printed"),
@@ -224,7 +227,38 @@ impl<'a> Analyzer<'a> {
     }
 
     fn stmt_var_decl(&mut self, stmt_var_decl: &StmtVarDecl) -> AnalyzerRetType {
-        todo!("stmt_var_decl");
+        if self
+            .envs
+            .last()
+            .unwrap()
+            .vars
+            .iter()
+            .any(|var| var.ident == stmt_var_decl.ident)
+        {
+            return Err(AnalyzerError::Defined(
+                format!("Var '{}' is already defined", stmt_var_decl.ident),
+                stmt_var_decl.expr.get_file_coords(),
+            ));
+        }
+
+        let var_btype = stmt_var_decl.btype;
+        let expr_btype = self.expr(&stmt_var_decl.expr)?;
+
+        if var_btype != BType::None && var_btype != expr_btype {
+            return Err(AnalyzerError::Type(
+                format!(
+                    "Var has type '{:?}' but right expression has '{:?}'",
+                    var_btype, expr_btype
+                ),
+                stmt_var_decl.expr.get_file_coords(),
+            ));
+        }
+
+        (&mut self.envs.last_mut().unwrap().vars).push(Var {
+            ident: stmt_var_decl.ident.clone(),
+            btype: expr_btype,
+        });
+
         Ok(BType::None)
     }
 
@@ -261,7 +295,18 @@ impl<'a> Analyzer<'a> {
     }
 
     fn expr_identifier(&mut self, expr_identifier: &ExprIdenifier) -> AnalyzerRetType {
-        todo!("expr_identifier")
+        let ident = &expr_identifier.ident;
+        for env in self.envs.iter().rev() {
+            let var_maybe = env.vars.iter().filter(|var| var.ident == *ident).last();
+            if let Some(var) = var_maybe {
+                return Ok(var.btype);
+            }
+        }
+
+        return Err(AnalyzerError::Undefined(
+            format!("'{:?}' is undefined", ident),
+            expr_identifier.file_coords,
+        ));
     }
 
     fn expr_binary_op(&mut self, expr_binary_op: &ExprBinaryOp) -> AnalyzerRetType {
