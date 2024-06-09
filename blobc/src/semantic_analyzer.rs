@@ -102,7 +102,6 @@ impl<'a> Analyzer<'a> {
                 return Err(());
             }
         }
-        println!("{:?}", self.envs.get(0).unwrap().funcs);
         Ok(())
     }
 
@@ -133,8 +132,6 @@ impl<'a> Analyzer<'a> {
     }
 
     fn stmt_func_decl(&mut self, stmt_func_decl: &StmtFuncDecl) -> Result<BType, AnalyzerError> {
-        self.envs.push(Env::new());
-
         let ret_type = stmt_func_decl.ret_type;
         self.current_func_ret_type = ret_type;
         // Insert func data to the root environment
@@ -145,7 +142,6 @@ impl<'a> Analyzer<'a> {
         ));
 
         self.stmt(&stmt_func_decl.body)?;
-        self.envs.pop();
         Ok(ret_type)
     }
 
@@ -154,6 +150,7 @@ impl<'a> Analyzer<'a> {
     }
 
     fn stmt_block(&mut self, stmt_block: &StmtBlock) -> Result<BType, AnalyzerError> {
+        self.envs.push(Env::new());
         let mut errored = false;
         for stmt in &stmt_block.stmts {
             match self.stmt(stmt) {
@@ -165,6 +162,7 @@ impl<'a> Analyzer<'a> {
                 _ => {}
             }
         }
+        self.envs.pop();
         if errored {
             return Err(AnalyzerError::Tombstone);
         }
@@ -205,15 +203,15 @@ impl<'a> Analyzer<'a> {
         todo!()
     }
 
-    fn expr_bool(&mut self, expr_bool: &ExprBool) -> Result<BType, AnalyzerError> {
+    fn expr_bool(&mut self, _expr_bool: &ExprBool) -> Result<BType, AnalyzerError> {
         Ok(BType::Bool)
     }
 
-    fn expr_i64(&mut self, expr_i64: &ExprI64) -> Result<BType, AnalyzerError> {
+    fn expr_i64(&mut self, _expr_i64: &ExprI64) -> Result<BType, AnalyzerError> {
         Ok(BType::I64)
     }
 
-    fn expr_string(&mut self, expr_string: &ExprString) -> Result<BType, AnalyzerError> {
+    fn expr_string(&mut self, _expr_string: &ExprString) -> Result<BType, AnalyzerError> {
         Ok(BType::Str)
     }
 
