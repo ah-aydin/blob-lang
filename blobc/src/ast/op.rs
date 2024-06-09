@@ -24,11 +24,12 @@ pub enum UnaryOp {
     Not,
 }
 
-pub trait SupportedBTypes {
+pub trait OpBTypes {
     fn get_supported_btypes(&self) -> Vec<BType>;
+    fn get_result_btype(&self) -> BType;
 }
 
-impl SupportedBTypes for BinaryOp {
+impl OpBTypes for BinaryOp {
     fn get_supported_btypes(&self) -> Vec<BType> {
         match self {
             BinaryOp::Add
@@ -45,13 +46,39 @@ impl SupportedBTypes for BinaryOp {
             BinaryOp::Eq | BinaryOp::Neq => vec![BType::Bool, BType::I64],
         }
     }
+
+    fn get_result_btype(&self) -> BType {
+        match self {
+            BinaryOp::Add
+            | BinaryOp::Sub
+            | BinaryOp::Mul
+            | BinaryOp::Div
+            | BinaryOp::BitwiseOr
+            | BinaryOp::BitwiseAnd => BType::I64,
+            BinaryOp::BooleanOr
+            | BinaryOp::BooleanAnd
+            | BinaryOp::Eq
+            | BinaryOp::Neq
+            | BinaryOp::Gt
+            | BinaryOp::Gte
+            | BinaryOp::Lt
+            | BinaryOp::Lte => BType::Bool,
+        }
+    }
 }
 
-impl SupportedBTypes for UnaryOp {
+impl OpBTypes for UnaryOp {
     fn get_supported_btypes(&self) -> Vec<BType> {
         match self {
             UnaryOp::Neg => vec![BType::I64],
             UnaryOp::Not => vec![BType::Bool],
+        }
+    }
+
+    fn get_result_btype(&self) -> BType {
+        match self {
+            UnaryOp::Neg => BType::I64,
+            UnaryOp::Not => BType::Bool,
         }
     }
 }

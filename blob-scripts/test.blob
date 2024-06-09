@@ -1,5 +1,5 @@
-func func1(a: i64): i64 {
-  return 1 <= 2;
+func func1(a: i64): bool {
+  return !(1 <= 2);
 }
 
 func func2(a: i64, b: bool): str {

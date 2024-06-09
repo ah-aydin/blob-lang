@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use log::{error, info};
+use log::{error, info, warn};
 
 use crate::{
     ast::{
@@ -8,7 +8,7 @@ use crate::{
         expr::{
             Expr, ExprBinaryOp, ExprBool, ExprCall, ExprI64, ExprIdenifier, ExprString, ExprUnaryOp,
         },
-        op::SupportedBTypes,
+        op::OpBTypes,
         stmt::{
             Stmt, StmtAssign, StmtBlock, StmtExpr, StmtFuncDecl, StmtIf, StmtIfElse, StmtReturn,
             StmtVarDecl, StmtWhile,
@@ -262,11 +262,24 @@ impl<'a> Analyzer<'a> {
             ));
         }
 
-        Ok(left_btype)
+        Ok(expr_binary_op.op.get_result_btype())
     }
 
     fn expr_unary_op(&mut self, expr_unary_op: &ExprUnaryOp) -> AnalyzerRetType {
-        todo!("expr_unary_op")
+        let btype = self.expr(&expr_unary_op.term)?;
+
+        let supported_btypes = expr_unary_op.op.get_supported_btypes();
+        if !supported_btypes.contains(&btype) {
+            return Err(AnalyzerError::Type(
+                format!(
+                    "Op '{:?}' expects '{:?}' types but it got '{:?}'",
+                    expr_unary_op.op, supported_btypes, btype
+                ),
+                expr_unary_op.file_coords,
+            ));
+        }
+
+        Ok(expr_unary_op.op.get_result_btype())
     }
 
     fn expr_call(&mut self, expr_call: &ExprCall) -> AnalyzerRetType {
