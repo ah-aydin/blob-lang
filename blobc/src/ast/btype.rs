@@ -4,5 +4,5 @@ pub enum BType {
     Bool,
     I32,
     Str,
-    Identifier(String),
+    Struct(String),
 }

@@ -154,7 +154,7 @@ impl Token {
             TokenType::BTypeBool => BType::Bool,
             TokenType::BTypeI32 => BType::I32,
             TokenType::BTypeStr => BType::Str,
-            TokenType::Identifier => BType::Identifier(self.lexeme.as_ref().unwrap().clone()),
+            TokenType::Identifier => BType::Struct(self.lexeme.as_ref().unwrap().clone()),
             _ => unreachable!("{:?} does not have a BType", self.token_type),
         }
     }

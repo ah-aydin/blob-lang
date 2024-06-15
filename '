@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Display};
 
-use log::{error, info, warn};
+use log::{error, info};
 
 use crate::{
     ast::{
@@ -75,20 +75,11 @@ struct Var {
     btype: BType,
 }
 
-impl Var {
-    fn from_var_type_info(var_type_info: &VarTypeInfo) -> Var {
-        Var {
-            ident: var_type_info.ident.clone(),
-            btype: var_type_info.btype.clone(),
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 struct Env {
     funcs: Vec<Func>,
     structs: Vec<Struct>,
-    vars: Vec<VarTypeInfo>,
+    vars: Vec<Var>,
 }
 
 impl Env {
@@ -194,17 +185,10 @@ impl<'a> Analyzer<'a> {
             ret_type.clone(),
         ));
 
-        let mut func_env = Env::new();
-        func_env.vars = stmt_func_decl.args.clone();
-
-        self.envs.push(func_env);
         self.stmt(&stmt_func_decl.body)?;
-        self.envs.pop();
-
         if self.current_func_ret_type != BType::None {
             self.check_last_ret_stmt(&stmt_func_decl.body)?;
         }
-
         Ok(ret_type)
     }
 
@@ -381,7 +365,7 @@ impl<'a> Analyzer<'a> {
             ));
         }
 
-        (&mut self.envs.last_mut().unwrap().vars).push(VarTypeInfo {
+        (&mut self.envs.last_mut().unwrap().vars).push(Var {
             ident: stmt_var_decl.ident.clone(),
             btype: expr_btype,
         });
@@ -635,11 +619,10 @@ impl<'a> Analyzer<'a> {
                     struct_data.ident,
                     mismatched_types
                         .iter()
-                        .map(|entry| format!(
-                            "field '{}' is of type '{:?}' but got '{:?}'",
-                            entry.0, entry.1 .0, entry.1 .1
+                        .filter(|entry| format!(
+                            "field '{}' is of type '{}' but got '{}'",
+                            entry.0, (entry.0) .0, entry.0 .1
                         ))
-                        .collect::<Vec<String>>()
                         .join(", ")
                 ),
                 expr_struct_instance.file_coords,

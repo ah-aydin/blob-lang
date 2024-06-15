@@ -12,7 +12,7 @@ use crate::{
         op::BinaryOp,
         stmt::{
             Stmt, StmtAssign, StmtBlock, StmtExpr, StmtFuncDecl, StmtIf, StmtIfElse, StmtReturn,
-            StmtStruct, StmtVarDecl, StmtWhile, VarTypeInfo,
+            StmtStructDecl, StmtVarDecl, StmtWhile, VarTypeInfo,
         },
         Ast,
     },
@@ -235,7 +235,7 @@ impl Parser {
             first_iter = false;
         }
 
-        Ok(Stmt::StructDecl(StmtStruct { ident, fields }))
+        Ok(Stmt::StructDecl(StmtStructDecl { ident, fields }))
     }
 
     fn stmt_if_else(&mut self) -> StmtResult {

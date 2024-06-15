@@ -22,7 +22,7 @@ pub struct VarTypeInfo {
 }
 
 #[derive(Debug, Clone)]
-pub struct StmtStruct {
+pub struct StmtStructDecl {
     pub ident: String,
     pub fields: Vec<VarTypeInfo>,
 }
@@ -72,7 +72,7 @@ pub enum Stmt {
     Expr(StmtExpr),
     Block(StmtBlock),
     Return(StmtReturn),
-    StructDecl(StmtStruct),
+    StructDecl(StmtStructDecl),
     FuncDecl(StmtFuncDecl),
     If(StmtIf),
     IfElse(StmtIfElse),
