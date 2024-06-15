@@ -98,6 +98,7 @@ impl<'a> Analyzer<'a> {
         for stmt in self.ast {
             let result = match stmt {
                 Stmt::FuncDecl(stmt_func_decl) => self.stmt_func_decl(&stmt_func_decl),
+                Stmt::StructDecl(stmt_struct_decl) => Ok(BType::None),
                 _ => unreachable!("Did not expect a non function Stmt at the top level"),
             };
             if result.is_err() {
@@ -118,7 +119,12 @@ impl<'a> Analyzer<'a> {
             Stmt::VarDecl(stmt_var_decl) => self.stmt_var_decl(stmt_var_decl),
             Stmt::Assign(stmt_assign) => self.stmt_assign(stmt_assign),
             Stmt::While(stmt_while) => self.stmt_while(stmt_while),
-            Stmt::FuncDecl(_) => unreachable!("Did not expect a function inside another function"),
+            Stmt::FuncDecl(_) => unreachable!(
+                "Did not expect a function declaration inside another function or struct"
+            ),
+            Stmt::StructDecl(_) => unreachable!(
+                "Did not expect a struct declaration inside another function or struct"
+            ),
         }
     }
 
@@ -135,8 +141,8 @@ impl<'a> Analyzer<'a> {
     }
 
     fn stmt_func_decl(&mut self, stmt_func_decl: &StmtFuncDecl) -> AnalyzerRetType {
-        let ret_type = stmt_func_decl.ret_type;
-        self.current_func_ret_type = ret_type;
+        let ret_type = stmt_func_decl.ret_type.clone();
+        self.current_func_ret_type = ret_type.clone();
         if self
             .envs
             .get(0)
@@ -153,8 +159,12 @@ impl<'a> Analyzer<'a> {
         // Insert func data to the root environment
         (&mut self.envs.get_mut(0).unwrap().funcs).push(Func::new(
             stmt_func_decl.ident.clone(),
-            stmt_func_decl.args.iter().map(|arg| arg.btype).collect(),
-            ret_type,
+            stmt_func_decl
+                .args
+                .iter()
+                .map(|arg| arg.btype.clone())
+                .collect(),
+            ret_type.clone(),
         ));
 
         self.stmt(&stmt_func_decl.body)?;
@@ -166,7 +176,6 @@ impl<'a> Analyzer<'a> {
 
     fn check_last_ret_stmt(&mut self, stmt: &Stmt) -> Result<(), AnalyzerError> {
         match stmt {
-            Stmt::Expr(_) => unreachable!("Shouldn't be processing expressions here"),
             Stmt::Block(stmt_block) => match stmt_block.stmts.last() {
                 Some(last_stmt) => self.check_last_ret_stmt(last_stmt),
                 None => Err(AnalyzerError::Error(format!(
@@ -174,7 +183,6 @@ impl<'a> Analyzer<'a> {
                 ))),
             },
             Stmt::Return(_) => Ok(()),
-            Stmt::FuncDecl(_) => unreachable!("Function in function is not possible"),
             Stmt::If(stmt_if) => Err(AnalyzerError::ErrorFC(
                 "Not all paths leads to a return statement".to_string(),
                 stmt_if.condition.get_file_coords(),
@@ -203,6 +211,13 @@ impl<'a> Analyzer<'a> {
                 "Last statment must be for return".to_string(),
                 stmt_while.condition.get_file_coords(),
             )),
+            Stmt::Expr(_) => unreachable!("Shouldn't be processing expressions here"),
+            Stmt::FuncDecl(_) => unreachable!(
+                "Did not expect a function declaration inside another function or struct"
+            ),
+            Stmt::StructDecl(_) => unreachable!(
+                "Did not expect a struct declaration inside another function or struct"
+            ),
         }
     }
 
@@ -296,10 +311,10 @@ impl<'a> Analyzer<'a> {
             ));
         }
 
-        let var_btype = stmt_var_decl.btype;
+        let var_btype = &stmt_var_decl.btype;
         let expr_btype = self.expr(&stmt_var_decl.expr)?;
 
-        if var_btype != BType::None && var_btype != expr_btype {
+        if *var_btype != BType::None && *var_btype != expr_btype {
             return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Var has type '{:?}' but right expression has '{:?}'",
@@ -325,7 +340,7 @@ impl<'a> Analyzer<'a> {
             let var_maybe = env.vars.iter().filter(|var| var.ident == *ident).last();
             if let Some(var) = var_maybe {
                 found = true;
-                var_btype = var.btype;
+                var_btype = var.btype.clone();
                 break;
             }
         }
@@ -383,7 +398,7 @@ impl<'a> Analyzer<'a> {
         for env in self.envs.iter().rev() {
             let var_maybe = env.vars.iter().filter(|var| var.ident == *ident).last();
             if let Some(var) = var_maybe {
-                return Ok(var.btype);
+                return Ok(var.btype.clone());
             }
         }
 

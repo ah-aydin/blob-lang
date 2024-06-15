@@ -21,6 +21,7 @@ lazy_static! {
         map.insert("func", TokenType::Func);
         map.insert("if", TokenType::If);
         map.insert("return", TokenType::Return);
+        map.insert("struct", TokenType::Struct);
         map.insert("true", TokenType::True);
         map.insert("var", TokenType::Var);
         map.insert("while", TokenType::While);

@@ -10,8 +10,8 @@ use crate::{
         },
         op::BinaryOp,
         stmt::{
-            FuncDeclArg, Stmt, StmtAssign, StmtBlock, StmtExpr, StmtFuncDecl, StmtIf, StmtIfElse,
-            StmtReturn, StmtVarDecl, StmtWhile,
+            Stmt, StmtAssign, StmtBlock, StmtExpr, StmtFuncDecl, StmtIf, StmtIfElse, StmtReturn,
+            StmtStruct, StmtVarDecl, StmtWhile, VarTypeInfo,
         },
         Ast,
     },
@@ -56,8 +56,9 @@ enum Scope {
 /// ```
 /// // Statement grammar
 /// stmt -> stmt_func_decl / stmt_return / stmt_if_else / stmt_var_decl / stmt_while / stmt_block / stmt_assignment
-/// stmt_func_decl -> "func" IDENTIFIER"(" (IDENTIFIER type_expr ("," IDENTIFIER type_expr)*)? ")" type_expr? block_stmt
+/// stmt_func_decl -> "func" IDENTIFIER "(" (IDENTIFIER type_expr ("," IDENTIFIER type_expr)*)? ")" type_expr? block_stmt
 /// stmt_return -> "return" expr ";"
+/// stmt_struct_decl -> "struct" IDENTIFIER "{" (IDENTIFIER type_expr ("," IDENTIFIER type_expr)*)? "}"
 /// stmt_if_else -> "if" "(" expr ")" block_stmt ("else" block_stmt | "else" if_else_stmt)?
 /// stmt_var_decl -> "var" IDENTIFIER expr_type? "=" expr ";"
 /// stmt_while -> "while" "(" expr ")" block_stmt
@@ -138,6 +139,7 @@ impl Parser {
         match self.peek_token()?.token_type {
             TokenType::Func => self.stmt_func_decl(),
             TokenType::Return => self.stmt_return(),
+            TokenType::Struct => self.stmt_struct_decl(),
             TokenType::If => self.stmt_if_else(),
             TokenType::Var => self.stmt_var_decl(),
             TokenType::While => self.stmt_while(),
@@ -171,7 +173,7 @@ impl Parser {
                 .unwrap()
                 .clone();
             let btype = self.consume_type()?;
-            args.push(FuncDeclArg { ident, btype });
+            args.push(VarTypeInfo { ident, btype });
             first_iter = false;
         }
 
@@ -193,7 +195,7 @@ impl Parser {
     }
 
     fn stmt_return(&mut self) -> StmtResult {
-        self.err_if_not_in_scope(Scope::Func)?;
+        self.err_if_not_in_func()?;
 
         self.consume(TokenType::Return)?;
         if self.match_exact(TokenType::Semicolon)? {
@@ -204,8 +206,38 @@ impl Parser {
         Ok(Stmt::Return(StmtReturn { expr: Some(expr) }))
     }
 
+    fn stmt_struct_decl(&mut self) -> StmtResult {
+        self.consume(TokenType::Struct)?;
+        let ident = self
+            .consume(TokenType::Identifier)?
+            .lexeme
+            .as_ref()
+            .unwrap()
+            .clone();
+        self.consume(TokenType::LeftBrace)?;
+
+        let mut fields = vec![];
+        let mut first_iter = true;
+        while !self.match_exact(TokenType::RightBrace)? {
+            if !first_iter {
+                self.consume(TokenType::Comma)?;
+            }
+            let ident = self
+                .consume(TokenType::Identifier)?
+                .lexeme
+                .as_ref()
+                .unwrap()
+                .clone();
+            let btype = self.consume_type()?;
+            fields.push(VarTypeInfo { ident, btype });
+            first_iter = false;
+        }
+
+        Ok(Stmt::StructDecl(StmtStruct { ident, fields }))
+    }
+
     fn stmt_if_else(&mut self) -> StmtResult {
-        self.err_if_not_in_scope(Scope::Func)?;
+        self.err_if_not_in_func()?;
 
         self.consume(TokenType::If)?;
         self.consume(TokenType::LeftParen)?;
@@ -239,7 +271,7 @@ impl Parser {
     }
 
     fn stmt_var_decl(&mut self) -> StmtResult {
-        self.err_if_not_in_scope(Scope::Func)?;
+        self.err_if_not_in_func()?;
 
         self.consume(TokenType::Var)?;
         let ident = self
@@ -261,7 +293,7 @@ impl Parser {
     }
 
     fn stmt_while(&mut self) -> StmtResult {
-        self.err_if_not_in_scope(Scope::Func)?;
+        self.err_if_not_in_func()?;
 
         self.consume(TokenType::While)?;
         self.consume(TokenType::LeftParen)?;
@@ -276,7 +308,7 @@ impl Parser {
     }
 
     fn stmt_block(&mut self) -> StmtResult {
-        self.err_if_not_in_scope(Scope::Func)?;
+        self.err_if_not_in_func()?;
 
         self.consume(TokenType::LeftBrace)?;
         let mut stmts = vec![];
@@ -287,7 +319,7 @@ impl Parser {
     }
 
     fn stmt_assignment(&mut self) -> StmtResult {
-        self.err_if_not_in_scope(Scope::Func)?;
+        self.err_if_not_in_func()?;
 
         let expr = self.expr()?;
         if let Expr::Identifier(expr_identifier) = &expr {
@@ -531,6 +563,7 @@ impl Parser {
                 TokenType::BTypeBool,
                 TokenType::BTypeI32,
                 TokenType::BTypeStr,
+                TokenType::Identifier,
             ])?
             .get_btype())
     }
@@ -631,12 +664,12 @@ impl Parser {
         ))
     }
 
-    fn err_if_not_in_scope(&self, scope: Scope) -> Result<(), ParserError> {
-        if self.scopes.iter().find(|s| **s == scope).is_some() {
+    fn err_if_not_in_func(&self) -> Result<(), ParserError> {
+        if self.scopes.iter().find(|s| **s == Scope::Func).is_some() {
             return Ok(());
         }
         Err(ParserError::InvalidScope(
-            format!("Statement must be inside of a '{:?}' scope", scope),
+            format!("Statement must be inside of a '{:?}' scope", Scope::Func),
             self.get_current_file_coords(),
         ))
     }

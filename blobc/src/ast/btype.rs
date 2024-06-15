@@ -1,7 +1,8 @@
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum BType {
     None,
     Bool,
     I32,
     Str,
+    Identifier(String),
 }
