@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Display};
 
-use log::{error, info, warn};
+use log::{error, info};
 
 use crate::{
     ast::{
@@ -66,21 +66,6 @@ struct Struct {
 impl Struct {
     fn new(ident: String, fields: Vec<VarTypeInfo>) -> Struct {
         Struct { ident, fields }
-    }
-}
-
-#[derive(Debug, Clone)]
-struct Var {
-    ident: String,
-    btype: BType,
-}
-
-impl Var {
-    fn from_var_type_info(var_type_info: &VarTypeInfo) -> Var {
-        Var {
-            ident: var_type_info.ident.clone(),
-            btype: var_type_info.btype.clone(),
-        }
     }
 }
 
