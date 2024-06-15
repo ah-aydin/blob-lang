@@ -1,44 +1,75 @@
-use derive_new::new;
+use crate::common::FileCoords;
 
-use super::op_type::{BinaryOpType, BooleanOpType, UnaryOpType};
+use super::op::{BinaryOp, UnaryOp};
 
-#[derive(Debug, Clone, PartialEq, Eq, new)]
-pub struct ExprUnaryOp {
-    pub op_type: UnaryOpType,
-    pub term: Box<Expr>,
-    pub line: usize,
+#[derive(Debug, Clone)]
+pub struct ExprBool {
+    pub value: bool,
+    pub file_coords: FileCoords,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, new)]
+#[derive(Debug, Clone)]
+pub struct ExprI32 {
+    pub value: i32,
+    pub file_coords: FileCoords,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExprIdenifier {
+    pub ident: String,
+    pub file_coords: FileCoords,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExprString {
+    pub value: String,
+    pub file_coords: FileCoords,
+}
+
+#[derive(Debug, Clone)]
 pub struct ExprBinaryOp {
-    pub left_term: Box<Expr>,
-    pub op_type: BinaryOpType,
-    pub right_term: Box<Expr>,
-    pub line: usize,
+    pub left: Box<Expr>,
+    pub op: BinaryOp,
+    pub right: Box<Expr>,
+    pub file_coords: FileCoords,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, new)]
-pub struct ExprBooleanOp {
-    pub left_term: Box<Expr>,
-    pub op_type: BooleanOpType,
-    pub right_term: Box<Expr>,
-    pub line: usize,
+#[derive(Debug, Clone)]
+pub struct ExprUnaryOp {
+    pub op: UnaryOp,
+    pub term: Box<Expr>,
+    pub file_coords: FileCoords,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, new)]
+#[derive(Debug, Clone)]
 pub struct ExprCall {
     pub name: String,
     pub args: Vec<Expr>,
-    pub line: usize,
+    pub file_coords: FileCoords,
+}
+#[derive(Debug, Clone)]
+pub enum Expr {
+    Bool(ExprBool),
+    I32(ExprI32),
+    Identifier(ExprIdenifier),
+    String(ExprString),
+
+    BinaryOp(ExprBinaryOp),
+    UnaryOp(ExprUnaryOp),
+
+    Call(ExprCall),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Expr {
-    Bool(bool),
-    Number(String),
-    Identifier(String),
-    UnaryOp(ExprUnaryOp),
-    BinaryOp(ExprBinaryOp),
-    BooleanOp(ExprBooleanOp),
-    Call(ExprCall),
+impl Expr {
+    pub fn get_file_coords(&self) -> FileCoords {
+        match self {
+            Expr::Bool(expr) => expr.file_coords,
+            Expr::I32(expr) => expr.file_coords,
+            Expr::Identifier(expr) => expr.file_coords,
+            Expr::String(expr) => expr.file_coords,
+            Expr::BinaryOp(expr) => expr.file_coords,
+            Expr::UnaryOp(expr) => expr.file_coords,
+            Expr::Call(expr) => expr.file_coords,
+        }
+    }
 }

@@ -1,12 +1,22 @@
 mod ast;
-mod compiler;
+mod common;
 mod parser;
-mod semantic_analysis;
+mod scanner;
+mod semantic_analyzer;
+mod token;
 
-use parser::{Parser, ParserStatus};
-use std::{env, path::Path};
+use std::{env, fs::File, io::Read};
 
-fn cmain() -> Result<i32, i32> {
+use env_logger::{Builder, Target};
+use log::{error, info, LevelFilter};
+
+fn main() -> Result<(), i32> {
+    let mut builder = Builder::from_default_env();
+    builder
+        .target(Target::Stdout)
+        .filter_level(LevelFilter::Debug);
+    env_logger::init();
+
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
         println!("Usage: blob-lang [source_file]");
@@ -14,54 +24,28 @@ fn cmain() -> Result<i32, i32> {
     }
     let file_name = args.get(1).unwrap();
 
-    println!("Compiling file {}", file_name);
-    let parser = Parser::new(file_name);
-    if parser.is_err() {
-        eprintln!(
-            "Failed to read file {}\n{}",
-            file_name,
-            parser.err().unwrap()
-        );
-        return Err(1);
-    }
-
-    let stmts = match parser.unwrap().parse() {
-        ParserStatus::Succeeded(stmts) => Ok(stmts),
-        ParserStatus::Failed => {
-            eprintln!("[ERROR] Parsing failed");
-            Err(1)
-        }
-        ParserStatus::IOError => {
-            eprintln!("[ERROR] Failed while reading chunk from file");
+    let mut file = match File::open(file_name) {
+        Ok(file) => Ok(file),
+        Err(_) => {
+            error!("Failed to open file '{}'", file_name);
             Err(1)
         }
     }?;
 
-    match semantic_analysis::analyze(&stmts) {
-        Ok(()) => Ok(()),
-        Err(()) => {
-            eprintln!("[ERROR] Semantic analysis failed");
+    let mut src = String::new();
+    match file.read_to_string(&mut src) {
+        Ok(_) => Ok(()),
+        Err(_) => {
+            error!("Failed to read contents of '{}'", file_name);
             Err(1)
         }
     }?;
 
-    match compiler::compile(
-        stmts,
-        Path::new(file_name).file_stem().unwrap().to_str().unwrap(),
-    ) {
-        Ok(()) => {
-            println!("Compilation successfull");
-            Ok(0)
-        }
-        Err(compiler_error) => {
-            eprintln!("[ERROR] compilation failed {:?}", compiler_error);
-            Err(1)
-        }
-    }
-}
+    info!("Compiling and running '{}'...\n", file_name);
 
-fn main() {
-    std::process::exit(match cmain() {
-        Ok(exit_code) | Err(exit_code) => exit_code,
-    });
+    let tokens = scanner::scan(&src);
+    let ast = parser::parse(tokens);
+    semantic_analyzer::analyze(&ast);
+
+    Ok(())
 }
