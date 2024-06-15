@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::common::FileCoords;
 
 use super::op::{BinaryOp, UnaryOp};
@@ -17,6 +19,13 @@ pub struct ExprI32 {
 #[derive(Debug, Clone)]
 pub struct ExprIdenifier {
     pub ident: String,
+    pub file_coords: FileCoords,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExprStructInstance {
+    pub ident: String,
+    pub fields: HashMap<String, Expr>,
     pub file_coords: FileCoords,
 }
 
@@ -52,6 +61,7 @@ pub enum Expr {
     Bool(ExprBool),
     I32(ExprI32),
     Identifier(ExprIdenifier),
+    StructInstance(ExprStructInstance),
     String(ExprString),
 
     BinaryOp(ExprBinaryOp),
@@ -66,6 +76,7 @@ impl Expr {
             Expr::Bool(expr) => expr.file_coords,
             Expr::I32(expr) => expr.file_coords,
             Expr::Identifier(expr) => expr.file_coords,
+            Expr::StructInstance(expr) => expr.file_coords,
             Expr::String(expr) => expr.file_coords,
             Expr::BinaryOp(expr) => expr.file_coords,
             Expr::UnaryOp(expr) => expr.file_coords,

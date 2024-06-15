@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display};
 
 use log::{error, info};
 
@@ -6,7 +6,8 @@ use crate::{
     ast::{
         btype::BType,
         expr::{
-            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprI32, ExprIdenifier, ExprString, ExprUnaryOp,
+            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprI32, ExprIdenifier, ExprString,
+            ExprStructInstance, ExprUnaryOp,
         },
         op::BinaryOp,
         stmt::{
@@ -78,7 +79,8 @@ enum Scope {
 /// expr_unary -> ("!" | "-") expr_unary | expr_call
 /// expr_call -> expr_primary | IDENTIFIER ("(" expr_arguments? ")")?
 /// expr_arguments -> expr ("," expr )*
-/// expr_primary -> I32 | IDENTIFIER | STRING | TRUE | FALSE | "(" expr ")"
+/// expr_primary -> expr_struct_instance | I32 | IDENTIFIER | STRING | TRUE | FALSE | "(" expr ")"
+/// expr_sturct_instance -> IDENTIFIER "{" (IDENTIFIER: expr ("," IDENTIFIER: expr)*)? "}"
 /// expr_type -> ":" IDENTIFIER | "i32" | "str" | "bool"
 /// ```
 struct Parser {
@@ -519,16 +521,21 @@ impl Parser {
     }
 
     fn expr_primary(&mut self) -> ExprResult {
-        let token = self.next_token()?;
+        let token = self.next_token()?.clone();
         match token.token_type {
             TokenType::I32 => Ok(Expr::I32(ExprI32 {
                 value: token.lexeme.as_ref().unwrap().parse::<i32>().unwrap(),
                 file_coords: token.file_coords,
             })),
-            TokenType::Identifier => Ok(Expr::Identifier(ExprIdenifier {
-                ident: token.lexeme.as_ref().unwrap().clone(),
-                file_coords: token.file_coords,
-            })),
+            TokenType::Identifier => {
+                if self.match_exact(TokenType::LeftBrace)? {
+                    return self.expr_sturct_instance(token.lexeme.unwrap(), token.file_coords);
+                }
+                Ok(Expr::Identifier(ExprIdenifier {
+                    ident: token.lexeme.as_ref().unwrap().clone(),
+                    file_coords: token.file_coords,
+                }))
+            }
             TokenType::String => Ok(Expr::String(ExprString {
                 value: token.lexeme.as_ref().unwrap().clone(),
                 file_coords: token.file_coords,
@@ -554,6 +561,32 @@ impl Parser {
                 token.file_coords,
             )),
         }
+    }
+
+    fn expr_sturct_instance(&mut self, ident: String, file_coords: FileCoords) -> ExprResult {
+        let mut fields: HashMap<String, Expr> = Default::default();
+        let mut first_iter = true;
+        while !self.match_exact(TokenType::RightBrace)? {
+            if !first_iter {
+                self.consume(TokenType::Comma)?;
+            }
+            let ident = self
+                .consume(TokenType::Identifier)?
+                .lexeme
+                .as_ref()
+                .unwrap()
+                .clone();
+            self.consume(TokenType::Colon)?;
+            let expr = self.expr()?;
+            fields.insert(ident, expr);
+            first_iter = false;
+        }
+
+        Ok(Expr::StructInstance(ExprStructInstance {
+            ident,
+            fields,
+            file_coords,
+        }))
     }
 
     fn consume_type(&mut self) -> Result<BType, ParserError> {

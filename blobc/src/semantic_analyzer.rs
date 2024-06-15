@@ -98,6 +98,7 @@ impl<'a> Analyzer<'a> {
         for stmt in self.ast {
             let result = match stmt {
                 Stmt::FuncDecl(stmt_func_decl) => self.stmt_func_decl(&stmt_func_decl),
+                // TODO complete this
                 Stmt::StructDecl(stmt_struct_decl) => Ok(BType::None),
                 _ => unreachable!("Did not expect a non function Stmt at the top level"),
             };
@@ -137,6 +138,8 @@ impl<'a> Analyzer<'a> {
             Expr::BinaryOp(expr_binary_op) => self.expr_binary_op(expr_binary_op),
             Expr::UnaryOp(expr_unary_op) => self.expr_unary_op(expr_unary_op),
             Expr::Call(expr_call) => self.expr_call(expr_call),
+            // TODO complete this
+            Expr::StructInstance(expr_struct_instance) => Ok(BType::None),
         }
     }
 
