@@ -61,12 +61,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "blobbc"
+version = "0.1.0"
+
+[[package]]
 name = "blobc"
 version = "0.1.0"
 dependencies = [
  "env_logger",
  "lazy_static",
  "log",
+]
+
+[[package]]
+name = "blobvm"
+version = "0.1.0"
+dependencies = [
+ "blobbc",
 ]
 
 [[package]]
