@@ -16,15 +16,21 @@ pub struct StmtReturn {
 }
 
 #[derive(Debug, Clone)]
-pub struct FuncDeclArg {
+pub struct VarTypeInfo {
     pub ident: String,
     pub btype: BType,
 }
 
 #[derive(Debug, Clone)]
+pub struct StmtStructDecl {
+    pub ident: String,
+    pub fields: Vec<VarTypeInfo>,
+}
+
+#[derive(Debug, Clone)]
 pub struct StmtFuncDecl {
     pub ident: String,
-    pub args: Vec<FuncDeclArg>,
+    pub args: Vec<VarTypeInfo>,
     pub ret_type: BType,
     pub body: Box<Stmt>,
 }
@@ -52,6 +58,7 @@ pub struct StmtVarDecl {
 #[derive(Debug, Clone)]
 pub struct StmtAssign {
     pub ident: String,
+    pub property: Option<String>,
     pub expr: Expr,
 }
 
@@ -66,6 +73,7 @@ pub enum Stmt {
     Expr(StmtExpr),
     Block(StmtBlock),
     Return(StmtReturn),
+    StructDecl(StmtStructDecl),
     FuncDecl(StmtFuncDecl),
     If(StmtIf),
     IfElse(StmtIfElse),

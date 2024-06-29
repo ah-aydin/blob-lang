@@ -41,7 +41,7 @@ fn main() -> Result<(), i32> {
         }
     }?;
 
-    info!("Compiling and running '{}'...\n", file_name);
+    info!("Compiling and running {}...\n", file_name);
 
     let tokens = scanner::scan(&src);
     let ast = parser::parse(tokens);

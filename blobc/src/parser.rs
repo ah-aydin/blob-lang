@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display};
 
 use log::{error, info};
 
@@ -6,12 +6,13 @@ use crate::{
     ast::{
         btype::BType,
         expr::{
-            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprI32, ExprIdenifier, ExprString, ExprUnaryOp,
+            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprGetProperty, ExprI32, ExprIdenifier,
+            ExprString, ExprStructInstance, ExprUnaryOp,
         },
         op::BinaryOp,
         stmt::{
-            FuncDeclArg, Stmt, StmtAssign, StmtBlock, StmtExpr, StmtFuncDecl, StmtIf, StmtIfElse,
-            StmtReturn, StmtVarDecl, StmtWhile,
+            Stmt, StmtAssign, StmtBlock, StmtExpr, StmtFuncDecl, StmtIf, StmtIfElse, StmtReturn,
+            StmtStructDecl, StmtVarDecl, StmtWhile, VarTypeInfo,
         },
         Ast,
     },
@@ -56,13 +57,14 @@ enum Scope {
 /// ```
 /// // Statement grammar
 /// stmt -> stmt_func_decl / stmt_return / stmt_if_else / stmt_var_decl / stmt_while / stmt_block / stmt_assignment
-/// stmt_func_decl -> "func" IDENTIFIER"(" (IDENTIFIER type_expr ("," IDENTIFIER type_expr)*)? ")" type_expr? block_stmt
+/// stmt_func_decl -> "func" IDENTIFIER "(" (IDENTIFIER type_expr ("," IDENTIFIER type_expr)*)? ")" type_expr? block_stmt
 /// stmt_return -> "return" expr ";"
+/// stmt_struct_decl -> "struct" IDENTIFIER "{" (IDENTIFIER type_expr ("," IDENTIFIER type_expr)*)? "}"
 /// stmt_if_else -> "if" "(" expr ")" block_stmt ("else" block_stmt | "else" if_else_stmt)?
 /// stmt_var_decl -> "var" IDENTIFIER expr_type? "=" expr ";"
 /// stmt_while -> "while" "(" expr ")" block_stmt
 /// stmt_block -> "{" stmt* "}"
-/// stmt_assignment -> (IDENTIFIER "=")? expr ";"
+/// stmt_assignment -> (IDENTIFIER ("." IDENTIFIER)? "=")? expr ";"
 ///
 /// // Expression grammar
 /// expr -> expr_boolean_or
@@ -77,7 +79,10 @@ enum Scope {
 /// expr_unary -> ("!" | "-") expr_unary | expr_call
 /// expr_call -> expr_primary | IDENTIFIER ("(" expr_arguments? ")")?
 /// expr_arguments -> expr ("," expr )*
-/// expr_primary -> I32 | IDENTIFIER | STRING | TRUE | FALSE | "(" expr ")"
+/// expr_primary -> expr_struct_instance | I32 |  STRING | TRUE | FALSE | "(" expr ")" | expr_struct
+/// expr_struct -> IDENTIFIER (expr_struct_instance | expr_get_property)?
+/// expr_sturct_instance -> "{" (IDENTIFIER: expr ("," IDENTIFIER: expr)*)? "}"
+/// expr_get_property -> "." IDENTIFIER
 /// expr_type -> ":" IDENTIFIER | "i32" | "str" | "bool"
 /// ```
 struct Parser {
@@ -138,6 +143,7 @@ impl Parser {
         match self.peek_token()?.token_type {
             TokenType::Func => self.stmt_func_decl(),
             TokenType::Return => self.stmt_return(),
+            TokenType::Struct => self.stmt_struct_decl(),
             TokenType::If => self.stmt_if_else(),
             TokenType::Var => self.stmt_var_decl(),
             TokenType::While => self.stmt_while(),
@@ -171,7 +177,7 @@ impl Parser {
                 .unwrap()
                 .clone();
             let btype = self.consume_type()?;
-            args.push(FuncDeclArg { ident, btype });
+            args.push(VarTypeInfo { ident, btype });
             first_iter = false;
         }
 
@@ -193,7 +199,7 @@ impl Parser {
     }
 
     fn stmt_return(&mut self) -> StmtResult {
-        self.err_if_not_in_scope(Scope::Func)?;
+        self.err_if_not_in_func()?;
 
         self.consume(TokenType::Return)?;
         if self.match_exact(TokenType::Semicolon)? {
@@ -204,8 +210,38 @@ impl Parser {
         Ok(Stmt::Return(StmtReturn { expr: Some(expr) }))
     }
 
+    fn stmt_struct_decl(&mut self) -> StmtResult {
+        self.consume(TokenType::Struct)?;
+        let ident = self
+            .consume(TokenType::Identifier)?
+            .lexeme
+            .as_ref()
+            .unwrap()
+            .clone();
+        self.consume(TokenType::LeftBrace)?;
+
+        let mut fields = vec![];
+        let mut first_iter = true;
+        while !self.match_exact(TokenType::RightBrace)? {
+            if !first_iter {
+                self.consume(TokenType::Comma)?;
+            }
+            let ident = self
+                .consume(TokenType::Identifier)?
+                .lexeme
+                .as_ref()
+                .unwrap()
+                .clone();
+            let btype = self.consume_type()?;
+            fields.push(VarTypeInfo { ident, btype });
+            first_iter = false;
+        }
+
+        Ok(Stmt::StructDecl(StmtStructDecl { ident, fields }))
+    }
+
     fn stmt_if_else(&mut self) -> StmtResult {
-        self.err_if_not_in_scope(Scope::Func)?;
+        self.err_if_not_in_func()?;
 
         self.consume(TokenType::If)?;
         self.consume(TokenType::LeftParen)?;
@@ -239,7 +275,7 @@ impl Parser {
     }
 
     fn stmt_var_decl(&mut self) -> StmtResult {
-        self.err_if_not_in_scope(Scope::Func)?;
+        self.err_if_not_in_func()?;
 
         self.consume(TokenType::Var)?;
         let ident = self
@@ -261,7 +297,7 @@ impl Parser {
     }
 
     fn stmt_while(&mut self) -> StmtResult {
-        self.err_if_not_in_scope(Scope::Func)?;
+        self.err_if_not_in_func()?;
 
         self.consume(TokenType::While)?;
         self.consume(TokenType::LeftParen)?;
@@ -276,7 +312,7 @@ impl Parser {
     }
 
     fn stmt_block(&mut self) -> StmtResult {
-        self.err_if_not_in_scope(Scope::Func)?;
+        self.err_if_not_in_func()?;
 
         self.consume(TokenType::LeftBrace)?;
         let mut stmts = vec![];
@@ -287,7 +323,7 @@ impl Parser {
     }
 
     fn stmt_assignment(&mut self) -> StmtResult {
-        self.err_if_not_in_scope(Scope::Func)?;
+        self.err_if_not_in_func()?;
 
         let expr = self.expr()?;
         if let Expr::Identifier(expr_identifier) = &expr {
@@ -295,6 +331,18 @@ impl Parser {
                 let expr_assign_to = self.expr()?;
                 let stmt_assign = Stmt::Assign(StmtAssign {
                     ident: expr_identifier.ident.clone(),
+                    property: None,
+                    expr: expr_assign_to,
+                });
+                self.consume(TokenType::Semicolon)?;
+                return Ok(stmt_assign);
+            }
+        } else if let Expr::GetProperty(expr_get_property) = &expr {
+            if let Some(_) = self.match_any(vec![TokenType::Equal])? {
+                let expr_assign_to = self.expr()?;
+                let stmt_assign = Stmt::Assign(StmtAssign {
+                    ident: expr_get_property.ident.clone(),
+                    property: Some(expr_get_property.property.clone()),
                     expr: expr_assign_to,
                 });
                 self.consume(TokenType::Semicolon)?;
@@ -487,16 +535,23 @@ impl Parser {
     }
 
     fn expr_primary(&mut self) -> ExprResult {
-        let token = self.next_token()?;
+        let token = self.next_token()?.clone();
         match token.token_type {
             TokenType::I32 => Ok(Expr::I32(ExprI32 {
                 value: token.lexeme.as_ref().unwrap().parse::<i32>().unwrap(),
                 file_coords: token.file_coords,
             })),
-            TokenType::Identifier => Ok(Expr::Identifier(ExprIdenifier {
-                ident: token.lexeme.as_ref().unwrap().clone(),
-                file_coords: token.file_coords,
-            })),
+            TokenType::Identifier => {
+                if self.match_exact(TokenType::LeftBrace)? {
+                    return self.expr_sturct_instance(token.lexeme.unwrap(), token.file_coords);
+                } else if self.match_exact(TokenType::Dot)? {
+                    return self.expr_get_property(token.lexeme.unwrap(), token.file_coords);
+                }
+                Ok(Expr::Identifier(ExprIdenifier {
+                    ident: token.lexeme.as_ref().unwrap().clone(),
+                    file_coords: token.file_coords,
+                }))
+            }
             TokenType::String => Ok(Expr::String(ExprString {
                 value: token.lexeme.as_ref().unwrap().clone(),
                 file_coords: token.file_coords,
@@ -524,6 +579,41 @@ impl Parser {
         }
     }
 
+    fn expr_sturct_instance(&mut self, ident: String, file_coords: FileCoords) -> ExprResult {
+        let mut fields: HashMap<String, Expr> = Default::default();
+        let mut first_iter = true;
+        while !self.match_exact(TokenType::RightBrace)? {
+            if !first_iter {
+                self.consume(TokenType::Comma)?;
+            }
+            let ident = self
+                .consume(TokenType::Identifier)?
+                .lexeme
+                .as_ref()
+                .unwrap()
+                .clone();
+            self.consume(TokenType::Colon)?;
+            let expr = self.expr()?;
+            fields.insert(ident, expr);
+            first_iter = false;
+        }
+
+        Ok(Expr::StructInstance(ExprStructInstance {
+            ident,
+            fields,
+            file_coords,
+        }))
+    }
+
+    fn expr_get_property(&mut self, ident: String, file_coords: FileCoords) -> ExprResult {
+        let ident_token = self.consume(TokenType::Identifier)?;
+        Ok(Expr::GetProperty(ExprGetProperty {
+            ident,
+            property: ident_token.lexeme.as_ref().unwrap().clone(),
+            file_coords,
+        }))
+    }
+
     fn consume_type(&mut self) -> Result<BType, ParserError> {
         self.consume(TokenType::Colon)?;
         Ok(self
@@ -531,6 +621,7 @@ impl Parser {
                 TokenType::BTypeBool,
                 TokenType::BTypeI32,
                 TokenType::BTypeStr,
+                TokenType::Identifier,
             ])?
             .get_btype())
     }
@@ -631,12 +722,12 @@ impl Parser {
         ))
     }
 
-    fn err_if_not_in_scope(&self, scope: Scope) -> Result<(), ParserError> {
-        if self.scopes.iter().find(|s| **s == scope).is_some() {
+    fn err_if_not_in_func(&self) -> Result<(), ParserError> {
+        if self.scopes.iter().find(|s| **s == Scope::Func).is_some() {
             return Ok(());
         }
         Err(ParserError::InvalidScope(
-            format!("Statement must be inside of a '{:?}' scope", scope),
+            format!("Statement must be inside of a '{:?}' scope", Scope::Func),
             self.get_current_file_coords(),
         ))
     }

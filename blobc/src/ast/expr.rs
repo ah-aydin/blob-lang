@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::common::FileCoords;
 
 use super::op::{BinaryOp, UnaryOp};
@@ -17,6 +19,13 @@ pub struct ExprI32 {
 #[derive(Debug, Clone)]
 pub struct ExprIdenifier {
     pub ident: String,
+    pub file_coords: FileCoords,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExprStructInstance {
+    pub ident: String,
+    pub fields: HashMap<String, Expr>,
     pub file_coords: FileCoords,
 }
 
@@ -47,17 +56,28 @@ pub struct ExprCall {
     pub args: Vec<Expr>,
     pub file_coords: FileCoords,
 }
+
+#[derive(Debug, Clone)]
+pub struct ExprGetProperty {
+    pub ident: String,
+    pub property: String,
+    pub file_coords: FileCoords,
+}
+
 #[derive(Debug, Clone)]
 pub enum Expr {
     Bool(ExprBool),
     I32(ExprI32),
     Identifier(ExprIdenifier),
+    StructInstance(ExprStructInstance),
     String(ExprString),
 
     BinaryOp(ExprBinaryOp),
     UnaryOp(ExprUnaryOp),
 
     Call(ExprCall),
+
+    GetProperty(ExprGetProperty),
 }
 
 impl Expr {
@@ -66,10 +86,12 @@ impl Expr {
             Expr::Bool(expr) => expr.file_coords,
             Expr::I32(expr) => expr.file_coords,
             Expr::Identifier(expr) => expr.file_coords,
+            Expr::StructInstance(expr) => expr.file_coords,
             Expr::String(expr) => expr.file_coords,
             Expr::BinaryOp(expr) => expr.file_coords,
             Expr::UnaryOp(expr) => expr.file_coords,
             Expr::Call(expr) => expr.file_coords,
+            Expr::GetProperty(expr) => expr.file_coords,
         }
     }
 }

@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{collections::HashMap, fmt::Display};
 
 use log::{error, info};
 
@@ -6,12 +6,13 @@ use crate::{
     ast::{
         btype::BType,
         expr::{
-            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprI32, ExprIdenifier, ExprString, ExprUnaryOp,
+            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprGetProperty, ExprI32, ExprIdenifier,
+            ExprString, ExprStructInstance, ExprUnaryOp,
         },
         op::OpBTypes,
         stmt::{
             Stmt, StmtAssign, StmtBlock, StmtExpr, StmtFuncDecl, StmtIf, StmtIfElse, StmtReturn,
-            StmtVarDecl, StmtWhile,
+            StmtStructDecl, StmtVarDecl, StmtWhile, VarTypeInfo,
         },
         Ast,
     },
@@ -57,22 +58,30 @@ impl Func {
 }
 
 #[derive(Debug, Clone)]
-struct Var {
+struct Struct {
     ident: String,
-    btype: BType,
+    fields: Vec<VarTypeInfo>,
+}
+
+impl Struct {
+    fn new(ident: String, fields: Vec<VarTypeInfo>) -> Struct {
+        Struct { ident, fields }
+    }
 }
 
 #[derive(Debug, Clone)]
 struct Env {
-    vars: Vec<Var>,
     funcs: Vec<Func>,
+    structs: Vec<Struct>,
+    vars: Vec<VarTypeInfo>,
 }
 
 impl Env {
-    fn new() -> Self {
+    fn new() -> Env {
         Env {
-            vars: vec![],
             funcs: vec![],
+            structs: vec![],
+            vars: vec![],
         }
     }
 }
@@ -98,6 +107,7 @@ impl<'a> Analyzer<'a> {
         for stmt in self.ast {
             let result = match stmt {
                 Stmt::FuncDecl(stmt_func_decl) => self.stmt_func_decl(&stmt_func_decl),
+                Stmt::StructDecl(stmt_struct_decl) => self.stmt_struct_decl(&stmt_struct_decl),
                 _ => unreachable!("Did not expect a non function Stmt at the top level"),
             };
             if result.is_err() {
@@ -118,7 +128,12 @@ impl<'a> Analyzer<'a> {
             Stmt::VarDecl(stmt_var_decl) => self.stmt_var_decl(stmt_var_decl),
             Stmt::Assign(stmt_assign) => self.stmt_assign(stmt_assign),
             Stmt::While(stmt_while) => self.stmt_while(stmt_while),
-            Stmt::FuncDecl(_) => unreachable!("Did not expect a function inside another function"),
+            Stmt::FuncDecl(_) => unreachable!(
+                "Did not expect a function declaration inside another function or struct"
+            ),
+            Stmt::StructDecl(_) => unreachable!(
+                "Did not expect a struct declaration inside another function or struct"
+            ),
         }
     }
 
@@ -131,12 +146,16 @@ impl<'a> Analyzer<'a> {
             Expr::BinaryOp(expr_binary_op) => self.expr_binary_op(expr_binary_op),
             Expr::UnaryOp(expr_unary_op) => self.expr_unary_op(expr_unary_op),
             Expr::Call(expr_call) => self.expr_call(expr_call),
+            Expr::StructInstance(expr_struct_instance) => {
+                self.expr_struct_instance(expr_struct_instance)
+            }
+            Expr::GetProperty(expr_get_property) => self.expr_get_property(expr_get_property),
         }
     }
 
     fn stmt_func_decl(&mut self, stmt_func_decl: &StmtFuncDecl) -> AnalyzerRetType {
-        let ret_type = stmt_func_decl.ret_type;
-        self.current_func_ret_type = ret_type;
+        let ret_type = stmt_func_decl.ret_type.clone();
+        self.current_func_ret_type = ret_type.clone();
         if self
             .envs
             .get(0)
@@ -153,20 +172,53 @@ impl<'a> Analyzer<'a> {
         // Insert func data to the root environment
         (&mut self.envs.get_mut(0).unwrap().funcs).push(Func::new(
             stmt_func_decl.ident.clone(),
-            stmt_func_decl.args.iter().map(|arg| arg.btype).collect(),
-            ret_type,
+            stmt_func_decl
+                .args
+                .iter()
+                .map(|arg| arg.btype.clone())
+                .collect(),
+            ret_type.clone(),
         ));
 
+        let mut func_env = Env::new();
+        func_env.vars = stmt_func_decl.args.clone();
+
+        self.envs.push(func_env);
         self.stmt(&stmt_func_decl.body)?;
+        self.envs.pop();
+
         if self.current_func_ret_type != BType::None {
             self.check_last_ret_stmt(&stmt_func_decl.body)?;
         }
+
         Ok(ret_type)
+    }
+
+    fn stmt_struct_decl(&mut self, stmt_struct_decl: &StmtStructDecl) -> AnalyzerRetType {
+        if self
+            .envs
+            .get(0)
+            .unwrap()
+            .structs
+            .iter()
+            .any(|sturct_data| sturct_data.ident == stmt_struct_decl.ident)
+        {
+            return Err(AnalyzerError::Error(format!(
+                "Struct '{}' is already defined",
+                stmt_struct_decl.ident
+            )));
+        }
+        // Insert func data to the root environment
+        (&mut self.envs.get_mut(0).unwrap().structs).push(Struct::new(
+            stmt_struct_decl.ident.clone(),
+            stmt_struct_decl.fields.clone(),
+        ));
+
+        Ok(BType::None)
     }
 
     fn check_last_ret_stmt(&mut self, stmt: &Stmt) -> Result<(), AnalyzerError> {
         match stmt {
-            Stmt::Expr(_) => unreachable!("Shouldn't be processing expressions here"),
             Stmt::Block(stmt_block) => match stmt_block.stmts.last() {
                 Some(last_stmt) => self.check_last_ret_stmt(last_stmt),
                 None => Err(AnalyzerError::Error(format!(
@@ -174,7 +226,6 @@ impl<'a> Analyzer<'a> {
                 ))),
             },
             Stmt::Return(_) => Ok(()),
-            Stmt::FuncDecl(_) => unreachable!("Function in function is not possible"),
             Stmt::If(stmt_if) => Err(AnalyzerError::ErrorFC(
                 "Not all paths leads to a return statement".to_string(),
                 stmt_if.condition.get_file_coords(),
@@ -203,6 +254,13 @@ impl<'a> Analyzer<'a> {
                 "Last statment must be for return".to_string(),
                 stmt_while.condition.get_file_coords(),
             )),
+            Stmt::Expr(_) => unreachable!("Shouldn't be processing expressions here"),
+            Stmt::FuncDecl(_) => unreachable!(
+                "Did not expect a function declaration inside another function or struct"
+            ),
+            Stmt::StructDecl(_) => unreachable!(
+                "Did not expect a struct declaration inside another function or struct"
+            ),
         }
     }
 
@@ -296,10 +354,10 @@ impl<'a> Analyzer<'a> {
             ));
         }
 
-        let var_btype = stmt_var_decl.btype;
+        let var_btype = &stmt_var_decl.btype;
         let expr_btype = self.expr(&stmt_var_decl.expr)?;
 
-        if var_btype != BType::None && var_btype != expr_btype {
+        if *var_btype != BType::None && *var_btype != expr_btype {
             return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Var has type '{:?}' but right expression has '{:?}'",
@@ -309,7 +367,7 @@ impl<'a> Analyzer<'a> {
             ));
         }
 
-        (&mut self.envs.last_mut().unwrap().vars).push(Var {
+        (&mut self.envs.last_mut().unwrap().vars).push(VarTypeInfo {
             ident: stmt_var_decl.ident.clone(),
             btype: expr_btype,
         });
@@ -319,14 +377,36 @@ impl<'a> Analyzer<'a> {
 
     fn stmt_assign(&mut self, stmt_assign: &StmtAssign) -> AnalyzerRetType {
         let ident = &stmt_assign.ident;
+        let property = stmt_assign.property.as_ref();
         let mut found = false;
         let mut var_btype = BType::None;
         for env in self.envs.iter().rev() {
             let var_maybe = env.vars.iter().filter(|var| var.ident == *ident).last();
             if let Some(var) = var_maybe {
-                found = true;
-                var_btype = var.btype;
-                break;
+                if property.is_none() {
+                    found = true;
+                    var_btype = var.btype.clone();
+                    break;
+                } else {
+                    let property = property.unwrap();
+                    if let Some(struct_name) = var.btype.get_struct_name() {
+                        let field = self
+                            .get_struct_info(struct_name)
+                            .fields
+                            .iter()
+                            .filter(|var_type_info| var_type_info.ident == *property)
+                            .next();
+                        if field.is_some() {
+                            found = true;
+                            var_btype = field.unwrap().btype.clone();
+                        } else {
+                            return Err(AnalyzerError::ErrorFC(
+                                format!("Struct {:?} does not have a field {:?}", ident, property),
+                                stmt_assign.expr.get_file_coords(),
+                            ));
+                        }
+                    }
+                }
             }
         }
 
@@ -383,7 +463,7 @@ impl<'a> Analyzer<'a> {
         for env in self.envs.iter().rev() {
             let var_maybe = env.vars.iter().filter(|var| var.ident == *ident).last();
             if let Some(var) = var_maybe {
-                return Ok(var.btype);
+                return Ok(var.btype.clone());
             }
         }
 
@@ -496,6 +576,131 @@ impl<'a> Analyzer<'a> {
         }
 
         Ok(func_data.ret_type)
+    }
+
+    fn expr_struct_instance(
+        &mut self,
+        expr_struct_instance: &ExprStructInstance,
+    ) -> AnalyzerRetType {
+        let struct_data = self
+            .envs
+            .get(0)
+            .unwrap()
+            .structs
+            .iter()
+            .find(|func| func.ident == expr_struct_instance.ident);
+        if struct_data.is_none() {
+            return Err(AnalyzerError::ErrorFC(
+                format!("Function '{}' is not defined", expr_struct_instance.ident),
+                expr_struct_instance.file_coords,
+            ));
+        }
+        let struct_data = struct_data.unwrap().clone();
+
+        if struct_data.fields.len() != expr_struct_instance.fields.len() {
+            return Err(AnalyzerError::ErrorFC(
+                format!(
+                    "Struct '{} 'takes {} arguments but {} where given",
+                    struct_data.ident,
+                    struct_data.fields.len(),
+                    expr_struct_instance.fields.len()
+                ),
+                expr_struct_instance.file_coords,
+            ));
+        }
+
+        let mut missing_args: Vec<String> = Vec::with_capacity(0);
+        let mut mismatched_types: HashMap<String, (BType, BType)> = HashMap::with_capacity(0);
+        for field in struct_data.fields {
+            match expr_struct_instance.fields.get(&field.ident) {
+                Some(expr) => {
+                    let expr_btype = self.expr(expr)?;
+                    if expr_btype != field.btype {
+                        mismatched_types.insert(
+                            field.ident.clone(),
+                            (field.btype.clone(), expr_btype.clone()),
+                        );
+                    }
+                }
+                None => missing_args.push(field.ident.clone()),
+            }
+        }
+
+        if !missing_args.is_empty() {
+            return Err(AnalyzerError::ErrorFC(
+                format!(
+                    "Missing fields in sturct '{}': {}",
+                    struct_data.ident,
+                    missing_args.join(", ")
+                ),
+                expr_struct_instance.file_coords,
+            ));
+        }
+        if !mismatched_types.is_empty() {
+            return Err(AnalyzerError::ErrorFC(
+                format!(
+                    "Mismached fields in sturct '{}': {}",
+                    struct_data.ident,
+                    mismatched_types
+                        .iter()
+                        .map(|entry| format!(
+                            "field '{}' is of type '{:?}' but got '{:?}'",
+                            entry.0, entry.1 .0, entry.1 .1
+                        ))
+                        .collect::<Vec<String>>()
+                        .join(", ")
+                ),
+                expr_struct_instance.file_coords,
+            ));
+        }
+
+        Ok(BType::Struct(expr_struct_instance.ident.clone()))
+    }
+
+    fn expr_get_property(&mut self, expr_get_property: &ExprGetProperty) -> AnalyzerRetType {
+        let ident = &expr_get_property.ident;
+        for env in self.envs.iter().rev() {
+            let var = env.vars.iter().filter(|var| var.ident == *ident).last();
+            if var.is_none() {
+                continue;
+            }
+            let var = var.unwrap();
+
+            if let BType::Struct(struct_name) = &var.btype {
+                let property_info = self
+                    .get_struct_info(&struct_name)
+                    .fields
+                    .iter()
+                    .filter(|var_type_info| var_type_info.ident == expr_get_property.property)
+                    .next();
+                if let Some(property_info) = property_info {
+                    return Ok(property_info.btype.clone());
+                }
+            }
+        }
+
+        Err(AnalyzerError::ErrorFC(
+            format!("'{:?}' is undefined", ident),
+            expr_get_property.file_coords,
+        ))
+    }
+
+    //////////////////////////////////////////////////////////
+    /// Helper methods
+    //////////////////////////////////////////////////////////
+
+    fn get_struct_info(&self, ident: &str) -> &Struct {
+        self.envs
+            .get(0)
+            .unwrap()
+            .structs
+            .iter()
+            .filter(|sturct_data| sturct_data.ident == ident)
+            .next()
+            .expect(&format!(
+                "How did a variable with a non existing struct type {} got created?",
+                ident
+            ))
     }
 }
 
