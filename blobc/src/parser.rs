@@ -64,7 +64,7 @@ enum Scope {
 /// stmt_var_decl -> "var" IDENTIFIER expr_type? "=" expr ";"
 /// stmt_while -> "while" "(" expr ")" block_stmt
 /// stmt_block -> "{" stmt* "}"
-/// stmt_assignment -> (IDENTIFIER "=")? expr ";"
+/// stmt_assignment -> (IDENTIFIER ("." IDENTIFIER)? "=")? expr ";"
 ///
 /// // Expression grammar
 /// expr -> expr_boolean_or
