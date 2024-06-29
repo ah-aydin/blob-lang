@@ -15,6 +15,13 @@ pub enum OpCode {
     JMPF,
     JMPB,
 
+    EQ,
+    NEQ,
+    GT,
+    LT,
+    GE,
+    LE,
+
     IGL,
 }
 
