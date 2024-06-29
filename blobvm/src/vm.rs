@@ -88,47 +88,63 @@ impl VM {
                 self.pc = (self.pc as isize - jmp) as usize;
                 true
             }
+            OpCode::JCMP => {
+                let register = self.next_8_bits() as usize;
+                if self.cmp_flag {
+                    self.pc = self.registers[register] as usize;
+                }
+                true
+            }
+            OpCode::JCMPF => {
+                let register = self.next_8_bits() as usize;
+                if self.cmp_flag {
+                    self.pc += self.registers[register] as usize;
+                }
+                true
+            }
+            OpCode::JCMPB => {
+                let register = self.next_8_bits() as usize;
+                if self.cmp_flag {
+                    let jmp = self.registers[register] as isize;
+                    self.pc = (self.pc as isize - jmp) as usize;
+                }
+                true
+            }
 
             OpCode::EQ => {
                 let left_operant = self.registers[self.next_8_bits() as usize];
                 let right_operant = self.registers[self.next_8_bits() as usize];
                 self.cmp_flag = left_operant == right_operant;
-                self.next_8_bits();
                 true
             }
             OpCode::NEQ => {
                 let left_operant = self.registers[self.next_8_bits() as usize];
                 let right_operant = self.registers[self.next_8_bits() as usize];
                 self.cmp_flag = left_operant != right_operant;
-                self.next_8_bits();
                 true
             }
             OpCode::GT => {
                 let left_operant = self.registers[self.next_8_bits() as usize];
                 let right_operant = self.registers[self.next_8_bits() as usize];
                 self.cmp_flag = left_operant > right_operant;
-                self.next_8_bits();
                 true
             }
             OpCode::LT => {
                 let left_operant = self.registers[self.next_8_bits() as usize];
                 let right_operant = self.registers[self.next_8_bits() as usize];
                 self.cmp_flag = left_operant < right_operant;
-                self.next_8_bits();
                 true
             }
             OpCode::GE => {
                 let left_operant = self.registers[self.next_8_bits() as usize];
                 let right_operant = self.registers[self.next_8_bits() as usize];
                 self.cmp_flag = left_operant >= right_operant;
-                self.next_8_bits();
                 true
             }
             OpCode::LE => {
                 let left_operant = self.registers[self.next_8_bits() as usize];
                 let right_operant = self.registers[self.next_8_bits() as usize];
                 self.cmp_flag = left_operant <= right_operant;
-                self.next_8_bits();
                 true
             }
 
@@ -367,7 +383,7 @@ mod test {
     #[test]
     fn test_eq_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![OpCode::EQ as u8, 0, 1, 0, OpCode::HLT as u8];
+        vm.program = vec![OpCode::EQ as u8, 0, 1, OpCode::HLT as u8];
 
         vm.registers[0] = 2;
         vm.registers[1] = 2;
@@ -384,7 +400,7 @@ mod test {
     #[test]
     fn test_neq_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![OpCode::NEQ as u8, 0, 1, 0, OpCode::HLT as u8];
+        vm.program = vec![OpCode::NEQ as u8, 0, 1, OpCode::HLT as u8];
 
         vm.registers[0] = 2;
         vm.registers[1] = 3;
@@ -401,7 +417,7 @@ mod test {
     #[test]
     fn test_gt_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![OpCode::GT as u8, 0, 1, 0, OpCode::HLT as u8];
+        vm.program = vec![OpCode::GT as u8, 0, 1, OpCode::HLT as u8];
 
         vm.registers[0] = 3;
         vm.registers[1] = 2;
@@ -418,7 +434,7 @@ mod test {
     #[test]
     fn test_lt_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![OpCode::LT as u8, 0, 1, 0, OpCode::HLT as u8];
+        vm.program = vec![OpCode::LT as u8, 0, 1, OpCode::HLT as u8];
 
         vm.registers[0] = 2;
         vm.registers[1] = 3;
@@ -435,7 +451,7 @@ mod test {
     #[test]
     fn test_ge_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![OpCode::GE as u8, 0, 1, 0, OpCode::HLT as u8];
+        vm.program = vec![OpCode::GE as u8, 0, 1, OpCode::HLT as u8];
 
         vm.registers[0] = 3;
         vm.registers[1] = 3;
@@ -458,7 +474,7 @@ mod test {
     #[test]
     fn test_le_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![OpCode::LE as u8, 0, 1, 0, OpCode::HLT as u8];
+        vm.program = vec![OpCode::LE as u8, 0, 1, OpCode::HLT as u8];
 
         vm.registers[0] = 3;
         vm.registers[1] = 3;

@@ -14,6 +14,9 @@ pub enum OpCode {
     JMP,
     JMPF,
     JMPB,
+    JCMP,
+    JCMPF,
+    JCMPB,
 
     EQ,
     NEQ,
