@@ -6,8 +6,8 @@ use crate::{
     ast::{
         btype::BType,
         expr::{
-            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprI32, ExprIdenifier, ExprString,
-            ExprStructInstance, ExprUnaryOp,
+            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprGetProperty, ExprI32, ExprIdenifier,
+            ExprString, ExprStructInstance, ExprUnaryOp,
         },
         op::BinaryOp,
         stmt::{
@@ -79,8 +79,10 @@ enum Scope {
 /// expr_unary -> ("!" | "-") expr_unary | expr_call
 /// expr_call -> expr_primary | IDENTIFIER ("(" expr_arguments? ")")?
 /// expr_arguments -> expr ("," expr )*
-/// expr_primary -> expr_struct_instance | I32 | IDENTIFIER | STRING | TRUE | FALSE | "(" expr ")"
-/// expr_sturct_instance -> IDENTIFIER "{" (IDENTIFIER: expr ("," IDENTIFIER: expr)*)? "}"
+/// expr_primary -> expr_struct_instance | I32 |  STRING | TRUE | FALSE | "(" expr ")" | expr_struct
+/// expr_struct -> IDENTIFIER (expr_struct_instance | expr_get_property)?
+/// expr_sturct_instance -> "{" (IDENTIFIER: expr ("," IDENTIFIER: expr)*)? "}"
+/// expr_get_property -> "." IDENTIFIER
 /// expr_type -> ":" IDENTIFIER | "i32" | "str" | "bool"
 /// ```
 struct Parser {
@@ -530,6 +532,8 @@ impl Parser {
             TokenType::Identifier => {
                 if self.match_exact(TokenType::LeftBrace)? {
                     return self.expr_sturct_instance(token.lexeme.unwrap(), token.file_coords);
+                } else if self.match_exact(TokenType::Dot)? {
+                    return self.expr_get_property(token.lexeme.unwrap(), token.file_coords);
                 }
                 Ok(Expr::Identifier(ExprIdenifier {
                     ident: token.lexeme.as_ref().unwrap().clone(),
@@ -585,6 +589,15 @@ impl Parser {
         Ok(Expr::StructInstance(ExprStructInstance {
             ident,
             fields,
+            file_coords,
+        }))
+    }
+
+    fn expr_get_property(&mut self, ident: String, file_coords: FileCoords) -> ExprResult {
+        let ident_token = self.consume(TokenType::Identifier)?;
+        Ok(Expr::GetProperty(ExprGetProperty {
+            ident,
+            property: ident_token.lexeme.as_ref().unwrap().clone(),
             file_coords,
         }))
     }

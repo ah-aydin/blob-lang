@@ -27,5 +27,6 @@ func gib2(a: i32, b: i32, c: bool): i32 {
 
 func main(): i32 {
   var date: Date = Date { year: 2024, month: gib2(5, 2, false), day: 15 };
-  return 0;
+  var year: i32 = date.year + date.month * 43 + date.day - (date.month + 45 / 4);
+  return gib2(date.year * date.month, date.day - 32, date.day);
 }

@@ -56,6 +56,14 @@ pub struct ExprCall {
     pub args: Vec<Expr>,
     pub file_coords: FileCoords,
 }
+
+#[derive(Debug, Clone)]
+pub struct ExprGetProperty {
+    pub ident: String,
+    pub property: String,
+    pub file_coords: FileCoords,
+}
+
 #[derive(Debug, Clone)]
 pub enum Expr {
     Bool(ExprBool),
@@ -68,6 +76,8 @@ pub enum Expr {
     UnaryOp(ExprUnaryOp),
 
     Call(ExprCall),
+
+    GetProperty(ExprGetProperty),
 }
 
 impl Expr {
@@ -81,6 +91,7 @@ impl Expr {
             Expr::BinaryOp(expr) => expr.file_coords,
             Expr::UnaryOp(expr) => expr.file_coords,
             Expr::Call(expr) => expr.file_coords,
+            Expr::GetProperty(expr) => expr.file_coords,
         }
     }
 }

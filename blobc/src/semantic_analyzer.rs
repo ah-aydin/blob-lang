@@ -6,8 +6,8 @@ use crate::{
     ast::{
         btype::BType,
         expr::{
-            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprI32, ExprIdenifier, ExprString,
-            ExprStructInstance, ExprUnaryOp,
+            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprGetProperty, ExprI32, ExprIdenifier,
+            ExprString, ExprStructInstance, ExprUnaryOp,
         },
         op::OpBTypes,
         stmt::{
@@ -147,8 +147,9 @@ impl<'a> Analyzer<'a> {
             Expr::UnaryOp(expr_unary_op) => self.expr_unary_op(expr_unary_op),
             Expr::Call(expr_call) => self.expr_call(expr_call),
             Expr::StructInstance(expr_struct_instance) => {
-                self.expr_struct_instance(&expr_struct_instance)
+                self.expr_struct_instance(expr_struct_instance)
             }
+            Expr::GetProperty(expr_get_property) => self.expr_get_property(expr_get_property),
         }
     }
 
@@ -632,6 +633,52 @@ impl<'a> Analyzer<'a> {
         }
 
         Ok(BType::Struct(expr_struct_instance.ident.clone()))
+    }
+
+    fn expr_get_property(&mut self, expr_get_property: &ExprGetProperty) -> AnalyzerRetType {
+        let ident = &expr_get_property.ident;
+        for env in self.envs.iter().rev() {
+            let var = env.vars.iter().filter(|var| var.ident == *ident).last();
+            if var.is_none() {
+                continue;
+            }
+            let var = var.unwrap();
+
+            if let BType::Struct(struct_name) = &var.btype {
+                let property_info = self
+                    .get_struct_info(&struct_name)
+                    .fields
+                    .iter()
+                    .filter(|var_type_info| var_type_info.ident == expr_get_property.property)
+                    .next();
+                if let Some(property_info) = property_info {
+                    return Ok(property_info.btype.clone());
+                }
+            }
+        }
+
+        Err(AnalyzerError::ErrorFC(
+            format!("'{:?}' is undefined", ident),
+            expr_get_property.file_coords,
+        ))
+    }
+
+    //////////////////////////////////////////////////////////
+    /// Helper methods
+    //////////////////////////////////////////////////////////
+
+    fn get_struct_info(&self, ident: &str) -> &Struct {
+        self.envs
+            .get(0)
+            .unwrap()
+            .structs
+            .iter()
+            .filter(|sturct_data| sturct_data.ident == ident)
+            .next()
+            .expect(&format!(
+                "How did a variable with a non existing struct type {} got created?",
+                ident
+            ))
     }
 }
 
