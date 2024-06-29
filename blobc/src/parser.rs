@@ -331,6 +331,18 @@ impl Parser {
                 let expr_assign_to = self.expr()?;
                 let stmt_assign = Stmt::Assign(StmtAssign {
                     ident: expr_identifier.ident.clone(),
+                    property: None,
+                    expr: expr_assign_to,
+                });
+                self.consume(TokenType::Semicolon)?;
+                return Ok(stmt_assign);
+            }
+        } else if let Expr::GetProperty(expr_get_property) = &expr {
+            if let Some(_) = self.match_any(vec![TokenType::Equal])? {
+                let expr_assign_to = self.expr()?;
+                let stmt_assign = Stmt::Assign(StmtAssign {
+                    ident: expr_get_property.ident.clone(),
+                    property: Some(expr_get_property.property.clone()),
                     expr: expr_assign_to,
                 });
                 self.consume(TokenType::Semicolon)?;

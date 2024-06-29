@@ -377,14 +377,36 @@ impl<'a> Analyzer<'a> {
 
     fn stmt_assign(&mut self, stmt_assign: &StmtAssign) -> AnalyzerRetType {
         let ident = &stmt_assign.ident;
+        let property = stmt_assign.property.as_ref();
         let mut found = false;
         let mut var_btype = BType::None;
         for env in self.envs.iter().rev() {
             let var_maybe = env.vars.iter().filter(|var| var.ident == *ident).last();
             if let Some(var) = var_maybe {
-                found = true;
-                var_btype = var.btype.clone();
-                break;
+                if property.is_none() {
+                    found = true;
+                    var_btype = var.btype.clone();
+                    break;
+                } else {
+                    let property = property.unwrap();
+                    if let Some(struct_name) = var.btype.get_struct_name() {
+                        let field = self
+                            .get_struct_info(struct_name)
+                            .fields
+                            .iter()
+                            .filter(|var_type_info| var_type_info.ident == *property)
+                            .next();
+                        if field.is_some() {
+                            found = true;
+                            var_btype = field.unwrap().btype.clone();
+                        } else {
+                            return Err(AnalyzerError::ErrorFC(
+                                format!("Struct {:?} does not have a field {:?}", ident, property),
+                                stmt_assign.expr.get_file_coords(),
+                            ));
+                        }
+                    }
+                }
             }
         }
 
