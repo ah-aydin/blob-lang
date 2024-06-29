@@ -367,13 +367,7 @@ mod test {
     #[test]
     fn test_eq_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![
-            OpCode::EQ as u8, // Should jump here
-            0,
-            1,
-            0,
-            OpCode::HLT as u8,
-        ];
+        vm.program = vec![OpCode::EQ as u8, 0, 1, 0, OpCode::HLT as u8];
 
         vm.registers[0] = 2;
         vm.registers[1] = 2;
@@ -390,13 +384,7 @@ mod test {
     #[test]
     fn test_neq_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![
-            OpCode::NEQ as u8, // Should jump here
-            0,
-            1,
-            0,
-            OpCode::HLT as u8,
-        ];
+        vm.program = vec![OpCode::NEQ as u8, 0, 1, 0, OpCode::HLT as u8];
 
         vm.registers[0] = 2;
         vm.registers[1] = 3;
@@ -413,13 +401,7 @@ mod test {
     #[test]
     fn test_gt_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![
-            OpCode::GT as u8, // Should jump here
-            0,
-            1,
-            0,
-            OpCode::HLT as u8,
-        ];
+        vm.program = vec![OpCode::GT as u8, 0, 1, 0, OpCode::HLT as u8];
 
         vm.registers[0] = 3;
         vm.registers[1] = 2;
@@ -436,13 +418,7 @@ mod test {
     #[test]
     fn test_lt_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![
-            OpCode::LT as u8, // Should jump here
-            0,
-            1,
-            0,
-            OpCode::HLT as u8,
-        ];
+        vm.program = vec![OpCode::LT as u8, 0, 1, 0, OpCode::HLT as u8];
 
         vm.registers[0] = 2;
         vm.registers[1] = 3;
@@ -459,13 +435,7 @@ mod test {
     #[test]
     fn test_ge_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![
-            OpCode::GE as u8, // Should jump here
-            0,
-            1,
-            0,
-            OpCode::HLT as u8,
-        ];
+        vm.program = vec![OpCode::GE as u8, 0, 1, 0, OpCode::HLT as u8];
 
         vm.registers[0] = 3;
         vm.registers[1] = 3;
@@ -488,13 +458,7 @@ mod test {
     #[test]
     fn test_le_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![
-            OpCode::LE as u8, // Should jump here
-            0,
-            1,
-            0,
-            OpCode::HLT as u8,
-        ];
+        vm.program = vec![OpCode::LE as u8, 0, 1, 0, OpCode::HLT as u8];
 
         vm.registers[0] = 3;
         vm.registers[1] = 3;
