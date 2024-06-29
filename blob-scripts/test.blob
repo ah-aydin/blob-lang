@@ -34,6 +34,5 @@ func main(): i32 {
   date.year = 2026;
   date.day + 10;
   date.month = gib() + 10;
-  dat.meh = 10;
   return gib2(date.year * date.month, date.day - 32, false);
 }
