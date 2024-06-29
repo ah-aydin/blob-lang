@@ -41,6 +41,7 @@ impl VM {
                 let dest_reg = self.next_8_bits() as usize;
                 let src_reg = self.next_8_bits() as usize;
                 self.registers[dest_reg] = self.registers[src_reg];
+                self.next_8_bits();
                 true
             }
 
@@ -142,7 +143,13 @@ mod test {
         let src_reg: u8 = 1;
         let value = 80;
         vm.registers[src_reg as usize] = value;
-        vm.program = vec![OpCode::LOADREG as u8, dest_reg, src_reg, OpCode::HLT as u8];
+        vm.program = vec![
+            OpCode::LOADREG as u8,
+            dest_reg,
+            src_reg,
+            0,
+            OpCode::HLT as u8,
+        ];
         vm.run();
 
         assert_eq!(vm.registers[dest_reg as usize], value);
