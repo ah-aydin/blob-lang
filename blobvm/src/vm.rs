@@ -145,9 +145,21 @@ impl VM {
                 self.cmp_flag = left_operant == right_operant;
                 true
             }
+            OpCode::EQIMD => {
+                let left_operant = self.registers[self.next_8_bits() as usize];
+                let right_operant = self.next_16_bits() as i32;
+                self.cmp_flag = left_operant == right_operant;
+                true
+            }
             OpCode::NEQ => {
                 let left_operant = self.registers[self.next_8_bits() as usize];
                 let right_operant = self.registers[self.next_8_bits() as usize];
+                self.cmp_flag = left_operant != right_operant;
+                true
+            }
+            OpCode::NEQIMD => {
+                let left_operant = self.registers[self.next_8_bits() as usize];
+                let right_operant = self.next_16_bits() as i32;
                 self.cmp_flag = left_operant != right_operant;
                 true
             }
@@ -157,9 +169,21 @@ impl VM {
                 self.cmp_flag = left_operant > right_operant;
                 true
             }
+            OpCode::GTIMD => {
+                let left_operant = self.registers[self.next_8_bits() as usize];
+                let right_operant = self.next_16_bits() as i32;
+                self.cmp_flag = left_operant > right_operant;
+                true
+            }
             OpCode::LT => {
                 let left_operant = self.registers[self.next_8_bits() as usize];
                 let right_operant = self.registers[self.next_8_bits() as usize];
+                self.cmp_flag = left_operant < right_operant;
+                true
+            }
+            OpCode::LTIMD => {
+                let left_operant = self.registers[self.next_8_bits() as usize];
+                let right_operant = self.next_16_bits() as i32;
                 self.cmp_flag = left_operant < right_operant;
                 true
             }
@@ -169,9 +193,21 @@ impl VM {
                 self.cmp_flag = left_operant >= right_operant;
                 true
             }
+            OpCode::GEIMD => {
+                let left_operant = self.registers[self.next_8_bits() as usize];
+                let right_operant = self.next_16_bits() as i32;
+                self.cmp_flag = left_operant >= right_operant;
+                true
+            }
             OpCode::LE => {
                 let left_operant = self.registers[self.next_8_bits() as usize];
                 let right_operant = self.registers[self.next_8_bits() as usize];
+                self.cmp_flag = left_operant <= right_operant;
+                true
+            }
+            OpCode::LEIMD => {
+                let left_operant = self.registers[self.next_8_bits() as usize];
+                let right_operant = self.next_16_bits() as i32;
                 self.cmp_flag = left_operant <= right_operant;
                 true
             }
@@ -584,6 +620,21 @@ mod test {
     }
 
     #[test]
+    fn test_eqimd_op_code() {
+        let mut vm = VM::new();
+        vm.program = vec![OpCode::EQIMD as u8, 0, 0, 2, OpCode::HLT as u8];
+
+        vm.registers[0] = 2;
+        vm.run();
+        assert_eq!(vm.cmp_flag, true);
+
+        vm.registers[0] = 3;
+        vm.pc = 0;
+        vm.run();
+        assert_eq!(vm.cmp_flag, false);
+    }
+
+    #[test]
     fn test_neq_op_code() {
         let mut vm = VM::new();
         vm.program = vec![OpCode::NEQ as u8, 0, 1, OpCode::HLT as u8];
@@ -595,6 +646,21 @@ mod test {
 
         vm.registers[0] = 2;
         vm.registers[1] = 2;
+        vm.pc = 0;
+        vm.run();
+        assert_eq!(vm.cmp_flag, false);
+    }
+
+    #[test]
+    fn test_neqimd_op_code() {
+        let mut vm = VM::new();
+        vm.program = vec![OpCode::NEQIMD as u8, 0, 0, 3, OpCode::HLT as u8];
+
+        vm.registers[0] = 2;
+        vm.run();
+        assert_eq!(vm.cmp_flag, true);
+
+        vm.registers[0] = 3;
         vm.pc = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
@@ -618,6 +684,21 @@ mod test {
     }
 
     #[test]
+    fn test_gtimd_op_code() {
+        let mut vm = VM::new();
+        vm.program = vec![OpCode::GTIMD as u8, 0, 0, 2, OpCode::HLT as u8];
+
+        vm.registers[0] = 3;
+        vm.run();
+        assert_eq!(vm.cmp_flag, true);
+
+        vm.registers[0] = 1;
+        vm.pc = 0;
+        vm.run();
+        assert_eq!(vm.cmp_flag, false);
+    }
+
+    #[test]
     fn test_lt_op_code() {
         let mut vm = VM::new();
         vm.program = vec![OpCode::LT as u8, 0, 1, OpCode::HLT as u8];
@@ -629,6 +710,21 @@ mod test {
 
         vm.registers[0] = 3;
         vm.registers[1] = 2;
+        vm.pc = 0;
+        vm.run();
+        assert_eq!(vm.cmp_flag, false);
+    }
+
+    #[test]
+    fn test_ltimd_op_code() {
+        let mut vm = VM::new();
+        vm.program = vec![OpCode::LTIMD as u8, 0, 0, 3, OpCode::HLT as u8];
+
+        vm.registers[0] = 2;
+        vm.run();
+        assert_eq!(vm.cmp_flag, true);
+
+        vm.registers[0] = 4;
         vm.pc = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
@@ -658,6 +754,26 @@ mod test {
     }
 
     #[test]
+    fn test_geimd_op_code() {
+        let mut vm = VM::new();
+        vm.program = vec![OpCode::GEIMD as u8, 0, 0, 3, OpCode::HLT as u8];
+
+        vm.registers[0] = 3;
+        vm.run();
+        assert_eq!(vm.cmp_flag, true);
+
+        vm.registers[0] = 4;
+        vm.pc = 0;
+        vm.run();
+        assert_eq!(vm.cmp_flag, true);
+
+        vm.registers[0] = 2;
+        vm.pc = 0;
+        vm.run();
+        assert_eq!(vm.cmp_flag, false);
+    }
+
+    #[test]
     fn test_le_op_code() {
         let mut vm = VM::new();
         vm.program = vec![OpCode::LE as u8, 0, 1, OpCode::HLT as u8];
@@ -675,6 +791,26 @@ mod test {
 
         vm.registers[0] = 3;
         vm.registers[1] = 2;
+        vm.pc = 0;
+        vm.run();
+        assert_eq!(vm.cmp_flag, false);
+    }
+
+    #[test]
+    fn test_leimd_op_code() {
+        let mut vm = VM::new();
+        vm.program = vec![OpCode::LEIMD as u8, 0, 0, 3, OpCode::HLT as u8];
+
+        vm.registers[0] = 3;
+        vm.run();
+        assert_eq!(vm.cmp_flag, true);
+
+        vm.registers[0] = 2;
+        vm.pc = 0;
+        vm.run();
+        assert_eq!(vm.cmp_flag, true);
+
+        vm.registers[0] = 4;
         vm.pc = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);

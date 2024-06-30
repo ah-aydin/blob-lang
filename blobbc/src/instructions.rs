@@ -23,11 +23,17 @@ pub enum OpCode {
     JCMPB,
 
     EQ,
+    EQIMD,
     NEQ,
+    NEQIMD,
     GT,
+    GTIMD,
     LT,
+    LTIMD,
     GE,
+    GEIMD,
     LE,
+    LEIMD,
 
     IGL,
 }
