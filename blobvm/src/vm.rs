@@ -9,7 +9,7 @@ pub struct VM {
 }
 
 impl VM {
-    pub fn new() -> Self {
+    pub fn new() -> VM {
         VM {
             registers: [0; 32],
             program: vec![],
@@ -50,10 +50,24 @@ impl VM {
                 self.registers[dest_reg] = left_operand + right_operand;
                 true
             }
+            OpCode::ADDIMD => {
+                let dest_reg = self.next_8_bits() as usize;
+                let left_operand = self.registers[self.next_8_bits() as usize];
+                let right_operand = self.next_16_bits() as i32;
+                self.registers[dest_reg] = left_operand + right_operand;
+                true
+            }
             OpCode::SUB => {
                 let dest_reg = self.next_8_bits() as usize;
                 let left_operand = self.registers[self.next_8_bits() as usize];
                 let right_operand = self.registers[self.next_8_bits() as usize];
+                self.registers[dest_reg] = left_operand - right_operand;
+                true
+            }
+            OpCode::SUBIMD => {
+                let dest_reg = self.next_8_bits() as usize;
+                let left_operand = self.registers[self.next_8_bits() as usize];
+                let right_operand = self.next_16_bits() as i32;
                 self.registers[dest_reg] = left_operand - right_operand;
                 true
             }
@@ -64,10 +78,25 @@ impl VM {
                 self.registers[dest_reg] = left_operand * right_operand;
                 true
             }
+            OpCode::MULIMD => {
+                let dest_reg = self.next_8_bits() as usize;
+                let left_operand = self.registers[self.next_8_bits() as usize];
+                let right_operand = self.next_16_bits() as i32;
+                self.registers[dest_reg] = left_operand * right_operand;
+                true
+            }
             OpCode::DIV => {
                 let dest_reg = self.next_8_bits() as usize;
                 let left_operand = self.registers[self.next_8_bits() as usize];
                 let right_operand = self.registers[self.next_8_bits() as usize];
+                self.registers[dest_reg] = left_operand / right_operand;
+                self.remainder = (left_operand % right_operand) as u32;
+                true
+            }
+            OpCode::DIVIMD => {
+                let dest_reg = self.next_8_bits() as usize;
+                let left_operand = self.registers[self.next_8_bits() as usize];
+                let right_operand = self.next_16_bits() as i32;
                 self.registers[dest_reg] = left_operand / right_operand;
                 self.remainder = (left_operand % right_operand) as u32;
                 true
@@ -225,6 +254,28 @@ mod test {
     }
 
     #[test]
+    fn test_addimd_op_code() {
+        let mut vm = VM::new();
+        let dest_reg = 0 as u8;
+        let left_reg = 1 as u8;
+        vm.program = vec![
+            OpCode::LOADIMD as u8,
+            left_reg,
+            0,
+            2,
+            OpCode::ADDIMD as u8,
+            dest_reg,
+            left_reg,
+            1, // Imediate 500 value
+            244,
+            OpCode::HLT as u8,
+        ];
+        vm.run();
+
+        assert_eq!(vm.registers[dest_reg as usize], 502);
+    }
+
+    #[test]
     fn test_sub_op_code() {
         let mut vm = VM::new();
         let dest_reg = 0 as u8;
@@ -248,6 +299,28 @@ mod test {
         vm.run();
 
         assert_eq!(vm.registers[dest_reg as usize], 6);
+    }
+
+    #[test]
+    fn test_subimd_op_code() {
+        let mut vm = VM::new();
+        let dest_reg = 0 as u8;
+        let left_reg = 1 as u8;
+        vm.program = vec![
+            OpCode::LOADIMD as u8,
+            left_reg,
+            0,
+            2,
+            OpCode::SUBIMD as u8,
+            dest_reg,
+            left_reg,
+            1, // Imediate 500 value
+            244,
+            OpCode::HLT as u8,
+        ];
+        vm.run();
+
+        assert_eq!(vm.registers[dest_reg as usize], -498);
     }
 
     #[test]
@@ -277,6 +350,28 @@ mod test {
     }
 
     #[test]
+    fn test_mulimd_op_code() {
+        let mut vm = VM::new();
+        let dest_reg = 0 as u8;
+        let left_reg = 1 as u8;
+        vm.program = vec![
+            OpCode::LOADIMD as u8,
+            left_reg,
+            0,
+            2,
+            OpCode::MULIMD as u8,
+            dest_reg,
+            left_reg,
+            1, // Imediate 500 value
+            244,
+            OpCode::HLT as u8,
+        ];
+        vm.run();
+
+        assert_eq!(vm.registers[dest_reg as usize], 1000);
+    }
+
+    #[test]
     fn test_div_op_code() {
         let mut vm = VM::new();
         let dest_reg = 0 as u8;
@@ -295,6 +390,29 @@ mod test {
             dest_reg,
             left_reg,
             right_reg,
+            OpCode::HLT as u8,
+        ];
+        vm.run();
+
+        assert_eq!(vm.registers[dest_reg as usize], 3);
+        assert_eq!(vm.remainder, 1);
+    }
+
+    #[test]
+    fn test_divimd_op_code() {
+        let mut vm = VM::new();
+        let dest_reg = 0 as u8;
+        let left_reg = 1 as u8;
+        vm.program = vec![
+            OpCode::LOADIMD as u8,
+            left_reg,
+            0,
+            10,
+            OpCode::DIVIMD as u8,
+            dest_reg,
+            left_reg,
+            0,
+            3,
             OpCode::HLT as u8,
         ];
         vm.run();

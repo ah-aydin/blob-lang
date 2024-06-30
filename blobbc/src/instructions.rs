@@ -7,9 +7,13 @@ pub enum OpCode {
     LOADREG,
 
     ADD,
+    ADDIMD,
     SUB,
+    SUBIMD,
     MUL,
+    MULIMD,
     DIV,
+    DIVIMD,
 
     JMP,
     JMPF,
