@@ -265,7 +265,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_loadimd_op_code() {
+    fn loadimd_op_code() {
         let mut vm = VM::new();
         vm.program = vec![OpCode::LOADIMD as u8, 0, 1, 244, OpCode::HLT as u8];
         vm.run();
@@ -274,7 +274,7 @@ mod test {
     }
 
     #[test]
-    fn test_loadreg_op_code() {
+    fn loadreg_op_code() {
         let mut vm = VM::new();
         let dest_reg = 0;
         let src_reg: u8 = 1;
@@ -287,7 +287,7 @@ mod test {
     }
 
     #[test]
-    fn test_add_op_code() {
+    fn add_op_code() {
         let mut vm = VM::new();
         let dest_reg = 0 as u8;
         let left_reg = 1 as u8;
@@ -313,7 +313,7 @@ mod test {
     }
 
     #[test]
-    fn test_addimd_op_code() {
+    fn addimd_op_code() {
         let mut vm = VM::new();
         let dest_reg = 0 as u8;
         let left_reg = 1 as u8;
@@ -335,7 +335,7 @@ mod test {
     }
 
     #[test]
-    fn test_sub_op_code() {
+    fn sub_op_code() {
         let mut vm = VM::new();
         let dest_reg = 0 as u8;
         let left_reg = 1 as u8;
@@ -361,7 +361,7 @@ mod test {
     }
 
     #[test]
-    fn test_subimd_op_code() {
+    fn subimd_op_code() {
         let mut vm = VM::new();
         let dest_reg = 0 as u8;
         let left_reg = 1 as u8;
@@ -383,7 +383,7 @@ mod test {
     }
 
     #[test]
-    fn test_mul_op_code() {
+    fn mul_op_code() {
         let mut vm = VM::new();
         let dest_reg = 0 as u8;
         let left_reg = 1 as u8;
@@ -409,7 +409,7 @@ mod test {
     }
 
     #[test]
-    fn test_mulimd_op_code() {
+    fn mulimd_op_code() {
         let mut vm = VM::new();
         let dest_reg = 0 as u8;
         let left_reg = 1 as u8;
@@ -431,7 +431,7 @@ mod test {
     }
 
     #[test]
-    fn test_div_op_code() {
+    fn div_op_code() {
         let mut vm = VM::new();
         let dest_reg = 0 as u8;
         let left_reg = 1 as u8;
@@ -458,7 +458,7 @@ mod test {
     }
 
     #[test]
-    fn test_divimd_op_code() {
+    fn divimd_op_code() {
         let mut vm = VM::new();
         let dest_reg = 0 as u8;
         let left_reg = 1 as u8;
@@ -481,7 +481,7 @@ mod test {
     }
 
     #[test]
-    fn test_jmp_op_code() {
+    fn jmp_op_code() {
         let mut vm = VM::new();
         vm.registers[1] = 5;
         vm.program = vec![
@@ -502,7 +502,7 @@ mod test {
     }
 
     #[test]
-    fn test_jmpf_op_code() {
+    fn jmpf_op_code() {
         let mut vm = VM::new();
         vm.registers[1] = 3;
         vm.program = vec![
@@ -523,7 +523,7 @@ mod test {
     }
 
     #[test]
-    fn test_jmpfimd_op_code() {
+    fn jmpfimd_op_code() {
         let mut vm = VM::new();
         vm.program = vec![
             OpCode::JMPFIMD as u8,
@@ -544,7 +544,7 @@ mod test {
     }
 
     #[test]
-    fn test_jmpb_op_code() {
+    fn jmpb_op_code() {
         let mut vm = VM::new();
         vm.pc = 5;
         vm.registers[1] = 7;
@@ -564,7 +564,7 @@ mod test {
     }
 
     #[test]
-    fn test_jmpbimd_op_code() {
+    fn jmpbimd_op_code() {
         let mut vm = VM::new();
         vm.pc = 5;
         vm.program = vec![
@@ -584,7 +584,7 @@ mod test {
     }
 
     #[test]
-    fn test_jcmp_op_code() {
+    fn jcmp_op_code() {
         let mut vm = VM::new();
         vm.program = vec![
             OpCode::JCMP as u8,
@@ -612,7 +612,7 @@ mod test {
     }
 
     #[test]
-    fn test_jcmpf_op_code() {
+    fn jcmpf_op_code() {
         let mut vm = VM::new();
         vm.program = vec![
             OpCode::JCMPF as u8,
@@ -640,7 +640,7 @@ mod test {
     }
 
     #[test]
-    fn test_jcmpfimd_op_code() {
+    fn jcmpfimd_op_code() {
         let mut vm = VM::new();
         vm.program = vec![
             OpCode::JCMPFIMD as u8,
@@ -668,7 +668,7 @@ mod test {
     }
 
     #[test]
-    fn test_jcmpb_op_code() {
+    fn jcmpb_op_code() {
         let mut vm = VM::new();
         vm.program = vec![
             OpCode::LOADIMD as u8, // Should jump here
@@ -695,7 +695,7 @@ mod test {
     }
 
     #[test]
-    fn test_jcmpbimd_op_code() {
+    fn jcmpbimd_op_code() {
         let mut vm = VM::new();
         vm.program = vec![
             OpCode::LOADIMD as u8, // Should jump here
@@ -722,7 +722,7 @@ mod test {
     }
 
     #[test]
-    fn test_eq_op_code() {
+    fn eq_op_code() {
         let mut vm = VM::new();
         vm.program = vec![OpCode::EQ as u8, 0, 1, OpCode::HLT as u8];
 
@@ -739,7 +739,7 @@ mod test {
     }
 
     #[test]
-    fn test_eqimd_op_code() {
+    fn eqimd_op_code() {
         let mut vm = VM::new();
         vm.program = vec![OpCode::EQIMD as u8, 0, 0, 2, OpCode::HLT as u8];
 
@@ -754,7 +754,7 @@ mod test {
     }
 
     #[test]
-    fn test_neq_op_code() {
+    fn neq_op_code() {
         let mut vm = VM::new();
         vm.program = vec![OpCode::NEQ as u8, 0, 1, OpCode::HLT as u8];
 
@@ -771,7 +771,7 @@ mod test {
     }
 
     #[test]
-    fn test_neqimd_op_code() {
+    fn neqimd_op_code() {
         let mut vm = VM::new();
         vm.program = vec![OpCode::NEQIMD as u8, 0, 0, 3, OpCode::HLT as u8];
 
@@ -786,7 +786,7 @@ mod test {
     }
 
     #[test]
-    fn test_gt_op_code() {
+    fn gt_op_code() {
         let mut vm = VM::new();
         vm.program = vec![OpCode::GT as u8, 0, 1, OpCode::HLT as u8];
 
@@ -803,7 +803,7 @@ mod test {
     }
 
     #[test]
-    fn test_gtimd_op_code() {
+    fn gtimd_op_code() {
         let mut vm = VM::new();
         vm.program = vec![OpCode::GTIMD as u8, 0, 0, 2, OpCode::HLT as u8];
 
@@ -818,7 +818,7 @@ mod test {
     }
 
     #[test]
-    fn test_lt_op_code() {
+    fn lt_op_code() {
         let mut vm = VM::new();
         vm.program = vec![OpCode::LT as u8, 0, 1, OpCode::HLT as u8];
 
@@ -835,7 +835,7 @@ mod test {
     }
 
     #[test]
-    fn test_ltimd_op_code() {
+    fn ltimd_op_code() {
         let mut vm = VM::new();
         vm.program = vec![OpCode::LTIMD as u8, 0, 0, 3, OpCode::HLT as u8];
 
@@ -850,7 +850,7 @@ mod test {
     }
 
     #[test]
-    fn test_ge_op_code() {
+    fn ge_op_code() {
         let mut vm = VM::new();
         vm.program = vec![OpCode::GE as u8, 0, 1, OpCode::HLT as u8];
 
@@ -873,7 +873,7 @@ mod test {
     }
 
     #[test]
-    fn test_geimd_op_code() {
+    fn geimd_op_code() {
         let mut vm = VM::new();
         vm.program = vec![OpCode::GEIMD as u8, 0, 0, 3, OpCode::HLT as u8];
 
@@ -893,7 +893,7 @@ mod test {
     }
 
     #[test]
-    fn test_le_op_code() {
+    fn le_op_code() {
         let mut vm = VM::new();
         vm.program = vec![OpCode::LE as u8, 0, 1, OpCode::HLT as u8];
 
@@ -916,7 +916,7 @@ mod test {
     }
 
     #[test]
-    fn test_leimd_op_code() {
+    fn leimd_op_code() {
         let mut vm = VM::new();
         vm.program = vec![OpCode::LEIMD as u8, 0, 0, 3, OpCode::HLT as u8];
 
