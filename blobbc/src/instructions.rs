@@ -17,10 +17,14 @@ pub enum OpCode {
 
     JMP,
     JMPF,
+    JMPFIMD,
     JMPB,
+    JMPBIMD,
     JCMP,
     JCMPF,
+    JCMPFIMD,
     JCMPB,
+    JCMPBIMD,
 
     EQ,
     EQIMD,

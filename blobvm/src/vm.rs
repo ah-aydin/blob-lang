@@ -111,8 +111,17 @@ impl VM {
                 self.pc += self.registers[self.next_8_bits() as usize] as usize;
                 true
             }
+            OpCode::JMPFIMD => {
+                self.pc += self.next_16_bits() as usize;
+                true
+            }
             OpCode::JMPB => {
                 let jmp = self.registers[self.next_8_bits() as usize] as isize;
+                self.pc = (self.pc as isize - jmp) as usize;
+                true
+            }
+            OpCode::JMPBIMD => {
+                let jmp = self.next_16_bits() as isize;
                 self.pc = (self.pc as isize - jmp) as usize;
                 true
             }
@@ -130,10 +139,24 @@ impl VM {
                 }
                 true
             }
+            OpCode::JCMPFIMD => {
+                let jmp = self.next_16_bits() as usize;
+                if self.cmp_flag {
+                    self.pc += jmp;
+                }
+                true
+            }
             OpCode::JCMPB => {
                 let register = self.next_8_bits() as usize;
                 if self.cmp_flag {
                     let jmp = self.registers[register] as isize;
+                    self.pc = (self.pc as isize - jmp) as usize;
+                }
+                true
+            }
+            OpCode::JCMPBIMD => {
+                let jmp = self.next_16_bits() as isize;
+                if self.cmp_flag {
                     self.pc = (self.pc as isize - jmp) as usize;
                 }
                 true
@@ -500,6 +523,27 @@ mod test {
     }
 
     #[test]
+    fn test_jmpfimd_op_code() {
+        let mut vm = VM::new();
+        vm.program = vec![
+            OpCode::JMPFIMD as u8,
+            0,
+            3,
+            OpCode::HLT as u8,
+            OpCode::HLT as u8,
+            OpCode::HLT as u8,
+            OpCode::LOADIMD as u8, // Should jump here
+            0,
+            0,
+            10,
+            OpCode::HLT as u8,
+        ];
+        vm.run();
+
+        assert_eq!(vm.registers[0], 10);
+    }
+
+    #[test]
     fn test_jmpb_op_code() {
         let mut vm = VM::new();
         vm.pc = 5;
@@ -512,6 +556,26 @@ mod test {
             OpCode::HLT as u8,
             OpCode::JMPB as u8, // Starts here
             1,
+            OpCode::HLT as u8,
+        ];
+        vm.run();
+
+        assert_eq!(vm.registers[0], 10);
+    }
+
+    #[test]
+    fn test_jmpbimd_op_code() {
+        let mut vm = VM::new();
+        vm.pc = 5;
+        vm.program = vec![
+            OpCode::LOADIMD as u8, // Should jump here
+            0,
+            0,
+            10,
+            OpCode::HLT as u8,
+            OpCode::JMPBIMD as u8, // Starts here
+            0,
+            8,
             OpCode::HLT as u8,
         ];
         vm.run();
@@ -576,6 +640,34 @@ mod test {
     }
 
     #[test]
+    fn test_jcmpfimd_op_code() {
+        let mut vm = VM::new();
+        vm.program = vec![
+            OpCode::JCMPFIMD as u8,
+            0,
+            3,
+            OpCode::HLT as u8,
+            OpCode::HLT as u8,
+            OpCode::HLT as u8,
+            OpCode::LOADIMD as u8, // Should jump here
+            0,
+            0,
+            10,
+            OpCode::HLT as u8,
+        ];
+
+        vm.cmp_flag = true;
+        vm.run();
+        assert_eq!(vm.registers[0], 10);
+
+        vm.registers[0] = 0;
+        vm.pc = 0;
+        vm.cmp_flag = false;
+        vm.run();
+        assert_eq!(vm.registers[0], 0);
+    }
+
+    #[test]
     fn test_jcmpb_op_code() {
         let mut vm = VM::new();
         vm.program = vec![
@@ -590,6 +682,33 @@ mod test {
         ];
 
         vm.registers[1] = 7;
+        vm.pc = 5;
+        vm.cmp_flag = true;
+        vm.run();
+        assert_eq!(vm.registers[0], 10);
+
+        vm.registers[0] = 0;
+        vm.pc = 5;
+        vm.cmp_flag = false;
+        vm.run();
+        assert_eq!(vm.registers[0], 0);
+    }
+
+    #[test]
+    fn test_jcmpbimd_op_code() {
+        let mut vm = VM::new();
+        vm.program = vec![
+            OpCode::LOADIMD as u8, // Should jump here
+            0,
+            0,
+            10,
+            OpCode::HLT as u8,
+            OpCode::JCMPBIMD as u8, // Starts here
+            0,
+            8,
+            OpCode::HLT as u8,
+        ];
+
         vm.pc = 5;
         vm.cmp_flag = true;
         vm.run();
