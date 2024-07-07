@@ -1,8 +1,9 @@
+use core::fmt;
 use std::collections::HashMap;
 
 use crate::token::{Token, TokenType};
 use blob_bc::OpCode;
-use blob_common::file_coords::FileCoords;
+use blob_common::{error, file_coords::FileCoords, info};
 use lazy_static::lazy_static;
 
 lazy_static! {
@@ -147,8 +148,16 @@ impl Scanner {
                             token_type: token_type.clone(),
                             file_coords,
                         })
+                    } else if lexeme.ends_with(":") {
+                        Ok(Token {
+                            token_type: TokenType::LabelDecl(lexeme[..lexeme.len() - 1].to_owned()),
+                            file_coords,
+                        })
                     } else {
-                        Err(())
+                        Ok(Token {
+                            token_type: TokenType::LabelUsg(lexeme.clone()),
+                            file_coords,
+                        })
                     }
                 }
 
@@ -179,21 +188,28 @@ impl Scanner {
     }
 }
 
-pub fn scan(src: &str) -> Result<Vec<Token>, ()> {
-    Scanner::new().scan(src)
+pub fn scan(src: &str) -> Vec<Token> {
+    info!("Scanning...");
+    let result = Scanner::new().scan(src);
+    match result {
+        Ok(tokens) => {
+            info!("Scanning comlpete!");
+            tokens
+        }
+        Err(scanner_error) => {
+            error!("Scanning failed: {:?}!", scanner_error);
+            std::process::exit(1);
+        }
+    }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
 
-    fn test_scan(src: &str) -> Vec<Token> {
-        scan(src).unwrap()
-    }
-
     #[test]
     fn immediate_value() {
-        let result = test_scan("#123");
+        let result = scan("#123");
         assert_eq!(
             *result.get(0).unwrap(),
             Token {
@@ -205,8 +221,26 @@ mod test {
     }
 
     #[test]
+    fn label_declaration() {
+        let result = scan("my_label:");
+        assert_eq!(
+            result.get(0).unwrap().token_type,
+            TokenType::LabelDecl("my_label".to_owned())
+        );
+    }
+
+    #[test]
+    fn label_usage() {
+        let result = scan("my_label");
+        assert_eq!(
+            result.get(0).unwrap().token_type,
+            TokenType::LabelUsg("my_label".to_owned())
+        );
+    }
+
+    #[test]
     fn op_code_keywords_1() {
-        let result = test_scan("add");
+        let result = scan("add");
         assert_eq!(
             *result.get(0).unwrap(),
             Token {
@@ -219,7 +253,7 @@ mod test {
 
     #[test]
     fn op_code_keywords_2() {
-        let result = test_scan("ADD");
+        let result = scan("ADD");
         assert_eq!(
             *result.get(0).unwrap(),
             Token {
@@ -232,7 +266,7 @@ mod test {
 
     #[test]
     fn op_code_keywords_3() {
-        let result = test_scan("load");
+        let result = scan("load");
         assert_eq!(
             *result.get(0).unwrap(),
             Token {
@@ -245,7 +279,7 @@ mod test {
 
     #[test]
     fn op_code_keywords_4() {
-        let result = test_scan("loAd");
+        let result = scan("loAd");
         assert_eq!(
             *result.get(0).unwrap(),
             Token {
@@ -258,7 +292,7 @@ mod test {
 
     #[test]
     fn reg_1() {
-        let result = test_scan("R01");
+        let result = scan("R01");
         assert_eq!(
             *result.get(0).unwrap(),
             Token {
@@ -271,7 +305,7 @@ mod test {
 
     #[test]
     fn reg_2() {
-        let result = test_scan("R1");
+        let result = scan("R1");
         assert_eq!(
             *result.get(0).unwrap(),
             Token {
@@ -284,7 +318,7 @@ mod test {
 
     #[test]
     fn reg_3() {
-        let result = test_scan("R14");
+        let result = scan("R14");
         assert_eq!(
             *result.get(0).unwrap(),
             Token {
@@ -297,7 +331,7 @@ mod test {
 
     #[test]
     fn reg_4() {
-        let result = test_scan("R0");
+        let result = scan("R0");
         assert_eq!(
             *result.get(0).unwrap(),
             Token {
@@ -310,7 +344,7 @@ mod test {
 
     #[test]
     fn reg_5() {
-        let result = test_scan("r0");
+        let result = scan("r0");
         assert_eq!(
             *result.get(0).unwrap(),
             Token {
@@ -323,7 +357,7 @@ mod test {
 
     #[test]
     fn instruction_1() {
-        let result = test_scan("load r0 #10");
+        let result = scan("load r0 #10");
         assert_eq!(
             result.get(0).unwrap().token_type,
             TokenType::Op(OpCode::LOAD)
@@ -335,7 +369,7 @@ mod test {
 
     #[test]
     fn instruction_2() {
-        let result = test_scan("load r0 r31");
+        let result = scan("load r0 r31");
         assert_eq!(
             result.get(0).unwrap().token_type,
             TokenType::Op(OpCode::LOAD)
@@ -347,7 +381,7 @@ mod test {
 
     #[test]
     fn program_1() {
-        let result = test_scan("load r0 r31\n\t add r1 #54");
+        let result = scan("load r0 r31\n\t add r1 #54");
 
         assert_eq!(
             result.get(0).unwrap().token_type,
@@ -363,6 +397,44 @@ mod test {
         );
         assert_eq!(result.get(5).unwrap().token_type, TokenType::Reg(1));
         assert_eq!(result.get(6).unwrap().token_type, TokenType::ImdVal(54));
+        assert_eq!(result.last().unwrap().token_type, TokenType::EOF);
+    }
+
+    #[test]
+    fn program_2() {
+        let result = scan("my_label:\n\t load r0 r31\n\t add r1 #54\n\tjmp my_label");
+
+        assert_eq!(
+            result.get(0).unwrap().token_type,
+            TokenType::LabelDecl("my_label".to_owned())
+        );
+        assert_eq!(result.get(1).unwrap().token_type, TokenType::NL);
+
+        assert_eq!(
+            result.get(2).unwrap().token_type,
+            TokenType::Op(OpCode::LOAD)
+        );
+        assert_eq!(result.get(3).unwrap().token_type, TokenType::Reg(0));
+        assert_eq!(result.get(4).unwrap().token_type, TokenType::Reg(31));
+        assert_eq!(result.get(5).unwrap().token_type, TokenType::NL);
+
+        assert_eq!(
+            result.get(6).unwrap().token_type,
+            TokenType::Op(OpCode::ADD)
+        );
+        assert_eq!(result.get(7).unwrap().token_type, TokenType::Reg(1));
+        assert_eq!(result.get(8).unwrap().token_type, TokenType::ImdVal(54));
+        assert_eq!(result.get(9).unwrap().token_type, TokenType::NL);
+
+        assert_eq!(
+            result.get(10).unwrap().token_type,
+            TokenType::Op(OpCode::JMP)
+        );
+        assert_eq!(
+            result.get(11).unwrap().token_type,
+            TokenType::LabelUsg("my_label".to_owned())
+        );
+
         assert_eq!(result.last().unwrap().token_type, TokenType::EOF);
     }
 }

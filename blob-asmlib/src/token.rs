@@ -6,6 +6,8 @@ pub enum TokenType {
     Op(OpCode),
     Reg(u8),
     ImdVal(i32),
+    LabelDecl(String),
+    LabelUsg(String),
     NL,
     EOF,
 }
