@@ -1,4 +1,3 @@
-use core::fmt;
 use std::collections::HashMap;
 
 use crate::token::{Token, TokenType};
@@ -69,6 +68,20 @@ impl Scanner {
                     self.new_line();
                     Ok(Token {
                         token_type: TokenType::NL,
+                        file_coords: self.file_coords.clone(),
+                    })
+                }
+                Some('[') => {
+                    self.advance();
+                    Ok(Token {
+                        token_type: TokenType::LeftBrace,
+                        file_coords: self.file_coords.clone(),
+                    })
+                }
+                Some(']') => {
+                    self.advance();
+                    Ok(Token {
+                        token_type: TokenType::RightBrace,
                         file_coords: self.file_coords.clone(),
                     })
                 }
@@ -217,6 +230,14 @@ mod test {
                 file_coords: FileCoords { line: 1, col: 2 }
             }
         );
+        assert_eq!(result.last().unwrap().token_type, TokenType::EOF);
+    }
+
+    #[test]
+    fn braces() {
+        let result = scan("[ \t ]");
+        assert_eq!(result.get(0).unwrap().token_type, TokenType::LeftBrace);
+        assert_eq!(result.get(1).unwrap().token_type, TokenType::RightBrace);
         assert_eq!(result.last().unwrap().token_type, TokenType::EOF);
     }
 
@@ -402,7 +423,8 @@ mod test {
 
     #[test]
     fn program_2() {
-        let result = scan("my_label:\n\t load r0 r31\n\t add r1 #54\n\tjmp my_label");
+        let result =
+            scan("my_label:\n\t load r0 r31\n\t add r1 #54\n\tjmp my_label \n add r1 [r2]");
 
         assert_eq!(
             result.get(0).unwrap().token_type,
@@ -434,6 +456,16 @@ mod test {
             result.get(11).unwrap().token_type,
             TokenType::LabelUsg("my_label".to_owned())
         );
+        assert_eq!(result.get(12).unwrap().token_type, TokenType::NL);
+
+        assert_eq!(
+            result.get(13).unwrap().token_type,
+            TokenType::Op(OpCode::ADD)
+        );
+        assert_eq!(result.get(14).unwrap().token_type, TokenType::Reg(1));
+        assert_eq!(result.get(15).unwrap().token_type, TokenType::LeftBrace);
+        assert_eq!(result.get(16).unwrap().token_type, TokenType::Reg(2));
+        assert_eq!(result.get(17).unwrap().token_type, TokenType::RightBrace);
 
         assert_eq!(result.last().unwrap().token_type, TokenType::EOF);
     }

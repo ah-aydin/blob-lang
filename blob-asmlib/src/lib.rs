@@ -1,10 +1,9 @@
-use std::{fs::File, io::Read};
-
-use blob_common::{error, info};
-
 mod parser;
 mod scanner;
 mod token;
+
+use blob_common::{error, info};
+use std::{fs::File, io::Read};
 
 pub fn assemble_file(file_name: &str) -> Result<(), i32> {
     let mut file = match File::open(file_name) {

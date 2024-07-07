@@ -8,6 +8,10 @@ pub enum TokenType {
     ImdVal(i32),
     LabelDecl(String),
     LabelUsg(String),
+
+    LeftBrace,
+    RightBrace,
+
     NL,
     EOF,
 }
