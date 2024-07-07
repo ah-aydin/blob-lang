@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(u8)]
 pub enum OpCode {
     HLT,
@@ -38,6 +38,8 @@ pub enum OpCode {
     GEIMD,
     LE,
     LEIMD,
+
+    ALOC,
 
     IGL,
 }

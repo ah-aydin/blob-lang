@@ -3,6 +3,7 @@ use blob_bc::OpCode;
 pub struct VM {
     registers: [i32; 32],
     program: Vec<u8>,
+    heap: Vec<u8>,
     pc: usize,
     remainder: u32,
     cmp_flag: bool,
@@ -13,6 +14,7 @@ impl VM {
         VM {
             registers: [0; 32],
             program: vec![],
+            heap: vec![],
             pc: 0,
             remainder: 0,
             cmp_flag: false,
@@ -232,6 +234,13 @@ impl VM {
                 let left_operant = self.registers[self.next_8_bits() as usize];
                 let right_operant = self.next_16_bits() as i32;
                 self.cmp_flag = left_operant <= right_operant;
+                true
+            }
+
+            OpCode::ALOC => {
+                let bytes = self.registers[self.next_8_bits() as usize];
+                let new_size = self.heap.len() as i32 + bytes;
+                self.heap.resize(new_size as usize, 0);
                 true
             }
 
@@ -944,5 +953,15 @@ mod test {
         vm.pc = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
+    }
+
+    #[test]
+    fn aloc_op_code() {
+        let mut vm = VM::new();
+        vm.program = vec![OpCode::ALOC as u8, 0, OpCode::HLT as u8];
+
+        vm.registers[0] = 4096;
+        vm.run();
+        assert_eq!(vm.heap.len(), 4096);
     }
 }

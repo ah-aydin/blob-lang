@@ -1,12 +1,11 @@
 use std::fmt::Debug;
 
-use crate::{
-    ast::{
-        btype::BType,
-        op::{BinaryOp, UnaryOp},
-    },
-    common::FileCoords,
+use crate::ast::{
+    btype::BType,
+    op::{BinaryOp, UnaryOp},
 };
+
+use blob_common::file_coords::FileCoords;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenType {

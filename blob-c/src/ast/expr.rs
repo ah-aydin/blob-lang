@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::common::FileCoords;
+use blob_common::file_coords::FileCoords;
 
 use super::op::{BinaryOp, UnaryOp};
 

@@ -1,5 +1,4 @@
 mod ast;
-mod common;
 mod parser;
 mod scanner;
 mod semantic_analyzer;

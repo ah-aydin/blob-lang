@@ -1,22 +1,19 @@
 use std::{collections::HashMap, fmt::Display};
 
-use blob_common::{error, info};
+use blob_common::{error, file_coords::FileCoords, info};
 
-use crate::{
-    ast::{
-        btype::BType,
-        expr::{
-            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprGetProperty, ExprI32, ExprIdenifier,
-            ExprString, ExprStructInstance, ExprUnaryOp,
-        },
-        op::OpBTypes,
-        stmt::{
-            Stmt, StmtAssign, StmtBlock, StmtExpr, StmtFuncDecl, StmtIf, StmtIfElse, StmtReturn,
-            StmtStructDecl, StmtVarDecl, StmtWhile, VarTypeInfo,
-        },
-        Ast,
+use crate::ast::{
+    btype::BType,
+    expr::{
+        Expr, ExprBinaryOp, ExprBool, ExprCall, ExprGetProperty, ExprI32, ExprIdenifier,
+        ExprString, ExprStructInstance, ExprUnaryOp,
     },
-    common::FileCoords,
+    op::OpBTypes,
+    stmt::{
+        Stmt, StmtAssign, StmtBlock, StmtExpr, StmtFuncDecl, StmtIf, StmtIfElse, StmtReturn,
+        StmtStructDecl, StmtVarDecl, StmtWhile, VarTypeInfo,
+    },
+    Ast,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Display};
 
-use blob_common::{error, info};
+use blob_common::{error, file_coords::FileCoords, info};
 
 use crate::{
     ast::{
@@ -16,7 +16,6 @@ use crate::{
         },
         Ast,
     },
-    common::FileCoords,
     token::{Token, TokenType},
 };
 
@@ -31,11 +30,7 @@ impl Display for ParserError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::WrongToken(msg, file_coords) | Self::InvalidScope(msg, file_coords) => {
-                write!(
-                    f,
-                    "{}:{} {}",
-                    file_coords.line, file_coords.col, msg
-                )
+                write!(f, "{}:{} {}", file_coords.line, file_coords.col, msg)
             }
             Self::EOF => write!(f, "Reached end of file before completing statement"),
         }

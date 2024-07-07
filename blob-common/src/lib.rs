@@ -1,3 +1,5 @@
+pub mod file_coords;
+
 #[macro_export]
 macro_rules! info {
     ($($arg:tt)*) => (
