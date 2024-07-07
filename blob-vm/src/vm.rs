@@ -32,16 +32,16 @@ impl VM {
         match self.decode_opcode() {
             OpCode::HLT => false,
 
+            OpCode::LOAD => {
+                let dest_reg = self.next_8_bits() as usize;
+                let src_reg = self.next_8_bits() as usize;
+                self.registers[dest_reg] = self.registers[src_reg];
+                true
+            }
             OpCode::LOADIMD => {
                 let register = self.next_8_bits() as usize;
                 let number = self.next_16_bits() as u16;
                 self.registers[register] = number as i32;
-                true
-            }
-            OpCode::LOADREG => {
-                let dest_reg = self.next_8_bits() as usize;
-                let src_reg = self.next_8_bits() as usize;
-                self.registers[dest_reg] = self.registers[src_reg];
                 true
             }
 
@@ -285,25 +285,25 @@ mod test {
     use super::*;
 
     #[test]
+    fn load_op_code() {
+        let mut vm = VM::new();
+        let dest_reg = 0;
+        let src_reg: u8 = 1;
+        let value = 80;
+        vm.registers[src_reg as usize] = value;
+        vm.program = vec![OpCode::LOAD as u8, dest_reg, src_reg, OpCode::HLT as u8];
+        vm.run();
+
+        assert_eq!(vm.registers[dest_reg as usize], value);
+    }
+
+    #[test]
     fn loadimd_op_code() {
         let mut vm = VM::new();
         vm.program = vec![OpCode::LOADIMD as u8, 0, 1, 244, OpCode::HLT as u8];
         vm.run();
 
         assert_eq!(vm.registers[0], 500);
-    }
-
-    #[test]
-    fn loadreg_op_code() {
-        let mut vm = VM::new();
-        let dest_reg = 0;
-        let src_reg: u8 = 1;
-        let value = 80;
-        vm.registers[src_reg as usize] = value;
-        vm.program = vec![OpCode::LOADREG as u8, dest_reg, src_reg, OpCode::HLT as u8];
-        vm.run();
-
-        assert_eq!(vm.registers[dest_reg as usize], value);
     }
 
     #[test]

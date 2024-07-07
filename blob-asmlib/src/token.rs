@@ -1,8 +1,17 @@
 use blob_bc::OpCode;
+use blob_common::file_coords::FileCoords;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Token {
-    Op { code: OpCode },
-    Reg { num: u8 },
-    ImdVal { val: i32 },
+pub enum TokenType {
+    Op(OpCode),
+    Reg(u8),
+    ImdVal(i32),
+    NL,
+    EOF,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct Token {
+    pub token_type: TokenType,
+    pub file_coords: FileCoords,
 }
