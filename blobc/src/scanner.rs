@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use lazy_static::lazy_static;
-use log::{error, info};
+use blob_common::{error, info};
 
 use crate::{
     common::FileCoords,

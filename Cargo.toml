@@ -1,6 +1,8 @@
 [workspace]
 resolver = "2"
-members = [ "blobasm",
+members = [
+  "blob-common",
+  "blobasm",
   "blobbc",
   "blobc",
   "blobvm",

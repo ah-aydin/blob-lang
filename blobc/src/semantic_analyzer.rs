@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Display};
 
-use log::{error, info};
+use blob_common::{error, info};
 
 use crate::{
     ast::{

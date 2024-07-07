@@ -5,18 +5,10 @@ mod scanner;
 mod semantic_analyzer;
 mod token;
 
+use blob_common::{error, info};
 use std::{env, fs::File, io::Read};
 
-use env_logger::{Builder, Target};
-use log::{error, info, LevelFilter};
-
 fn main() -> Result<(), i32> {
-    let mut builder = Builder::from_default_env();
-    builder
-        .target(Target::Stdout)
-        .filter_level(LevelFilter::Debug);
-    env_logger::init();
-
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
         println!("Usage: blob-lang [source_file]");

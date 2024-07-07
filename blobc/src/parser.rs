@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Display};
 
-use log::{error, info};
+use blob_common::{error, info};
 
 use crate::{
     ast::{
@@ -33,11 +33,11 @@ impl Display for ParserError {
             Self::WrongToken(msg, file_coords) | Self::InvalidScope(msg, file_coords) => {
                 write!(
                     f,
-                    "[ERROR] {}:{} {}",
+                    "{}:{} {}",
                     file_coords.line, file_coords.col, msg
                 )
             }
-            Self::EOF => write!(f, "[ERROR] Reached end of file before completing statement"),
+            Self::EOF => write!(f, "Reached end of file before completing statement"),
         }
     }
 }
