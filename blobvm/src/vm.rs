@@ -258,6 +258,17 @@ impl VM {
         self.pc += 2;
         result
     }
+
+    pub fn print_regs(&self) {
+        self.registers
+            .iter()
+            .enumerate()
+            .for_each(|(i, reg)| println!("R{:0>2}: {reg}", i + 1));
+    }
+
+    pub fn add_bytes(&mut self, bytes: &mut Vec<u8>) {
+        self.program.append(bytes);
+    }
 }
 
 #[cfg(test)]
