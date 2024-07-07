@@ -55,7 +55,6 @@ impl Scanner {
             // Skip whitespace
             loop {
                 match src_iter.peek() {
-                    // Whitespace and comments
                     Some(' ') | Some('\r') | Some('\t') => {
                         self.advance();
                         src_iter.next();
@@ -73,6 +72,7 @@ impl Scanner {
                     })
                 }
 
+                // Registers
                 Some('r') | Some('R') => {
                     self.advance();
 
@@ -97,6 +97,7 @@ impl Scanner {
                     }
                 }
 
+                // Immediate values
                 Some('#') => {
                     self.advance();
 
@@ -121,7 +122,7 @@ impl Scanner {
                     }
                 }
 
-                // Check for numbers, identifiers and keywords
+                // Keywords and labels
                 Some(_) => {
                     let start_index = self.current_index;
                     self.advance();
@@ -178,17 +179,21 @@ impl Scanner {
     }
 }
 
+pub fn scan(src: &str) -> Result<Vec<Token>, ()> {
+    Scanner::new().scan(src)
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
 
-    fn scan(s: &str) -> Vec<Token> {
-        Scanner::new().scan(s).unwrap()
+    fn test_scan(src: &str) -> Vec<Token> {
+        scan(src).unwrap()
     }
 
     #[test]
     fn immediate_value() {
-        let result = scan("#123");
+        let result = test_scan("#123");
         assert_eq!(
             *result.get(0).unwrap(),
             Token {
@@ -201,7 +206,7 @@ mod test {
 
     #[test]
     fn op_code_keywords_1() {
-        let result = scan("add");
+        let result = test_scan("add");
         assert_eq!(
             *result.get(0).unwrap(),
             Token {
@@ -214,7 +219,7 @@ mod test {
 
     #[test]
     fn op_code_keywords_2() {
-        let result = scan("ADD");
+        let result = test_scan("ADD");
         assert_eq!(
             *result.get(0).unwrap(),
             Token {
@@ -227,7 +232,7 @@ mod test {
 
     #[test]
     fn op_code_keywords_3() {
-        let result = scan("load");
+        let result = test_scan("load");
         assert_eq!(
             *result.get(0).unwrap(),
             Token {
@@ -240,7 +245,7 @@ mod test {
 
     #[test]
     fn op_code_keywords_4() {
-        let result = scan("loAd");
+        let result = test_scan("loAd");
         assert_eq!(
             *result.get(0).unwrap(),
             Token {
@@ -253,7 +258,7 @@ mod test {
 
     #[test]
     fn reg_1() {
-        let result = scan("R01");
+        let result = test_scan("R01");
         assert_eq!(
             *result.get(0).unwrap(),
             Token {
@@ -266,7 +271,7 @@ mod test {
 
     #[test]
     fn reg_2() {
-        let result = scan("R1");
+        let result = test_scan("R1");
         assert_eq!(
             *result.get(0).unwrap(),
             Token {
@@ -279,7 +284,7 @@ mod test {
 
     #[test]
     fn reg_3() {
-        let result = scan("R14");
+        let result = test_scan("R14");
         assert_eq!(
             *result.get(0).unwrap(),
             Token {
@@ -292,7 +297,7 @@ mod test {
 
     #[test]
     fn reg_4() {
-        let result = scan("R0");
+        let result = test_scan("R0");
         assert_eq!(
             *result.get(0).unwrap(),
             Token {
@@ -305,7 +310,7 @@ mod test {
 
     #[test]
     fn reg_5() {
-        let result = scan("r0");
+        let result = test_scan("r0");
         assert_eq!(
             *result.get(0).unwrap(),
             Token {
@@ -318,7 +323,7 @@ mod test {
 
     #[test]
     fn instruction_1() {
-        let result = scan("load r0 #10");
+        let result = test_scan("load r0 #10");
         assert_eq!(
             result.get(0).unwrap().token_type,
             TokenType::Op(OpCode::LOAD)
@@ -330,7 +335,7 @@ mod test {
 
     #[test]
     fn instruction_2() {
-        let result = scan("load r0 r31");
+        let result = test_scan("load r0 r31");
         assert_eq!(
             result.get(0).unwrap().token_type,
             TokenType::Op(OpCode::LOAD)
@@ -342,7 +347,7 @@ mod test {
 
     #[test]
     fn program_1() {
-        let result = scan("load r0 r31\n\t add r1 #54");
+        let result = test_scan("load r0 r31\n\t add r1 #54");
 
         assert_eq!(
             result.get(0).unwrap().token_type,
