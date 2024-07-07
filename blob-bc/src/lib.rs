@@ -61,7 +61,7 @@ mod test {
     use super::*;
 
     #[test]
-    fn it_gets_imd_variant() {
+    fn it_gets_imd_variants() {
         assert_eq!(OpCode::LOAD.get_imd(), OpCode::LOADIMD);
         assert_eq!(OpCode::ADD.get_imd(), OpCode::ADDIMD);
         assert_eq!(OpCode::MUL.get_imd(), OpCode::MULIMD);
