@@ -1,8 +1,0 @@
-[package]
-name = "blob-asm"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-blob-bc = {path = "../blob-bc"}
-nom = "7.1.3"
