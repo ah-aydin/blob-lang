@@ -62,7 +62,19 @@ mod test {
 
     #[test]
     fn it_gets_imd_variant() {
+        assert_eq!(OpCode::LOAD.get_imd(), OpCode::LOADIMD);
         assert_eq!(OpCode::ADD.get_imd(), OpCode::ADDIMD);
-        assert_eq!(OpCode::SUB.get_imd(), OpCode::SUBIMD);
+        assert_eq!(OpCode::MUL.get_imd(), OpCode::MULIMD);
+        assert_eq!(OpCode::DIV.get_imd(), OpCode::DIVIMD);
+        assert_eq!(OpCode::JMPF.get_imd(), OpCode::JMPFIMD);
+        assert_eq!(OpCode::JMPB.get_imd(), OpCode::JMPBIMD);
+        assert_eq!(OpCode::JCMPF.get_imd(), OpCode::JCMPFIMD);
+        assert_eq!(OpCode::JCMPB.get_imd(), OpCode::JCMPBIMD);
+        assert_eq!(OpCode::EQ.get_imd(), OpCode::EQIMD);
+        assert_eq!(OpCode::NEQ.get_imd(), OpCode::NEQIMD);
+        assert_eq!(OpCode::GT.get_imd(), OpCode::GTIMD);
+        assert_eq!(OpCode::LT.get_imd(), OpCode::LTIMD);
+        assert_eq!(OpCode::GE.get_imd(), OpCode::GEIMD);
+        assert_eq!(OpCode::LE.get_imd(), OpCode::LEIMD);
     }
 }
