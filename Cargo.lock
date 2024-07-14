@@ -31,7 +31,9 @@ version = "0.1.0"
 name = "blob-vm"
 version = "0.1.0"
 dependencies = [
+ "blob-asmlib",
  "blob-bc",
+ "blob-common",
 ]
 
 [[package]]

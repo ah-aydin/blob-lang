@@ -25,6 +25,11 @@ impl VM {
         while self.execute_instruction() {}
     }
 
+    pub fn set_program(&mut self, program: Vec<u8>) {
+        self.pc = 0;
+        self.program = program;
+    }
+
     pub fn execute_instruction(&mut self) -> bool {
         if self.pc >= self.program.len() {
             return false;
@@ -272,7 +277,7 @@ impl VM {
         self.registers
             .iter()
             .enumerate()
-            .for_each(|(i, reg)| println!("R{:0>2}: {reg}", i + 1));
+            .for_each(|(i, reg)| println!("R{:0>2}: {reg}", i));
     }
 
     pub fn add_bytes(&mut self, bytes: &mut Vec<u8>) {

@@ -1,16 +1,21 @@
-mod parser;
+mod linker;
 mod scanner;
 mod token;
 
 use blob_common::{error, info};
 use std::{fs::File, io::Read};
 
-pub fn assemble_file(file_name: &str) -> Result<(), i32> {
+pub fn compile_instruction(ins: &str) -> Result<Vec<u8>, ()> {
+    let tokens = scanner::scan(&ins)?;
+    Ok(linker::link(tokens)?)
+}
+
+pub fn assemble_file(file_name: &str) -> Result<Vec<u8>, ()> {
     let mut file = match File::open(file_name) {
         Ok(file) => Ok(file),
         Err(_) => {
             error!("Failed to open file '{}'", file_name);
-            Err(1)
+            Err(())
         }
     }?;
 
@@ -19,12 +24,12 @@ pub fn assemble_file(file_name: &str) -> Result<(), i32> {
         Ok(_) => Ok(()),
         Err(_) => {
             error!("Failed to read contents of '{}'", file_name);
-            Err(1)
+            Err(())
         }
     }?;
 
     info!("Assembling {}...\n", file_name);
 
-    let _ = scanner::scan(&src);
-    Ok(())
+    let tokens = scanner::scan(&src)?;
+    Ok(linker::link(tokens)?)
 }

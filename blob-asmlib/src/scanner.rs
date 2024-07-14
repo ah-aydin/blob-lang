@@ -179,6 +179,9 @@ impl Scanner {
                     file_coords: self.file_coords.clone(),
                 }),
             }?;
+            if token.token_type == TokenType::NL {
+                continue;
+            }
             tokens.push(token);
         }
         tokens.push(Token {
@@ -201,17 +204,17 @@ impl Scanner {
     }
 }
 
-pub fn scan(src: &str) -> Vec<Token> {
+pub fn scan(src: &str) -> Result<Vec<Token>, ()> {
     info!("Scanning...");
     let result = Scanner::new().scan(src);
     match result {
         Ok(tokens) => {
             info!("Scanning comlpete!");
-            tokens
+            Ok(tokens)
         }
         Err(scanner_error) => {
             error!("Scanning failed: {:?}!", scanner_error);
-            std::process::exit(1);
+            Err(())
         }
     }
 }
@@ -219,6 +222,10 @@ pub fn scan(src: &str) -> Vec<Token> {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    fn scan(src: &str) -> Vec<Token> {
+        super::scan(src).unwrap()
+    }
 
     #[test]
     fn immediate_value() {

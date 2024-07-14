@@ -1,8 +1,7 @@
+use blob_common::{error, info};
+
 use crate::vm::VM;
-use std::{
-    io::{self, Write},
-    num::ParseIntError,
-};
+use std::io::{self, Write};
 
 pub struct REPL {
     command_buffer: Vec<String>,
@@ -51,27 +50,34 @@ impl REPL {
                 file if file.starts_with(".run_file") => {
                     let split: Vec<&str> = file.split(" ").collect();
                     if split.len() != 2 {
-                        eprintln!("Expected one argument for file name");
+                        error!("Expected one argument for file name");
                         false
                     } else {
                         let file = split.get(1).unwrap();
+                        match blob_asmlib::assemble_file(file) {
+                            Ok(program) => {
+                                info!("Running file '{file}'...");
+                                self.vm.set_program(program);
+                                self.vm.run();
+                                info!("Run complete!");
+                            }
+                            Err(()) => {
+                                error!("Failed!")
+                            }
+                        };
                         true
                     }
                 }
-                hex => {
-                    let bytes = parse_hex(&hex);
+                ins => {
+                    let bytes = blob_asmlib::compile_instruction(&ins);
                     if bytes.is_err() {
-                        eprintln!("Invalid hex command");
+                        error!("Failed to compile instruction!");
                         false
                     } else {
                         let mut bytes = bytes.unwrap();
-                        if bytes.len() != 0 {
-                            self.vm.add_bytes(&mut bytes);
-                            self.vm.execute_instruction();
-                            true
-                        } else {
-                            false
-                        }
+                        self.vm.add_bytes(&mut bytes);
+                        self.vm.execute_instruction();
+                        true
                     }
                 }
             };
@@ -81,19 +87,4 @@ impl REPL {
             }
         }
     }
-}
-
-fn parse_hex(hex: &str) -> Result<Vec<u8>, ParseIntError> {
-    let hex: String = hex.chars().filter(|c| !c.is_whitespace()).collect();
-    let mut v = Vec::with_capacity(4);
-    let mut i = 0;
-    while i < hex.len() {
-        v.push(u8::from_str_radix(&hex[i..(i + 2)], 16)?);
-        i += 2;
-    }
-
-    if v.len() > 1 && v.len() <= 4 {
-        return Ok(v);
-    }
-    Ok(vec![])
 }

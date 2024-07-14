@@ -49,7 +49,7 @@ enum Scope {
 /// Top down parser.
 ///
 /// Parsing rules
-/// ```
+/// ```ignore
 /// // Statement grammar
 /// stmt -> stmt_func_decl / stmt_return / stmt_if_else / stmt_var_decl / stmt_while / stmt_block / stmt_assignment
 /// stmt_func_decl -> "func" IDENTIFIER "(" (IDENTIFIER type_expr ("," IDENTIFIER type_expr)*)? ")" type_expr? block_stmt
