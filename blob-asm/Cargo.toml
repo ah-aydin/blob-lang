@@ -1,0 +1,9 @@
+[package]
+name = "blob-asm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+blob-asmlib = { path = "../blob-asmlib" }
+blob-common = { path = "../blob-common" }
+blob-executable = { path = "../blob-executable" }

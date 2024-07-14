@@ -30,6 +30,10 @@ impl VM {
         self.program = program;
     }
 
+    pub fn set_pc(&mut self, start: usize) {
+        self.pc = start;
+    }
+
     pub fn execute_instruction(&mut self) -> bool {
         if self.pc >= self.program.len() {
             return false;

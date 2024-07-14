@@ -1,9 +1,11 @@
 [workspace]
 resolver = "2"
 members = [
+  "blob-asm",
   "blob-asmlib",
   "blob-bc",
   "blob-c",
   "blob-common",
+  "blob-executable",
   "blob-vm",
 ]

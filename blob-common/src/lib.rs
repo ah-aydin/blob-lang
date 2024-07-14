@@ -1,5 +1,8 @@
 pub mod file_coords;
 
+pub const VERSION_MAJOR: u8 = 0;
+pub const VERSION_MINOR: u8 = 1;
+
 #[macro_export]
 macro_rules! info {
     ($($arg:tt)*) => (
