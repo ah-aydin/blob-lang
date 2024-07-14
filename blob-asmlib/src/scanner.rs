@@ -417,14 +417,13 @@ mod test {
         );
         assert_eq!(result.get(1).unwrap().token_type, TokenType::Reg(0));
         assert_eq!(result.get(2).unwrap().token_type, TokenType::Reg(31));
-        assert_eq!(result.get(3).unwrap().token_type, TokenType::NL);
 
         assert_eq!(
-            result.get(4).unwrap().token_type,
+            result.get(3).unwrap().token_type,
             TokenType::Op(OpCode::ADD)
         );
-        assert_eq!(result.get(5).unwrap().token_type, TokenType::Reg(1));
-        assert_eq!(result.get(6).unwrap().token_type, TokenType::ImdVal(54));
+        assert_eq!(result.get(4).unwrap().token_type, TokenType::Reg(1));
+        assert_eq!(result.get(5).unwrap().token_type, TokenType::ImdVal(54));
         assert_eq!(result.last().unwrap().token_type, TokenType::EOF);
     }
 
@@ -437,42 +436,38 @@ mod test {
             result.get(0).unwrap().token_type,
             TokenType::LabelDecl("my_label".to_owned())
         );
-        assert_eq!(result.get(1).unwrap().token_type, TokenType::NL);
 
         assert_eq!(
-            result.get(2).unwrap().token_type,
+            result.get(1).unwrap().token_type,
             TokenType::Op(OpCode::LOAD)
         );
-        assert_eq!(result.get(3).unwrap().token_type, TokenType::Reg(0));
-        assert_eq!(result.get(4).unwrap().token_type, TokenType::Reg(31));
-        assert_eq!(result.get(5).unwrap().token_type, TokenType::NL);
+        assert_eq!(result.get(2).unwrap().token_type, TokenType::Reg(0));
+        assert_eq!(result.get(3).unwrap().token_type, TokenType::Reg(31));
 
         assert_eq!(
-            result.get(6).unwrap().token_type,
+            result.get(4).unwrap().token_type,
             TokenType::Op(OpCode::ADD)
         );
-        assert_eq!(result.get(7).unwrap().token_type, TokenType::Reg(1));
-        assert_eq!(result.get(8).unwrap().token_type, TokenType::ImdVal(54));
-        assert_eq!(result.get(9).unwrap().token_type, TokenType::NL);
+        assert_eq!(result.get(5).unwrap().token_type, TokenType::Reg(1));
+        assert_eq!(result.get(6).unwrap().token_type, TokenType::ImdVal(54));
 
         assert_eq!(
-            result.get(10).unwrap().token_type,
+            result.get(7).unwrap().token_type,
             TokenType::Op(OpCode::JMP)
         );
         assert_eq!(
-            result.get(11).unwrap().token_type,
+            result.get(8).unwrap().token_type,
             TokenType::LabelUsg("my_label".to_owned())
         );
-        assert_eq!(result.get(12).unwrap().token_type, TokenType::NL);
 
         assert_eq!(
-            result.get(13).unwrap().token_type,
+            result.get(9).unwrap().token_type,
             TokenType::Op(OpCode::ADD)
         );
-        assert_eq!(result.get(14).unwrap().token_type, TokenType::Reg(1));
-        assert_eq!(result.get(15).unwrap().token_type, TokenType::LeftBracket);
-        assert_eq!(result.get(16).unwrap().token_type, TokenType::Reg(2));
-        assert_eq!(result.get(17).unwrap().token_type, TokenType::RightBracket);
+        assert_eq!(result.get(10).unwrap().token_type, TokenType::Reg(1));
+        assert_eq!(result.get(11).unwrap().token_type, TokenType::LeftBracket);
+        assert_eq!(result.get(12).unwrap().token_type, TokenType::Reg(2));
+        assert_eq!(result.get(13).unwrap().token_type, TokenType::RightBracket);
 
         assert_eq!(result.last().unwrap().token_type, TokenType::EOF);
     }
