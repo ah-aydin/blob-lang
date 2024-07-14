@@ -78,22 +78,3 @@ mod test_opcode {
         assert_eq!(OpCode::LE.get_imd(), OpCode::LEIMD);
     }
 }
-
-#[derive(Debug)]
-pub struct Instruction {}
-
-impl Instruction {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        vec![]
-    }
-}
-
-pub struct Program {
-    instructions: Vec<Instruction>,
-}
-
-impl Program {
-    pub fn new(instructions: Vec<Instruction>) -> Program {
-        Program { instructions }
-    }
-}

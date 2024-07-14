@@ -9,8 +9,8 @@ pub enum TokenType {
     LabelDecl(String),
     LabelUsg(String),
 
-    LeftBrace,
-    RightBrace,
+    LeftBracket,
+    RightBracket,
 
     NL,
     EOF,

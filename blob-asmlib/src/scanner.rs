@@ -74,14 +74,14 @@ impl Scanner {
                 Some('[') => {
                     self.advance();
                     Ok(Token {
-                        token_type: TokenType::LeftBrace,
+                        token_type: TokenType::LeftBracket,
                         file_coords: self.file_coords.clone(),
                     })
                 }
                 Some(']') => {
                     self.advance();
                     Ok(Token {
-                        token_type: TokenType::RightBrace,
+                        token_type: TokenType::RightBracket,
                         file_coords: self.file_coords.clone(),
                     })
                 }
@@ -236,8 +236,8 @@ mod test {
     #[test]
     fn braces() {
         let result = scan("[ \t ]");
-        assert_eq!(result.get(0).unwrap().token_type, TokenType::LeftBrace);
-        assert_eq!(result.get(1).unwrap().token_type, TokenType::RightBrace);
+        assert_eq!(result.get(0).unwrap().token_type, TokenType::LeftBracket);
+        assert_eq!(result.get(1).unwrap().token_type, TokenType::RightBracket);
         assert_eq!(result.last().unwrap().token_type, TokenType::EOF);
     }
 
@@ -463,9 +463,9 @@ mod test {
             TokenType::Op(OpCode::ADD)
         );
         assert_eq!(result.get(14).unwrap().token_type, TokenType::Reg(1));
-        assert_eq!(result.get(15).unwrap().token_type, TokenType::LeftBrace);
+        assert_eq!(result.get(15).unwrap().token_type, TokenType::LeftBracket);
         assert_eq!(result.get(16).unwrap().token_type, TokenType::Reg(2));
-        assert_eq!(result.get(17).unwrap().token_type, TokenType::RightBrace);
+        assert_eq!(result.get(17).unwrap().token_type, TokenType::RightBracket);
 
         assert_eq!(result.last().unwrap().token_type, TokenType::EOF);
     }

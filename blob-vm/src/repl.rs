@@ -48,6 +48,16 @@ impl REPL {
                 ".exit" | ".quit" => {
                     std::process::exit(0);
                 }
+                file if file.starts_with(".run_file") => {
+                    let split: Vec<&str> = file.split(" ").collect();
+                    if split.len() != 2 {
+                        eprintln!("Expected one argument for file name");
+                        false
+                    } else {
+                        let file = split.get(1).unwrap();
+                        true
+                    }
+                }
                 hex => {
                     let bytes = parse_hex(&hex);
                     if bytes.is_err() {
