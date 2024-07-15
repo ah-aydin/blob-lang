@@ -206,6 +206,7 @@ impl VM {
                 OpCode::PUSH => {
                     let data = self.registers[self.get_reg()];
                     self.stack.extend_from_slice(&data.to_be_bytes());
+                    self.registers[SP_REG] = self.stack.len() as i64;
                 }
                 OpCode::POP => {
                     let bytes: [u8; 8] = self.stack[(self.stack.len() - 8)..self.stack.len()]
@@ -214,6 +215,7 @@ impl VM {
                     self.stack.resize(self.stack.len() - 8, 0);
 
                     self.registers[self.get_reg() as usize] = i64::from_be_bytes(bytes);
+                    self.registers[SP_REG] = self.stack.len() as i64;
                 }
 
                 OpCode::ALOC => {
@@ -265,10 +267,17 @@ impl VM {
     }
 
     pub fn print_regs(&self) {
-        self.registers
-            .iter()
-            .enumerate()
-            .for_each(|(i, reg)| println!("R{:0>2}: {reg}", i));
+        self.registers.iter().enumerate().for_each(|(i, reg)| {
+            if i == LR_REG {
+                println!("LR : {reg}");
+            } else if i == SP_REG {
+                println!("SP : {reg}");
+            } else if i == PC_REG {
+                println!("PC : {reg}");
+            } else {
+                println!("R{:0>2}: {reg}", i);
+            }
+        });
     }
 }
 

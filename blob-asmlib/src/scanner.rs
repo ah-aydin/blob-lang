@@ -1,13 +1,17 @@
 use std::collections::HashMap;
 
 use crate::token::{Token, TokenType};
-use blob_bc::OpCode;
+use blob_bc::{OpCode, LR_REG, PC_REG, SP_REG};
 use blob_common::{error, file_coords::FileCoords, info};
 use lazy_static::lazy_static;
 
 lazy_static! {
     static ref KEYWORDS: HashMap<&'static str, TokenType> = {
         let mut map = HashMap::new();
+
+        map.insert("sp", TokenType::Reg(SP_REG as u8));
+        map.insert("lr", TokenType::Reg(LR_REG as u8));
+        map.insert("pc", TokenType::Reg(PC_REG as u8));
 
         map.insert("hlt", TokenType::Op(OpCode::HLT));
         map.insert("load", TokenType::Op(OpCode::LOAD));
