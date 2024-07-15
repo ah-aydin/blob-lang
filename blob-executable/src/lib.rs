@@ -71,7 +71,13 @@ impl BlobExecutable {
         }
 
         // Deserialize program section
-        let mut program = Vec::new();
+        let program_size;
+        if let Ok(metadata) = file.metadata() {
+            program_size = metadata.len() - program_offset;
+        } else {
+            program_size = 16384;
+        }
+        let mut program = Vec::with_capacity(program_size as usize);
         if file.read_to_end(&mut program).is_err() {
             error!("Failed to read program section for file '{file_name}'");
             return Err(());
