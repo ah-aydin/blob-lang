@@ -1,13 +1,12 @@
-use blob_bc::OpCode;
+use blob_bc::{OpCode, LR_REG, PC_REG, REG_COUNT, SP_REG};
 use blob_executable::BlobExecutable;
 
 pub struct VM {
-    registers: [i32; 32],
+    registers: [i64; REG_COUNT],
     program: Vec<u8>,
     heap: Vec<u8>,
     stack: Vec<u8>,
     stack_start: usize,
-    pc: usize,
     remainder: u32,
     cmp_flag: bool,
 }
@@ -15,26 +14,230 @@ pub struct VM {
 impl VM {
     pub fn new() -> VM {
         VM {
-            registers: [0; 32],
+            registers: [0; REG_COUNT],
             program: vec![],
             heap: vec![],
             stack: vec![],
             stack_start: 0,
-            pc: 0,
             remainder: 0,
             cmp_flag: false,
         }
     }
 
     pub fn run(&mut self) {
-        while self.execute_instruction() {}
+        loop {
+            match self.decode_opcode() {
+                OpCode::HLT => break,
+
+                OpCode::LOAD => {
+                    let dest_reg = self.get_reg();
+                    let src_reg = self.get_reg();
+                    self.registers[dest_reg] = self.registers[src_reg];
+                }
+                OpCode::LOADIMD => {
+                    let register = self.get_reg();
+                    let number = self.get_imd_val();
+                    self.registers[register] = number;
+                }
+
+                OpCode::ADD => {
+                    let dest_reg = self.get_reg();
+                    let left_operand = self.registers[self.get_reg()];
+                    let right_operand = self.registers[self.get_reg()];
+                    self.registers[dest_reg] = left_operand + right_operand;
+                }
+                OpCode::ADDIMD => {
+                    let dest_reg = self.get_reg();
+                    let left_operand = self.registers[self.get_reg()];
+                    let right_operand = self.get_imd_val();
+                    self.registers[dest_reg] = left_operand + right_operand;
+                }
+                OpCode::SUB => {
+                    let dest_reg = self.get_reg();
+                    let left_operand = self.registers[self.get_reg()];
+                    let right_operand = self.registers[self.get_reg()];
+                    self.registers[dest_reg] = left_operand - right_operand;
+                }
+                OpCode::SUBIMD => {
+                    let dest_reg = self.get_reg();
+                    let left_operand = self.registers[self.get_reg()];
+                    let right_operand = self.get_imd_val();
+                    self.registers[dest_reg] = left_operand - right_operand;
+                }
+                OpCode::MUL => {
+                    let dest_reg = self.get_reg();
+                    let left_operand = self.registers[self.get_reg()];
+                    let right_operand = self.registers[self.get_reg()];
+                    self.registers[dest_reg] = left_operand * right_operand;
+                }
+                OpCode::MULIMD => {
+                    let dest_reg = self.get_reg();
+                    let left_operand = self.registers[self.get_reg()];
+                    let right_operand = self.get_imd_val();
+                    self.registers[dest_reg] = left_operand * right_operand;
+                }
+                OpCode::DIV => {
+                    let dest_reg = self.get_reg();
+                    let left_operand = self.registers[self.get_reg()];
+                    let right_operand = self.registers[self.get_reg()];
+                    self.registers[dest_reg] = left_operand / right_operand;
+                    self.remainder = (left_operand % right_operand) as u32;
+                }
+                OpCode::DIVIMD => {
+                    let dest_reg = self.get_reg();
+                    let left_operand = self.registers[self.get_reg()];
+                    let right_operand = self.get_imd_val();
+                    self.registers[dest_reg] = left_operand / right_operand;
+                    self.remainder = (left_operand % right_operand) as u32;
+                }
+
+                OpCode::JMP => {
+                    let target = self.registers[self.get_reg()];
+                    self.registers[PC_REG] = target;
+                }
+                OpCode::JMPF => {
+                    self.registers[PC_REG] += self.registers[self.get_reg()];
+                }
+                OpCode::JMPFIMD => {
+                    let jmp = self.get_imd_val();
+                    self.registers[PC_REG] += jmp;
+                }
+                OpCode::JMPB => {
+                    let jmp = self.registers[self.get_reg()];
+                    self.registers[PC_REG] = self.registers[PC_REG] - jmp;
+                }
+                OpCode::JMPBIMD => {
+                    let jmp = self.get_imd_val();
+                    self.registers[PC_REG] = self.registers[PC_REG] - jmp;
+                }
+                OpCode::JCMP => {
+                    let register = self.get_reg();
+                    if self.cmp_flag {
+                        self.registers[PC_REG] = self.registers[register];
+                    }
+                }
+                OpCode::JCMPF => {
+                    let register = self.get_reg();
+                    if self.cmp_flag {
+                        self.registers[PC_REG] += self.registers[register];
+                    }
+                }
+                OpCode::JCMPFIMD => {
+                    let jmp = self.get_imd_val();
+                    if self.cmp_flag {
+                        self.registers[PC_REG] += jmp;
+                    }
+                }
+                OpCode::JCMPB => {
+                    let register = self.get_reg();
+                    if self.cmp_flag {
+                        let jmp = self.registers[register];
+                        self.registers[PC_REG] = self.registers[PC_REG] - jmp;
+                    }
+                }
+                OpCode::JCMPBIMD => {
+                    let jmp = self.get_imd_val();
+                    if self.cmp_flag {
+                        self.registers[PC_REG] = self.registers[PC_REG] - jmp;
+                    }
+                }
+
+                OpCode::EQ => {
+                    let left_operant = self.registers[self.get_reg()];
+                    let right_operant = self.registers[self.get_reg()];
+                    self.cmp_flag = left_operant == right_operant;
+                }
+                OpCode::EQIMD => {
+                    let left_operant = self.registers[self.get_reg()];
+                    let right_operant = self.get_imd_val();
+                    self.cmp_flag = left_operant == right_operant;
+                }
+                OpCode::NEQ => {
+                    let left_operant = self.registers[self.get_reg()];
+                    let right_operant = self.registers[self.get_reg()];
+                    self.cmp_flag = left_operant != right_operant;
+                }
+                OpCode::NEQIMD => {
+                    let left_operant = self.registers[self.get_reg()];
+                    let right_operant = self.get_imd_val();
+                    self.cmp_flag = left_operant != right_operant;
+                }
+                OpCode::GT => {
+                    let left_operant = self.registers[self.get_reg()];
+                    let right_operant = self.registers[self.get_reg()];
+                    self.cmp_flag = left_operant > right_operant;
+                }
+                OpCode::GTIMD => {
+                    let left_operant = self.registers[self.get_reg()];
+                    let right_operant = self.get_imd_val();
+                    self.cmp_flag = left_operant > right_operant;
+                }
+                OpCode::LT => {
+                    let left_operant = self.registers[self.get_reg()];
+                    let right_operant = self.registers[self.get_reg()];
+                    self.cmp_flag = left_operant < right_operant;
+                }
+                OpCode::LTIMD => {
+                    let left_operant = self.registers[self.get_reg()];
+                    let right_operant = self.get_imd_val();
+                    self.cmp_flag = left_operant < right_operant;
+                }
+                OpCode::GE => {
+                    let left_operant = self.registers[self.get_reg()];
+                    let right_operant = self.registers[self.get_reg()];
+                    self.cmp_flag = left_operant >= right_operant;
+                }
+                OpCode::GEIMD => {
+                    let left_operant = self.registers[self.get_reg()];
+                    let right_operant = self.get_imd_val();
+                    self.cmp_flag = left_operant >= right_operant;
+                }
+                OpCode::LE => {
+                    let left_operant = self.registers[self.get_reg()];
+                    let right_operant = self.registers[self.get_reg()];
+                    self.cmp_flag = left_operant <= right_operant;
+                }
+                OpCode::LEIMD => {
+                    let left_operant = self.registers[self.get_reg()];
+                    let right_operant = self.get_imd_val();
+                    self.cmp_flag = left_operant <= right_operant;
+                }
+
+                OpCode::PUSH => {
+                    let data = self.registers[self.get_reg()];
+                    self.stack.extend_from_slice(&data.to_be_bytes());
+                }
+                OpCode::POP => {
+                    let bytes: [u8; 8] = self.stack[(self.stack.len() - 8)..self.stack.len()]
+                        .try_into()
+                        .unwrap();
+                    self.stack.resize(self.stack.len() - 8, 0);
+
+                    self.registers[self.get_reg() as usize] = i64::from_be_bytes(bytes);
+                }
+
+                OpCode::ALOC => {
+                    let bytes = self.registers[self.get_reg()];
+                    let new_size = self.heap.len() as i64 + bytes;
+                    self.heap.resize(new_size as usize, 0);
+                }
+
+                OpCode::IGL => {
+                    unreachable!("Got IGL OpCode in pc={}", self.registers[PC_REG]);
+                }
+            }
+        }
     }
 
     pub fn set_program(&mut self, executable: BlobExecutable) {
-        self.pc = 0;
         self.program = executable.get_program().clone();
+
         self.stack = executable.get_global_data().clone();
         self.stack_start = self.stack.len();
+
+        self.registers[SP_REG] = self.stack_start as i64;
+        self.registers[LR_REG] = 0;
+        self.registers[PC_REG] = 0;
     }
 
     pub fn set_and_run_program(&mut self, executable: BlobExecutable) {
@@ -42,262 +245,23 @@ impl VM {
         self.run();
     }
 
-    pub fn execute_instruction(&mut self) -> bool {
-        if self.pc >= self.program.len() {
-            return false;
-        }
-        match self.decode_opcode() {
-            OpCode::HLT => false,
-
-            OpCode::LOAD => {
-                let dest_reg = self.next_8_bits() as usize;
-                let src_reg = self.next_8_bits() as usize;
-                self.registers[dest_reg] = self.registers[src_reg];
-                true
-            }
-            OpCode::LOADIMD => {
-                let register = self.next_8_bits() as usize;
-                let number = self.next_16_bits() as u16;
-                self.registers[register] = number as i32;
-                true
-            }
-
-            OpCode::ADD => {
-                let dest_reg = self.next_8_bits() as usize;
-                let left_operand = self.registers[self.next_8_bits() as usize];
-                let right_operand = self.registers[self.next_8_bits() as usize];
-                self.registers[dest_reg] = left_operand + right_operand;
-                true
-            }
-            OpCode::ADDIMD => {
-                let dest_reg = self.next_8_bits() as usize;
-                let left_operand = self.registers[self.next_8_bits() as usize];
-                let right_operand = self.next_16_bits() as i32;
-                self.registers[dest_reg] = left_operand + right_operand;
-                true
-            }
-            OpCode::SUB => {
-                let dest_reg = self.next_8_bits() as usize;
-                let left_operand = self.registers[self.next_8_bits() as usize];
-                let right_operand = self.registers[self.next_8_bits() as usize];
-                self.registers[dest_reg] = left_operand - right_operand;
-                true
-            }
-            OpCode::SUBIMD => {
-                let dest_reg = self.next_8_bits() as usize;
-                let left_operand = self.registers[self.next_8_bits() as usize];
-                let right_operand = self.next_16_bits() as i32;
-                self.registers[dest_reg] = left_operand - right_operand;
-                true
-            }
-            OpCode::MUL => {
-                let dest_reg = self.next_8_bits() as usize;
-                let left_operand = self.registers[self.next_8_bits() as usize];
-                let right_operand = self.registers[self.next_8_bits() as usize];
-                self.registers[dest_reg] = left_operand * right_operand;
-                true
-            }
-            OpCode::MULIMD => {
-                let dest_reg = self.next_8_bits() as usize;
-                let left_operand = self.registers[self.next_8_bits() as usize];
-                let right_operand = self.next_16_bits() as i32;
-                self.registers[dest_reg] = left_operand * right_operand;
-                true
-            }
-            OpCode::DIV => {
-                let dest_reg = self.next_8_bits() as usize;
-                let left_operand = self.registers[self.next_8_bits() as usize];
-                let right_operand = self.registers[self.next_8_bits() as usize];
-                self.registers[dest_reg] = left_operand / right_operand;
-                self.remainder = (left_operand % right_operand) as u32;
-                true
-            }
-            OpCode::DIVIMD => {
-                let dest_reg = self.next_8_bits() as usize;
-                let left_operand = self.registers[self.next_8_bits() as usize];
-                let right_operand = self.next_16_bits() as i32;
-                self.registers[dest_reg] = left_operand / right_operand;
-                self.remainder = (left_operand % right_operand) as u32;
-                true
-            }
-
-            OpCode::JMP => {
-                let target = self.registers[self.next_8_bits() as usize];
-                self.pc = target as usize;
-                true
-            }
-            OpCode::JMPF => {
-                self.pc += self.registers[self.next_8_bits() as usize] as usize;
-                true
-            }
-            OpCode::JMPFIMD => {
-                self.pc += self.next_16_bits() as usize;
-                true
-            }
-            OpCode::JMPB => {
-                let jmp = self.registers[self.next_8_bits() as usize] as isize;
-                self.pc = (self.pc as isize - jmp) as usize;
-                true
-            }
-            OpCode::JMPBIMD => {
-                let jmp = self.next_16_bits() as isize;
-                self.pc = (self.pc as isize - jmp) as usize;
-                true
-            }
-            OpCode::JCMP => {
-                let register = self.next_8_bits() as usize;
-                if self.cmp_flag {
-                    self.pc = self.registers[register] as usize;
-                }
-                true
-            }
-            OpCode::JCMPF => {
-                let register = self.next_8_bits() as usize;
-                if self.cmp_flag {
-                    self.pc += self.registers[register] as usize;
-                }
-                true
-            }
-            OpCode::JCMPFIMD => {
-                let jmp = self.next_16_bits() as usize;
-                if self.cmp_flag {
-                    self.pc += jmp;
-                }
-                true
-            }
-            OpCode::JCMPB => {
-                let register = self.next_8_bits() as usize;
-                if self.cmp_flag {
-                    let jmp = self.registers[register] as isize;
-                    self.pc = (self.pc as isize - jmp) as usize;
-                }
-                true
-            }
-            OpCode::JCMPBIMD => {
-                let jmp = self.next_16_bits() as isize;
-                if self.cmp_flag {
-                    self.pc = (self.pc as isize - jmp) as usize;
-                }
-                true
-            }
-
-            OpCode::EQ => {
-                let left_operant = self.registers[self.next_8_bits() as usize];
-                let right_operant = self.registers[self.next_8_bits() as usize];
-                self.cmp_flag = left_operant == right_operant;
-                true
-            }
-            OpCode::EQIMD => {
-                let left_operant = self.registers[self.next_8_bits() as usize];
-                let right_operant = self.next_16_bits() as i32;
-                self.cmp_flag = left_operant == right_operant;
-                true
-            }
-            OpCode::NEQ => {
-                let left_operant = self.registers[self.next_8_bits() as usize];
-                let right_operant = self.registers[self.next_8_bits() as usize];
-                self.cmp_flag = left_operant != right_operant;
-                true
-            }
-            OpCode::NEQIMD => {
-                let left_operant = self.registers[self.next_8_bits() as usize];
-                let right_operant = self.next_16_bits() as i32;
-                self.cmp_flag = left_operant != right_operant;
-                true
-            }
-            OpCode::GT => {
-                let left_operant = self.registers[self.next_8_bits() as usize];
-                let right_operant = self.registers[self.next_8_bits() as usize];
-                self.cmp_flag = left_operant > right_operant;
-                true
-            }
-            OpCode::GTIMD => {
-                let left_operant = self.registers[self.next_8_bits() as usize];
-                let right_operant = self.next_16_bits() as i32;
-                self.cmp_flag = left_operant > right_operant;
-                true
-            }
-            OpCode::LT => {
-                let left_operant = self.registers[self.next_8_bits() as usize];
-                let right_operant = self.registers[self.next_8_bits() as usize];
-                self.cmp_flag = left_operant < right_operant;
-                true
-            }
-            OpCode::LTIMD => {
-                let left_operant = self.registers[self.next_8_bits() as usize];
-                let right_operant = self.next_16_bits() as i32;
-                self.cmp_flag = left_operant < right_operant;
-                true
-            }
-            OpCode::GE => {
-                let left_operant = self.registers[self.next_8_bits() as usize];
-                let right_operant = self.registers[self.next_8_bits() as usize];
-                self.cmp_flag = left_operant >= right_operant;
-                true
-            }
-            OpCode::GEIMD => {
-                let left_operant = self.registers[self.next_8_bits() as usize];
-                let right_operant = self.next_16_bits() as i32;
-                self.cmp_flag = left_operant >= right_operant;
-                true
-            }
-            OpCode::LE => {
-                let left_operant = self.registers[self.next_8_bits() as usize];
-                let right_operant = self.registers[self.next_8_bits() as usize];
-                self.cmp_flag = left_operant <= right_operant;
-                true
-            }
-            OpCode::LEIMD => {
-                let left_operant = self.registers[self.next_8_bits() as usize];
-                let right_operant = self.next_16_bits() as i32;
-                self.cmp_flag = left_operant <= right_operant;
-                true
-            }
-
-            OpCode::PUSH => {
-                let data = self.registers[self.next_8_bits() as usize];
-                self.stack.extend_from_slice(&data.to_be_bytes());
-                true
-            }
-            OpCode::POP => {
-                let bytes: [u8; 4] = self.stack[self.stack.len() - 4..self.stack.len()]
-                    .try_into()
-                    .unwrap();
-                self.stack.resize(self.stack.len() - 4, 0);
-
-                self.registers[self.next_8_bits() as usize] = i32::from_be_bytes(bytes);
-                true
-            }
-
-            OpCode::ALOC => {
-                let bytes = self.registers[self.next_8_bits() as usize];
-                let new_size = self.heap.len() as i32 + bytes;
-                self.heap.resize(new_size as usize, 0);
-                true
-            }
-
-            OpCode::IGL => {
-                unreachable!("Got IGL OpCode in pc={}", self.pc);
-            }
-        }
-    }
-
     fn decode_opcode(&mut self) -> OpCode {
-        let op_code = OpCode::from(self.program[self.pc]);
-        self.pc += 1;
+        let op_code = OpCode::from(self.program[self.registers[PC_REG] as usize]);
+        self.registers[PC_REG] += 1;
         return op_code;
     }
 
-    fn next_8_bits(&mut self) -> u8 {
-        let result = self.program[self.pc];
-        self.pc += 1;
-        return result;
+    fn get_reg(&mut self) -> usize {
+        let reg = self.program[self.registers[PC_REG] as usize];
+        self.registers[PC_REG] += 1;
+        reg as usize
     }
 
-    fn next_16_bits(&mut self) -> u16 {
-        let result = ((self.program[self.pc] as u16) << 8) | self.program[self.pc + 1] as u16;
-        self.pc += 2;
-        result
+    fn get_imd_val(&mut self) -> i64 {
+        let pc = self.registers[PC_REG] as usize;
+        let imd = i16::from_be_bytes([self.program[pc], self.program[pc + 1]]);
+        self.registers[PC_REG] += 2;
+        imd as i64
     }
 
     pub fn print_regs(&self) {
@@ -594,7 +558,7 @@ mod test {
     #[test]
     fn jmpb_op_code() {
         let mut vm = VM::new();
-        vm.pc = 5;
+        vm.registers[PC_REG] = 5;
         vm.registers[1] = 7;
         vm.program = vec![
             OpCode::LOADIMD as u8, // Should jump here
@@ -614,7 +578,7 @@ mod test {
     #[test]
     fn jmpbimd_op_code() {
         let mut vm = VM::new();
-        vm.pc = 5;
+        vm.registers[PC_REG] = 5;
         vm.program = vec![
             OpCode::LOADIMD as u8, // Should jump here
             0,
@@ -653,7 +617,7 @@ mod test {
         assert_eq!(vm.registers[0], 10);
 
         vm.registers[0] = 0;
-        vm.pc = 0;
+        vm.registers[PC_REG] = 0;
         vm.cmp_flag = false;
         vm.run();
         assert_eq!(vm.registers[0], 0);
@@ -681,7 +645,7 @@ mod test {
         assert_eq!(vm.registers[0], 10);
 
         vm.registers[0] = 0;
-        vm.pc = 0;
+        vm.registers[PC_REG] = 0;
         vm.cmp_flag = false;
         vm.run();
         assert_eq!(vm.registers[0], 0);
@@ -709,7 +673,7 @@ mod test {
         assert_eq!(vm.registers[0], 10);
 
         vm.registers[0] = 0;
-        vm.pc = 0;
+        vm.registers[PC_REG] = 0;
         vm.cmp_flag = false;
         vm.run();
         assert_eq!(vm.registers[0], 0);
@@ -730,13 +694,13 @@ mod test {
         ];
 
         vm.registers[1] = 7;
-        vm.pc = 5;
+        vm.registers[PC_REG] = 5;
         vm.cmp_flag = true;
         vm.run();
         assert_eq!(vm.registers[0], 10);
 
         vm.registers[0] = 0;
-        vm.pc = 5;
+        vm.registers[PC_REG] = 5;
         vm.cmp_flag = false;
         vm.run();
         assert_eq!(vm.registers[0], 0);
@@ -757,13 +721,13 @@ mod test {
             OpCode::HLT as u8,
         ];
 
-        vm.pc = 5;
+        vm.registers[PC_REG] = 5;
         vm.cmp_flag = true;
         vm.run();
         assert_eq!(vm.registers[0], 10);
 
         vm.registers[0] = 0;
-        vm.pc = 5;
+        vm.registers[PC_REG] = 5;
         vm.cmp_flag = false;
         vm.run();
         assert_eq!(vm.registers[0], 0);
@@ -781,7 +745,7 @@ mod test {
 
         vm.registers[0] = 3;
         vm.registers[1] = 2;
-        vm.pc = 0;
+        vm.registers[PC_REG] = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
     }
@@ -796,7 +760,7 @@ mod test {
         assert_eq!(vm.cmp_flag, true);
 
         vm.registers[0] = 3;
-        vm.pc = 0;
+        vm.registers[PC_REG] = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
     }
@@ -813,7 +777,7 @@ mod test {
 
         vm.registers[0] = 2;
         vm.registers[1] = 2;
-        vm.pc = 0;
+        vm.registers[PC_REG] = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
     }
@@ -828,7 +792,7 @@ mod test {
         assert_eq!(vm.cmp_flag, true);
 
         vm.registers[0] = 3;
-        vm.pc = 0;
+        vm.registers[PC_REG] = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
     }
@@ -845,7 +809,7 @@ mod test {
 
         vm.registers[0] = 2;
         vm.registers[1] = 3;
-        vm.pc = 0;
+        vm.registers[PC_REG] = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
     }
@@ -860,7 +824,7 @@ mod test {
         assert_eq!(vm.cmp_flag, true);
 
         vm.registers[0] = 1;
-        vm.pc = 0;
+        vm.registers[PC_REG] = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
     }
@@ -877,7 +841,7 @@ mod test {
 
         vm.registers[0] = 3;
         vm.registers[1] = 2;
-        vm.pc = 0;
+        vm.registers[PC_REG] = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
     }
@@ -892,7 +856,7 @@ mod test {
         assert_eq!(vm.cmp_flag, true);
 
         vm.registers[0] = 4;
-        vm.pc = 0;
+        vm.registers[PC_REG] = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
     }
@@ -909,13 +873,13 @@ mod test {
 
         vm.registers[0] = 3;
         vm.registers[1] = 2;
-        vm.pc = 0;
+        vm.registers[PC_REG] = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, true);
 
         vm.registers[0] = 3;
         vm.registers[1] = 4;
-        vm.pc = 0;
+        vm.registers[PC_REG] = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
     }
@@ -930,12 +894,12 @@ mod test {
         assert_eq!(vm.cmp_flag, true);
 
         vm.registers[0] = 4;
-        vm.pc = 0;
+        vm.registers[PC_REG] = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, true);
 
         vm.registers[0] = 2;
-        vm.pc = 0;
+        vm.registers[PC_REG] = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
     }
@@ -952,13 +916,13 @@ mod test {
 
         vm.registers[0] = 2;
         vm.registers[1] = 3;
-        vm.pc = 0;
+        vm.registers[PC_REG] = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, true);
 
         vm.registers[0] = 3;
         vm.registers[1] = 2;
-        vm.pc = 0;
+        vm.registers[PC_REG] = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
     }
@@ -973,12 +937,12 @@ mod test {
         assert_eq!(vm.cmp_flag, true);
 
         vm.registers[0] = 2;
-        vm.pc = 0;
+        vm.registers[PC_REG] = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, true);
 
         vm.registers[0] = 4;
-        vm.pc = 0;
+        vm.registers[PC_REG] = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
     }
@@ -997,8 +961,8 @@ mod test {
         ];
         vm.run();
 
-        assert_eq!(vm.stack[0..4], [0, 0, 1, 1]);
-        assert_eq!(vm.stack[4..8], [0, 0, 0, 255]);
+        assert_eq!(vm.stack[0..8], [0, 0, 0, 0, 0, 0, 1, 1]);
+        assert_eq!(vm.stack[8..16], [0, 0, 0, 0, 0, 0, 0, 255]);
     }
 
     #[test]
