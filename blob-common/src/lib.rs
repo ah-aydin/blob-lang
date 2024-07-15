@@ -2,6 +2,7 @@ pub mod file_coords;
 
 pub const VERSION_MAJOR: u8 = 0;
 pub const VERSION_MINOR: u8 = 1;
+pub const BUILD_FILE_PATH: &'static str = "./build/";
 
 #[macro_export]
 macro_rules! info {

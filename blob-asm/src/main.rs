@@ -1,14 +1,17 @@
 use std::{env, path::Path};
 
 use blob_asmlib::assemble_file;
-use blob_common::error;
+use blob_common::{error, BUILD_FILE_PATH};
 use blob_executable::{BlobExecutable, BLOB_EXECUTABLE_FILE_EXTENTION};
 
 fn replace_extension(file_path: &str) -> String {
     let path = Path::new(file_path);
     if let Some(stem) = path.file_stem() {
         if let Some(stem_str) = stem.to_str() {
-            return format!("{}.{}", stem_str, BLOB_EXECUTABLE_FILE_EXTENTION);
+            return format!(
+                "{}{}.{}",
+                BUILD_FILE_PATH, stem_str, BLOB_EXECUTABLE_FILE_EXTENTION
+            );
         }
     }
 
@@ -29,7 +32,7 @@ fn main() -> Result<(), i32> {
         return Err(1);
     }
 
-    match BlobExecutable::new(0, program.unwrap()).save(&replace_extension(&file_name)) {
+    match BlobExecutable::new(vec![], program.unwrap()).save(&replace_extension(&file_name)) {
         Ok(()) => Ok(()),
         Err(()) => Err(1),
     }

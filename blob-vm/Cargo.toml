@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-blob-asmlib = {path = "../blob-asmlib"}
-blob-bc = {path = "../blob-bc"}
-blob-common = {path = "../blob-common"}
+blob-asmlib = { path = "../blob-asmlib" }
+blob-bc = { path = "../blob-bc" }
+blob-common = { path = "../blob-common" }
+blob-executable = { path = "../blob-executable" }

@@ -50,6 +50,7 @@ dependencies = [
  "blob-asmlib",
  "blob-bc",
  "blob-common",
+ "blob-executable",
 ]
 
 [[package]]

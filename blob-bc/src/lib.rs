@@ -39,6 +39,9 @@ pub enum OpCode {
     LE,
     LEIMD,
 
+    PUSH,
+    POP,
+
     ALOC,
 
     IGL,
@@ -109,7 +112,7 @@ impl OpCode {
             | OpCode::LE
             | OpCode::LEIMD => vec![arg_types!(reg), arg_types!(reg, imd)],
 
-            OpCode::ALOC => vec![arg_types!(reg)],
+            OpCode::PUSH | OpCode::POP | OpCode::ALOC => vec![arg_types!(reg)],
 
             OpCode::IGL => unreachable!("Requeted instruction arg types on illegal op code"),
         }

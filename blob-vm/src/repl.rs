@@ -1,4 +1,5 @@
 use blob_common::{error, info};
+use blob_executable::BlobExecutable;
 
 use crate::vm::VM;
 use std::io::{self, Write};
@@ -22,7 +23,7 @@ impl REPL {
         let mut buffer = String::with_capacity(64);
         let stdin = io::stdin();
         let mut stdout = io::stdout();
-        println!("BlobVM 0.0.1");
+        println!("BlobVM 0.1");
         println!();
         loop {
             buffer.clear();
@@ -47,17 +48,43 @@ impl REPL {
                 ".exit" | ".quit" => {
                     std::process::exit(0);
                 }
-                file if file.starts_with(".run_file") => {
+
+                file if file.starts_with(".run_executable") => {
                     let split: Vec<&str> = file.split(" ").collect();
                     if split.len() != 2 {
                         error!("Expected one argument for file name");
                         false
                     } else {
                         let file = split.get(1).unwrap();
+                        let executable = BlobExecutable::load_from_file(&file);
+                        match executable {
+                            Ok(executable) => {
+                                info!("Runnin executable file '{file}'");
+                                self.vm.set_program(executable);
+                                self.vm.run();
+                                info!("Run complete!");
+                                true
+                            }
+                            Err(_) => {
+                                error!("Failed to load executable file '{file}'");
+                                false
+                            }
+                        }
+                    }
+                }
+
+                file if file.starts_with(".run_assembly") => {
+                    let split: Vec<&str> = file.split(" ").collect();
+                    if split.len() != 2 {
+                        error!("Expected one argument for file name");
+                        false
+                    } else {
+                        let file = split.get(1).unwrap();
+                        info!("Assembling file '{file}'...");
                         match blob_asmlib::assemble_file(file) {
                             Ok(program) => {
                                 info!("Running file '{file}'...");
-                                self.vm.set_program(program);
+                                self.vm.set_program(BlobExecutable::new(vec![], program));
                                 self.vm.run();
                                 info!("Run complete!");
                             }
@@ -68,17 +95,9 @@ impl REPL {
                         true
                     }
                 }
-                ins => {
-                    let bytes = blob_asmlib::compile_instruction(&ins);
-                    if bytes.is_err() {
-                        error!("Failed to compile instruction!");
-                        false
-                    } else {
-                        let mut bytes = bytes.unwrap();
-                        self.vm.add_bytes(&mut bytes);
-                        self.vm.execute_instruction();
-                        true
-                    }
+                _ => {
+                    error!("Invalid command");
+                    false
                 }
             };
             if success {

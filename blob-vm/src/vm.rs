@@ -1,10 +1,14 @@
 use blob_bc::OpCode;
+use blob_executable::BlobExecutable;
 
 pub struct VM {
     registers: [i32; 32],
     program: Vec<u8>,
     heap: Vec<u8>,
+    stack: Vec<u8>,
+    stack_start: usize,
     pc: usize,
+    sp: usize,
     remainder: u32,
     cmp_flag: bool,
 }
@@ -15,7 +19,10 @@ impl VM {
             registers: [0; 32],
             program: vec![],
             heap: vec![],
+            stack: vec![],
+            stack_start: 0,
             pc: 0,
+            sp: 0,
             remainder: 0,
             cmp_flag: false,
         }
@@ -25,13 +32,12 @@ impl VM {
         while self.execute_instruction() {}
     }
 
-    pub fn set_program(&mut self, program: Vec<u8>) {
+    pub fn set_program(&mut self, executable: BlobExecutable) {
         self.pc = 0;
-        self.program = program;
-    }
-
-    pub fn set_pc(&mut self, start: usize) {
-        self.pc = start;
+        self.program = executable.get_program().clone();
+        self.stack = executable.get_global_data().clone();
+        self.stack_start = self.stack.len();
+        self.sp = self.stack.len();
     }
 
     pub fn execute_instruction(&mut self) -> bool {
@@ -246,6 +252,15 @@ impl VM {
                 true
             }
 
+            OpCode::PUSH => {
+                let _reg = self.registers[self.next_8_bits() as usize];
+                true
+            }
+            OpCode::POP => {
+                let _reg = self.registers[self.next_8_bits() as usize];
+                true
+            }
+
             OpCode::ALOC => {
                 let bytes = self.registers[self.next_8_bits() as usize];
                 let new_size = self.heap.len() as i32 + bytes;
@@ -282,10 +297,6 @@ impl VM {
             .iter()
             .enumerate()
             .for_each(|(i, reg)| println!("R{:0>2}: {reg}", i));
-    }
-
-    pub fn add_bytes(&mut self, bytes: &mut Vec<u8>) {
-        self.program.append(bytes);
     }
 }
 
