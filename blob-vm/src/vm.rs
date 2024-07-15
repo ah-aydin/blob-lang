@@ -1,8 +1,11 @@
-use blob_bc::{OpCode, LR_REG, PC_REG, REG_COUNT, SP_REG};
+use std::usize;
+
+use blob_bc::{OpCode, LR_REG, REG_COUNT, SP_REG};
 use blob_executable::BlobExecutable;
 
 pub struct VM {
     registers: [i64; REG_COUNT],
+    pc: usize,
     program: Vec<u8>,
     heap: Vec<u8>,
     stack: Vec<u8>,
@@ -15,6 +18,7 @@ impl VM {
     pub fn new() -> VM {
         VM {
             registers: [0; REG_COUNT],
+            pc: 0,
             program: vec![],
             heap: vec![],
             stack: vec![],
@@ -92,53 +96,53 @@ impl VM {
                 }
 
                 OpCode::JMP => {
-                    let target = self.registers[self.get_reg()];
-                    self.registers[PC_REG] = target;
+                    let target = self.registers[self.get_reg()] as usize;
+                    self.pc = target;
                 }
                 OpCode::JMPF => {
-                    self.registers[PC_REG] += self.registers[self.get_reg()];
+                    self.pc += self.registers[self.get_reg()] as usize;
                 }
                 OpCode::JMPFIMD => {
-                    let jmp = self.get_imd_val();
-                    self.registers[PC_REG] += jmp;
+                    let jmp = self.get_imd_val() as usize;
+                    self.pc += jmp;
                 }
                 OpCode::JMPB => {
-                    let jmp = self.registers[self.get_reg()];
-                    self.registers[PC_REG] = self.registers[PC_REG] - jmp;
+                    let jmp = self.registers[self.get_reg()] as usize;
+                    self.pc = self.pc - jmp;
                 }
                 OpCode::JMPBIMD => {
-                    let jmp = self.get_imd_val();
-                    self.registers[PC_REG] = self.registers[PC_REG] - jmp;
+                    let jmp = self.get_imd_val() as usize;
+                    self.pc = self.pc - jmp;
                 }
                 OpCode::JCMP => {
                     let register = self.get_reg();
                     if self.cmp_flag {
-                        self.registers[PC_REG] = self.registers[register];
+                        self.pc = self.registers[register] as usize;
                     }
                 }
                 OpCode::JCMPF => {
                     let register = self.get_reg();
                     if self.cmp_flag {
-                        self.registers[PC_REG] += self.registers[register];
+                        self.pc += self.registers[register] as usize;
                     }
                 }
                 OpCode::JCMPFIMD => {
-                    let jmp = self.get_imd_val();
+                    let jmp = self.get_imd_val() as usize;
                     if self.cmp_flag {
-                        self.registers[PC_REG] += jmp;
+                        self.pc += jmp;
                     }
                 }
                 OpCode::JCMPB => {
                     let register = self.get_reg();
                     if self.cmp_flag {
-                        let jmp = self.registers[register];
-                        self.registers[PC_REG] = self.registers[PC_REG] - jmp;
+                        let jmp = self.registers[register] as usize;
+                        self.pc = self.pc - jmp;
                     }
                 }
                 OpCode::JCMPBIMD => {
-                    let jmp = self.get_imd_val();
+                    let jmp = self.get_imd_val() as usize;
                     if self.cmp_flag {
-                        self.registers[PC_REG] = self.registers[PC_REG] - jmp;
+                        self.pc = self.pc - jmp;
                     }
                 }
 
@@ -225,7 +229,7 @@ impl VM {
                 }
 
                 OpCode::IGL => {
-                    unreachable!("Got IGL OpCode in pc={}", self.registers[PC_REG]);
+                    unreachable!("Got IGL OpCode in pc={}", self.pc);
                 }
             }
         }
@@ -239,7 +243,7 @@ impl VM {
 
         self.registers[SP_REG] = self.stack_start as i64;
         self.registers[LR_REG] = 0;
-        self.registers[PC_REG] = 0;
+        self.pc = 0;
     }
 
     pub fn set_and_run_program(&mut self, executable: BlobExecutable) {
@@ -248,21 +252,21 @@ impl VM {
     }
 
     fn decode_opcode(&mut self) -> OpCode {
-        let op_code = OpCode::from(self.program[self.registers[PC_REG] as usize]);
-        self.registers[PC_REG] += 1;
+        let op_code = OpCode::from(self.program[self.pc as usize]);
+        self.pc += 1;
         return op_code;
     }
 
     fn get_reg(&mut self) -> usize {
-        let reg = self.program[self.registers[PC_REG] as usize];
-        self.registers[PC_REG] += 1;
+        let reg = self.program[self.pc as usize];
+        self.pc += 1;
         reg as usize
     }
 
     fn get_imd_val(&mut self) -> i64 {
-        let pc = self.registers[PC_REG] as usize;
+        let pc = self.pc as usize;
         let imd = i16::from_be_bytes([self.program[pc], self.program[pc + 1]]);
-        self.registers[PC_REG] += 2;
+        self.pc += 2;
         imd as i64
     }
 
@@ -272,12 +276,11 @@ impl VM {
                 println!("LR : {reg}");
             } else if i == SP_REG {
                 println!("SP : {reg}");
-            } else if i == PC_REG {
-                println!("PC : {reg}");
             } else {
                 println!("R{:0>2}: {reg}", i);
             }
         });
+        println!("PC : {}", self.pc);
     }
 }
 
@@ -567,7 +570,7 @@ mod test {
     #[test]
     fn jmpb_op_code() {
         let mut vm = VM::new();
-        vm.registers[PC_REG] = 5;
+        vm.pc = 5;
         vm.registers[1] = 7;
         vm.program = vec![
             OpCode::LOADIMD as u8, // Should jump here
@@ -587,7 +590,7 @@ mod test {
     #[test]
     fn jmpbimd_op_code() {
         let mut vm = VM::new();
-        vm.registers[PC_REG] = 5;
+        vm.pc = 5;
         vm.program = vec![
             OpCode::LOADIMD as u8, // Should jump here
             0,
@@ -626,7 +629,7 @@ mod test {
         assert_eq!(vm.registers[0], 10);
 
         vm.registers[0] = 0;
-        vm.registers[PC_REG] = 0;
+        vm.pc = 0;
         vm.cmp_flag = false;
         vm.run();
         assert_eq!(vm.registers[0], 0);
@@ -654,7 +657,7 @@ mod test {
         assert_eq!(vm.registers[0], 10);
 
         vm.registers[0] = 0;
-        vm.registers[PC_REG] = 0;
+        vm.pc = 0;
         vm.cmp_flag = false;
         vm.run();
         assert_eq!(vm.registers[0], 0);
@@ -682,7 +685,7 @@ mod test {
         assert_eq!(vm.registers[0], 10);
 
         vm.registers[0] = 0;
-        vm.registers[PC_REG] = 0;
+        vm.pc = 0;
         vm.cmp_flag = false;
         vm.run();
         assert_eq!(vm.registers[0], 0);
@@ -703,13 +706,13 @@ mod test {
         ];
 
         vm.registers[1] = 7;
-        vm.registers[PC_REG] = 5;
+        vm.pc = 5;
         vm.cmp_flag = true;
         vm.run();
         assert_eq!(vm.registers[0], 10);
 
         vm.registers[0] = 0;
-        vm.registers[PC_REG] = 5;
+        vm.pc = 5;
         vm.cmp_flag = false;
         vm.run();
         assert_eq!(vm.registers[0], 0);
@@ -730,13 +733,13 @@ mod test {
             OpCode::HLT as u8,
         ];
 
-        vm.registers[PC_REG] = 5;
+        vm.pc = 5;
         vm.cmp_flag = true;
         vm.run();
         assert_eq!(vm.registers[0], 10);
 
         vm.registers[0] = 0;
-        vm.registers[PC_REG] = 5;
+        vm.pc = 5;
         vm.cmp_flag = false;
         vm.run();
         assert_eq!(vm.registers[0], 0);
@@ -754,7 +757,7 @@ mod test {
 
         vm.registers[0] = 3;
         vm.registers[1] = 2;
-        vm.registers[PC_REG] = 0;
+        vm.pc = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
     }
@@ -769,7 +772,7 @@ mod test {
         assert_eq!(vm.cmp_flag, true);
 
         vm.registers[0] = 3;
-        vm.registers[PC_REG] = 0;
+        vm.pc = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
     }
@@ -786,7 +789,7 @@ mod test {
 
         vm.registers[0] = 2;
         vm.registers[1] = 2;
-        vm.registers[PC_REG] = 0;
+        vm.pc = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
     }
@@ -801,7 +804,7 @@ mod test {
         assert_eq!(vm.cmp_flag, true);
 
         vm.registers[0] = 3;
-        vm.registers[PC_REG] = 0;
+        vm.pc = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
     }
@@ -818,7 +821,7 @@ mod test {
 
         vm.registers[0] = 2;
         vm.registers[1] = 3;
-        vm.registers[PC_REG] = 0;
+        vm.pc = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
     }
@@ -833,7 +836,7 @@ mod test {
         assert_eq!(vm.cmp_flag, true);
 
         vm.registers[0] = 1;
-        vm.registers[PC_REG] = 0;
+        vm.pc = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
     }
@@ -850,7 +853,7 @@ mod test {
 
         vm.registers[0] = 3;
         vm.registers[1] = 2;
-        vm.registers[PC_REG] = 0;
+        vm.pc = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
     }
@@ -865,7 +868,7 @@ mod test {
         assert_eq!(vm.cmp_flag, true);
 
         vm.registers[0] = 4;
-        vm.registers[PC_REG] = 0;
+        vm.pc = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
     }
@@ -882,13 +885,13 @@ mod test {
 
         vm.registers[0] = 3;
         vm.registers[1] = 2;
-        vm.registers[PC_REG] = 0;
+        vm.pc = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, true);
 
         vm.registers[0] = 3;
         vm.registers[1] = 4;
-        vm.registers[PC_REG] = 0;
+        vm.pc = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
     }
@@ -903,12 +906,12 @@ mod test {
         assert_eq!(vm.cmp_flag, true);
 
         vm.registers[0] = 4;
-        vm.registers[PC_REG] = 0;
+        vm.pc = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, true);
 
         vm.registers[0] = 2;
-        vm.registers[PC_REG] = 0;
+        vm.pc = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
     }
@@ -925,13 +928,13 @@ mod test {
 
         vm.registers[0] = 2;
         vm.registers[1] = 3;
-        vm.registers[PC_REG] = 0;
+        vm.pc = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, true);
 
         vm.registers[0] = 3;
         vm.registers[1] = 2;
-        vm.registers[PC_REG] = 0;
+        vm.pc = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
     }
@@ -946,12 +949,12 @@ mod test {
         assert_eq!(vm.cmp_flag, true);
 
         vm.registers[0] = 2;
-        vm.registers[PC_REG] = 0;
+        vm.pc = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, true);
 
         vm.registers[0] = 4;
-        vm.registers[PC_REG] = 0;
+        vm.pc = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
     }

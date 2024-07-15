@@ -7,5 +7,5 @@ SUB r4 r0 r1
 MUL r5 r0 r1 
 my_label:
 DIV r6 R0 r2
-LOAD r7 PC
+LOAD r7 SP
 HLT
