@@ -3,7 +3,7 @@ use std::{
     io::{Read, Write},
 };
 
-use blob_common::{error, info, BUILD_FILE_PATH, VERSION_MAJOR, VERSION_MINOR};
+use blob_common::{error, info, warn, BUILD_FILE_PATH, VERSION_MAJOR, VERSION_MINOR};
 
 pub const BLOB_EXECUTABLE_FILE_EXTENTION: &'static str = "blobexec";
 pub const BLOB_EXECUTABLE_HEADER_SIZE: usize = 64;
@@ -75,6 +75,7 @@ impl BlobExecutable {
         if let Ok(metadata) = file.metadata() {
             program_size = metadata.len() - program_offset;
         } else {
+            warn!("Failed to read file '{file_name}' metadata");
             program_size = 16384;
         }
         let mut program = Vec::with_capacity(program_size as usize);

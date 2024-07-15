@@ -1,5 +1,5 @@
 use blob_common::{error, info};
-use blob_executable::BlobExecutable;
+use blob_executable::{BlobExecutable, BLOB_EXECUTABLE_FILE_EXTENTION};
 
 use crate::vm::VM;
 use std::io::{self, Write};
@@ -56,12 +56,17 @@ impl REPL {
                         false
                     } else {
                         let file = split.get(1).unwrap();
+                        if !file.ends_with(BLOB_EXECUTABLE_FILE_EXTENTION) {
+                            error!(
+                                "Given file is not a '.{}' file",
+                                BLOB_EXECUTABLE_FILE_EXTENTION
+                            );
+                        }
                         let executable = BlobExecutable::load_from_file(&file);
                         match executable {
                             Ok(executable) => {
-                                info!("Runnin executable file '{file}'");
-                                self.vm.set_program(executable);
-                                self.vm.run();
+                                info!("Running executable file '{file}'");
+                                self.vm.set_and_run_program(executable);
                                 info!("Run complete!");
                                 true
                             }
@@ -80,12 +85,11 @@ impl REPL {
                         false
                     } else {
                         let file = split.get(1).unwrap();
-                        info!("Assembling file '{file}'...");
                         match blob_asmlib::assemble_file(file) {
                             Ok(program) => {
                                 info!("Running file '{file}'...");
-                                self.vm.set_program(BlobExecutable::new(vec![], program));
-                                self.vm.run();
+                                self.vm
+                                    .set_and_run_program(BlobExecutable::new(vec![], program));
                                 info!("Run complete!");
                             }
                             Err(()) => {

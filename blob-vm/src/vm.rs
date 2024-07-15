@@ -40,6 +40,11 @@ impl VM {
         self.sp = self.stack.len();
     }
 
+    pub fn set_and_run_program(&mut self, executable: BlobExecutable) {
+        self.set_program(executable);
+        self.run();
+    }
+
     pub fn execute_instruction(&mut self) -> bool {
         if self.pc >= self.program.len() {
             return false;

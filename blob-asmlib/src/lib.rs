@@ -28,7 +28,7 @@ pub fn assemble_file(file_name: &str) -> Result<Vec<u8>, ()> {
         }
     }?;
 
-    info!("Assembling {}...\n", file_name);
+    info!("Assembling {}...", file_name);
 
     let tokens = scanner::scan(&src)?;
     Ok(linker::link(tokens)?)
