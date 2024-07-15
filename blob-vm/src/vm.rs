@@ -8,7 +8,6 @@ pub struct VM {
     stack: Vec<u8>,
     stack_start: usize,
     pc: usize,
-    sp: usize,
     remainder: u32,
     cmp_flag: bool,
 }
@@ -22,7 +21,6 @@ impl VM {
             stack: vec![],
             stack_start: 0,
             pc: 0,
-            sp: 0,
             remainder: 0,
             cmp_flag: false,
         }
@@ -37,7 +35,6 @@ impl VM {
         self.program = executable.get_program().clone();
         self.stack = executable.get_global_data().clone();
         self.stack_start = self.stack.len();
-        self.sp = self.stack.len();
     }
 
     pub fn set_and_run_program(&mut self, executable: BlobExecutable) {
@@ -258,11 +255,17 @@ impl VM {
             }
 
             OpCode::PUSH => {
-                let _reg = self.registers[self.next_8_bits() as usize];
+                let data = self.registers[self.next_8_bits() as usize];
+                self.stack.extend_from_slice(&data.to_le_bytes());
                 true
             }
             OpCode::POP => {
-                let _reg = self.registers[self.next_8_bits() as usize];
+                let bytes: [u8; 4] = self.stack[self.stack.len() - 4..self.stack.len()]
+                    .try_into()
+                    .unwrap();
+                self.stack.resize(self.stack.len() - 4, 0);
+
+                self.registers[self.next_8_bits() as usize] = i32::from_le_bytes(bytes);
                 true
             }
 
@@ -978,6 +981,47 @@ mod test {
         vm.pc = 0;
         vm.run();
         assert_eq!(vm.cmp_flag, false);
+    }
+
+    #[test]
+    fn push_op_code() {
+        let mut vm = VM::new();
+        vm.registers[0] = 257;
+        vm.registers[1] = 255;
+        vm.program = vec![
+            OpCode::PUSH as u8,
+            0,
+            OpCode::PUSH as u8,
+            1,
+            OpCode::HLT as u8,
+        ];
+        vm.run();
+
+        assert_eq!(vm.stack[0..4], [1, 1, 0, 0]);
+        assert_eq!(vm.stack[4..8], [255, 0, 0, 0]);
+    }
+
+    #[test]
+    fn pop_op_code() {
+        let mut vm = VM::new();
+        vm.registers[0] = 1078;
+        vm.registers[1] = 255;
+        vm.program = vec![
+            OpCode::PUSH as u8,
+            0,
+            OpCode::PUSH as u8,
+            1,
+            OpCode::POP as u8,
+            2,
+            OpCode::POP as u8,
+            3,
+            OpCode::HLT as u8,
+        ];
+        vm.run();
+
+        assert_eq!(vm.stack.len(), 0);
+        assert_eq!(vm.registers[2], 255);
+        assert_eq!(vm.registers[3], 1078);
     }
 
     #[test]
