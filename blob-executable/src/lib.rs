@@ -54,7 +54,7 @@ impl BlobExecutable {
             error!("Failed to read program offset");
             return Err(());
         }
-        let program_offset = u64::from_le_bytes(program_offset_bytes);
+        let program_offset = u64::from_be_bytes(program_offset_bytes);
 
         // Deserialize data section
         let data_section_size = program_offset as usize
@@ -107,7 +107,7 @@ impl BlobExecutable {
 
         // Populate program offset
         let program_offset = bytes.len();
-        let program_offset_bytes = (program_offset as u64).to_le_bytes();
+        let program_offset_bytes = (program_offset as u64).to_be_bytes();
         bytes[program_offset_pos..program_offset_pos + BLOB_EXECUTABLE_PROGRAM_OFFSET_N_BYTES]
             .copy_from_slice(&program_offset_bytes);
 

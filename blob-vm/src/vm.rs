@@ -256,7 +256,7 @@ impl VM {
 
             OpCode::PUSH => {
                 let data = self.registers[self.next_8_bits() as usize];
-                self.stack.extend_from_slice(&data.to_le_bytes());
+                self.stack.extend_from_slice(&data.to_be_bytes());
                 true
             }
             OpCode::POP => {
@@ -265,7 +265,7 @@ impl VM {
                     .unwrap();
                 self.stack.resize(self.stack.len() - 4, 0);
 
-                self.registers[self.next_8_bits() as usize] = i32::from_le_bytes(bytes);
+                self.registers[self.next_8_bits() as usize] = i32::from_be_bytes(bytes);
                 true
             }
 
@@ -997,8 +997,8 @@ mod test {
         ];
         vm.run();
 
-        assert_eq!(vm.stack[0..4], [1, 1, 0, 0]);
-        assert_eq!(vm.stack[4..8], [255, 0, 0, 0]);
+        assert_eq!(vm.stack[0..4], [0, 0, 1, 1]);
+        assert_eq!(vm.stack[4..8], [0, 0, 0, 255]);
     }
 
     #[test]
