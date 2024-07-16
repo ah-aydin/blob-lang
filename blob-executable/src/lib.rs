@@ -93,7 +93,11 @@ impl BlobExecutable {
             return Err(());
         }
 
-        let mut bytes: Vec<u8> = Vec::new();
+        let mut bytes: Vec<u8> = Vec::with_capacity(
+            BLOB_EXECUTABLE_HEADER_SIZE
+                + BLOB_EXECUTABLE_PROGRAM_OFFSET_N_BYTES
+                + self.program.len() * 2,
+        );
 
         // Serialize header
         bytes.extend_from_slice(&self.header.to_bytes());

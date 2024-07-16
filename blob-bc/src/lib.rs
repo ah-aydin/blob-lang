@@ -1,8 +1,3 @@
-pub const GENERAL_REG_COUNT: usize = 29;
-pub const SP_REG: usize = GENERAL_REG_COUNT;
-pub const LR_REG: usize = GENERAL_REG_COUNT + 1;
-pub const REG_COUNT: usize = LR_REG + 1;
-
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(u8)]
 pub enum OpCode {
@@ -94,6 +89,7 @@ impl OpCode {
             | OpCode::MULIMD
             | OpCode::DIV
             | OpCode::DIVIMD => vec![arg_types!(reg), arg_types!(reg), arg_types!(reg, imd)],
+
             OpCode::JMP | OpCode::JCMP => vec![arg_types!(reg)],
             OpCode::JMPF
             | OpCode::JMPFIMD

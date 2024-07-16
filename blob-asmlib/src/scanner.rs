@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
-use crate::token::{Token, TokenType};
-use blob_bc::{OpCode, LR_REG, SP_REG};
+use crate::{
+    token::{Token, TokenType},
+    LR_REG, SP_REG,
+};
+use blob_bc::OpCode;
 use blob_common::{error, file_coords::FileCoords, info};
 use lazy_static::lazy_static;
 
@@ -13,23 +16,31 @@ lazy_static! {
         map.insert("lr", TokenType::Reg(LR_REG as u8));
 
         map.insert("hlt", TokenType::Op(OpCode::HLT));
+
         map.insert("load", TokenType::Op(OpCode::LOAD));
+
         map.insert("add", TokenType::Op(OpCode::ADD));
         map.insert("sub", TokenType::Op(OpCode::SUB));
         map.insert("mul", TokenType::Op(OpCode::MUL));
         map.insert("div", TokenType::Op(OpCode::DIV));
+
         map.insert("jmp", TokenType::Op(OpCode::JMP));
         map.insert("jmpf", TokenType::Op(OpCode::JMPF));
         map.insert("jmpb", TokenType::Op(OpCode::JMPB));
         map.insert("jcmp", TokenType::Op(OpCode::JCMP));
         map.insert("jcmpf", TokenType::Op(OpCode::JCMPF));
         map.insert("jcmpb", TokenType::Op(OpCode::JCMPB));
+
         map.insert("eq", TokenType::Op(OpCode::EQ));
         map.insert("neq", TokenType::Op(OpCode::NEQ));
         map.insert("gt", TokenType::Op(OpCode::GT));
         map.insert("lt", TokenType::Op(OpCode::LT));
         map.insert("ge", TokenType::Op(OpCode::GE));
         map.insert("le", TokenType::Op(OpCode::LE));
+
+        map.insert("push", TokenType::Op(OpCode::PUSH));
+        map.insert("pop", TokenType::Op(OpCode::POP));
+
         map.insert("aloc", TokenType::Op(OpCode::ALOC));
         map.insert("igl", TokenType::Op(OpCode::IGL));
 

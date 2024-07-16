@@ -5,6 +5,11 @@ mod token;
 use blob_common::{error, info};
 use std::{fs::File, io::Read};
 
+pub const GENERAL_REG_COUNT: usize = 29;
+pub const SP_REG: usize = GENERAL_REG_COUNT;
+pub const LR_REG: usize = GENERAL_REG_COUNT + 1;
+pub const REG_COUNT: usize = LR_REG + 1;
+
 pub fn compile_instruction(ins: &str) -> Result<Vec<u8>, ()> {
     let tokens = scanner::scan(&ins)?;
     Ok(linker::link(tokens)?)

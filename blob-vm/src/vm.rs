@@ -1,14 +1,17 @@
 use std::usize;
 
-use blob_bc::{OpCode, LR_REG, REG_COUNT, SP_REG};
+use blob_asmlib::{LR_REG, REG_COUNT, SP_REG};
+use blob_bc::OpCode;
 use blob_executable::BlobExecutable;
+
+const INITIAL_MEMORY_SIZE_IN_BYTES: usize = 4096;
 
 pub struct VM {
     registers: [i64; REG_COUNT],
     pc: usize,
     program: Vec<u8>,
     heap: Vec<u8>,
-    stack: Vec<u8>,
+    memory: Vec<u8>,
     stack_start: usize,
     remainder: u32,
     cmp_flag: bool,
@@ -21,7 +24,7 @@ impl VM {
             pc: 0,
             program: vec![],
             heap: vec![],
-            stack: vec![],
+            memory: vec![0; INITIAL_MEMORY_SIZE_IN_BYTES],
             stack_start: 0,
             remainder: 0,
             cmp_flag: false,
@@ -209,20 +212,24 @@ impl VM {
 
                 OpCode::PUSH => {
                     let data = self.registers[self.get_reg()];
-                    self.stack.extend_from_slice(&data.to_be_bytes());
-                    self.registers[SP_REG] = self.stack.len() as i64;
+                    let sp = self.registers[SP_REG] as usize;
+
+                    // TODO check if there is enough memory
+                    // TODO add check when adding heap logic
+
+                    self.memory[sp..sp + 8].copy_from_slice(&data.to_be_bytes());
+                    self.registers[SP_REG] += 8;
                 }
                 OpCode::POP => {
-                    let bytes: [u8; 8] = self.stack[(self.stack.len() - 8)..self.stack.len()]
-                        .try_into()
-                        .unwrap();
-                    self.stack.resize(self.stack.len() - 8, 0);
+                    let sp = self.registers[SP_REG] as usize;
+                    let bytes: [u8; 8] = self.memory[sp - 8..sp].try_into().unwrap();
 
                     self.registers[self.get_reg() as usize] = i64::from_be_bytes(bytes);
-                    self.registers[SP_REG] = self.stack.len() as i64;
+                    self.registers[SP_REG] -= 8;
                 }
 
                 OpCode::ALOC => {
+                    // TODO move the heap to `self.memory` instead of it's own struct member
                     let bytes = self.registers[self.get_reg()];
                     let new_size = self.heap.len() as i64 + bytes;
                     self.heap.resize(new_size as usize, 0);
@@ -238,11 +245,13 @@ impl VM {
     pub fn set_program(&mut self, executable: BlobExecutable) {
         self.program = executable.get_program().clone();
 
-        self.stack = executable.get_global_data().clone();
-        self.stack_start = self.stack.len();
+        self.memory.fill(0);
+        self.memory[0..executable.get_global_data().len()]
+            .copy_from_slice(&executable.get_global_data());
+        self.stack_start = executable.get_global_data().len();
 
         self.registers[SP_REG] = self.stack_start as i64;
-        self.registers[LR_REG] = 0;
+        self.registers[LR_REG] = self.stack_start as i64;
         self.pc = 0;
     }
 
@@ -973,8 +982,9 @@ mod test {
         ];
         vm.run();
 
-        assert_eq!(vm.stack[0..8], [0, 0, 0, 0, 0, 0, 1, 1]);
-        assert_eq!(vm.stack[8..16], [0, 0, 0, 0, 0, 0, 0, 255]);
+        assert_eq!(vm.memory[0..8], [0, 0, 0, 0, 0, 0, 1, 1]);
+        assert_eq!(vm.memory[8..16], [0, 0, 0, 0, 0, 0, 0, 255]);
+        assert_eq!(vm.registers[SP_REG], 16);
     }
 
     #[test]
@@ -995,9 +1005,9 @@ mod test {
         ];
         vm.run();
 
-        assert_eq!(vm.stack.len(), 0);
         assert_eq!(vm.registers[2], 255);
         assert_eq!(vm.registers[3], 1078);
+        assert_eq!(vm.registers[SP_REG], 0);
     }
 
     #[test]
