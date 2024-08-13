@@ -754,32 +754,6 @@ impl<'a> Analyzer<'a> {
             format!("'{:?}' is undefined", ident),
             expr_get.file_coords,
         ))
-
-        //let ident = &expr_get_property.ident;
-        //for env in self.envs.iter().rev() {
-        //    let var = env.vars.iter().filter(|var| var.ident == *ident).last();
-        //    if var.is_none() {
-        //        continue;
-        //    }
-        //    let var = var.unwrap();
-        //
-        //    if let BType::Struct(struct_name) = &var.btype {
-        //        let property_info = self
-        //            .get_struct_info(&struct_name)
-        //            .fields
-        //            .iter()
-        //            .filter(|var_type_info| var_type_info.ident == expr_get_property.property)
-        //            .next();
-        //        if let Some(property_info) = property_info {
-        //            return Ok(property_info.btype.clone());
-        //        }
-        //    }
-        //}
-        //
-        //Err(AnalyzerError::ErrorFC(
-        //    format!("'{:?}' is undefined", ident),
-        //    expr_get_property.file_coords,
-        //))
     }
 
     //////////////////////////////////////////////////////////
