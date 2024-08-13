@@ -373,52 +373,19 @@ impl<'a> Analyzer<'a> {
     }
 
     fn stmt_assign(&mut self, stmt_assign: &StmtAssign) -> AnalyzerRetType {
-        let idents = self.get_idents(&stmt_assign.ident_expr);
-        let mut found = false;
-        let mut var_btype = BType::None;
+        let var_btype = self.expr(&stmt_assign.ident_expr)?;
+        let expr_btype = self.expr(&stmt_assign.assign_to_expr)?;
 
-        if idents.len() == 1 {
-            let ident = idents.get(0).unwrap();
-            for env in self.envs.iter().rev() {
-                let var_maybe = env.vars.iter().filter(|var| var.ident == *ident).last();
-                if let Some(var) = var_maybe {
-                    found = true;
-                    var_btype = var.btype.clone();
-                    break;
-                }
-            }
-
-            if !found {
-                return Err(AnalyzerError::ErrorFC(
-                    format!("{:?} is undefined", idents),
-                    stmt_assign.assign_to_expr.get_file_coords(),
-                ));
-            }
-
-            let expr_btype = self.expr(&stmt_assign.assign_to_expr)?;
-            if var_btype != expr_btype {
-                return Err(AnalyzerError::ErrorFC(
-                    format!(
-                        "Variable '{}' has type '{:?}' but '{:?}' was given",
-                        ident, var_btype, expr_btype
-                    ),
-                    stmt_assign.assign_to_expr.get_file_coords(),
-                ));
-            }
-        } else {
-            let var_btype = self.expr(&stmt_assign.ident_expr)?;
-            let expr_btype = self.expr(&stmt_assign.assign_to_expr)?;
-            if var_btype != expr_btype {
-                return Err(AnalyzerError::ErrorFC(
-                    format!(
-                        "Variable '{}' has type '{:?}' but '{:?}' was given",
-                        stmt_assign.ident_expr.get_file_coords(),
-                        var_btype,
-                        expr_btype
-                    ),
-                    stmt_assign.assign_to_expr.get_file_coords(),
-                ));
-            }
+        if var_btype != expr_btype {
+            return Err(AnalyzerError::ErrorFC(
+                format!(
+                    "Variable '{}' has type '{:?}' but '{:?}' was given",
+                    stmt_assign.ident_expr.get_file_coords(),
+                    var_btype,
+                    expr_btype
+                ),
+                stmt_assign.assign_to_expr.get_file_coords(),
+            ));
         }
 
         Ok(BType::None)
@@ -651,7 +618,22 @@ impl<'a> Analyzer<'a> {
     }
 
     fn expr_get(&mut self, expr_get: &ExprGet) -> AnalyzerRetType {
-        let mut idents = self.get_idents(&Expr::Get(expr_get.clone()));
+        fn get_idents(expr: &Expr) -> Vec<String> {
+            match expr {
+                Expr::Identifier(expr_identifier) => vec![expr_identifier.ident.clone()],
+                Expr::Get(expr_get) => {
+                    let mut v: Vec<String> = vec![expr_get.property.clone()];
+                    v.append(&mut get_idents(&expr_get.ident));
+                    v
+                }
+                _ => unreachable!(
+                    "Got unexpected Expr type while getting assign to identifier: '{:?}'",
+                    expr
+                ),
+            }
+        }
+
+        let mut idents = get_idents(&Expr::Get(expr_get.clone()));
         let ident = idents.pop().unwrap();
 
         for env in self.envs.iter().rev() {
@@ -721,21 +703,6 @@ impl<'a> Analyzer<'a> {
                 "How did a variable with a non existing struct type {} got created?",
                 ident
             ))
-    }
-
-    fn get_idents(&self, expr: &Expr) -> Vec<String> {
-        match expr {
-            Expr::Identifier(expr_identifier) => vec![expr_identifier.ident.clone()],
-            Expr::Get(expr_get) => {
-                let mut v: Vec<String> = vec![expr_get.property.clone()];
-                v.append(&mut self.get_idents(&expr_get.ident));
-                v
-            }
-            _ => unreachable!(
-                "Got unexpected Expr type while getting assign to identifier: '{:?}'",
-                expr
-            ),
-        }
     }
 }
 

@@ -37,19 +37,12 @@ func meh() : Date {
 func main(): i32 {
   var date: Date = Date { year: 2024, month: gib2(5, 2, false), day: 15 };
   var datetime: DateTime = DateTime { date: date, time: Time { hour: 2, second: 23 } };
-  #var year: i32 = date.year + date.month * 43 + date.day - (date.month + 45 / 4);
-  #year = 10;
-  #date.year = year;
-  #date = Date { year: 2023, month: gib2(5, 2, false), day: 15 };
-  #date.year = 2026;
-  #date.day + 10;
-  #date.month = gib() + 10;
-  #return gib2(date.year * date.month, date.day - 32, false); 
   var a = 123;
   var b = 1234;
   a = a + b / 2;
   a = gib() + gib2(123, 32, false);
   var date2 = meh();
+  date = date2;
   a = datetime.date.year + 10 - datetime.time.second + date.month;
 
   var person = Person { name: "gigel", age: 23 };
