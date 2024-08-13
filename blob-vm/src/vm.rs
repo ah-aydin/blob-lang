@@ -8,9 +8,9 @@ const INITIAL_MEMORY_SIZE_IN_BYTES: usize = 4096;
 
 pub struct VM {
     registers: [i64; REG_COUNT],
+    hp: usize,
     pc: usize,
     program: Vec<u8>,
-    heap: Vec<u8>,
     memory: Vec<u8>,
     stack_start: usize,
     remainder: u32,
@@ -21,9 +21,9 @@ impl VM {
     pub fn new() -> VM {
         VM {
             registers: [0; REG_COUNT],
+            hp: INITIAL_MEMORY_SIZE_IN_BYTES - 1,
             pc: 0,
             program: vec![],
-            heap: vec![],
             memory: vec![0; INITIAL_MEMORY_SIZE_IN_BYTES],
             stack_start: 0,
             remainder: 0,
@@ -214,8 +214,9 @@ impl VM {
                     let data = self.registers[self.get_reg()];
                     let sp = self.registers[SP_REG] as usize;
 
-                    // TODO check if there is enough memory
-                    // TODO add check when adding heap logic
+                    if sp + 8 > self.hp || sp + 8 > self.memory.len() {
+                        todo!("Expanding stack. Don't have enough memory. Implement memeory expansion");
+                    }
 
                     self.memory[sp..sp + 8].copy_from_slice(&data.to_be_bytes());
                     self.registers[SP_REG] += 8;
@@ -229,10 +230,14 @@ impl VM {
                 }
 
                 OpCode::ALOC => {
-                    // TODO move the heap to `self.memory` instead of it's own struct member
                     let bytes = self.registers[self.get_reg()];
-                    let new_size = self.heap.len() as i64 + bytes;
-                    self.heap.resize(new_size as usize, 0);
+                    let new_hp = self.hp - bytes as usize;
+                    if new_hp < self.registers[SP_REG] as usize {
+                        todo!(
+                            "Expanding heap. Don't have enough memory. Implement memory expansion"
+                        );
+                    }
+                    self.hp = new_hp;
                 }
 
                 OpCode::IGL => {
@@ -1015,8 +1020,8 @@ mod test {
         let mut vm = VM::new();
         vm.program = vec![OpCode::ALOC as u8, 0, OpCode::HLT as u8];
 
-        vm.registers[0] = 4096;
+        vm.registers[0] = 128;
         vm.run();
-        assert_eq!(vm.heap.len(), 4096);
+        assert_eq!(vm.memory.len() - 128 - 1, vm.hp);
     }
 }
