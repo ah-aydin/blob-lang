@@ -6,7 +6,7 @@ use crate::{
     ast::{
         btype::BType,
         expr::{
-            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprI32, ExprIdenifier, ExprString,
+            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprGet, ExprI32, ExprIdenifier, ExprString,
             ExprStructInstance, ExprUnaryOp,
         },
         op::BinaryOp,
@@ -72,12 +72,12 @@ enum Scope {
 /// expr_term -> factor (("+" | "-") expr_factor)*
 /// expr_factor -> unary (("*" | "/") expr_unary)*
 /// expr_unary -> ("!" | "-") expr_unary | expr_call
-/// expr_call -> expr_primary | IDENTIFIER ("(" expr_arguments? ")")?
+/// expr_call -> IDENTIFIER (("(" expr_arguments? ")")? | expr_get) | expr_primary
+/// expr_get -> ("." IDENTIFIER)*
 /// expr_arguments -> expr ("," expr )*
 /// expr_primary -> expr_struct_instance | I32 |  STRING | TRUE | FALSE | "(" expr ")" | expr_struct
-/// expr_struct -> IDENTIFIER (expr_struct_instance | expr_get_property)?
+/// expr_struct -> IDENTIFIER expr_struct_instance?
 /// expr_sturct_instance -> "{" (IDENTIFIER: expr ("," IDENTIFIER: expr)*)? "}"
-/// expr_get_property -> "." IDENTIFIER
 /// expr_type -> ":" IDENTIFIER | "i32" | "str" | "bool"
 /// ```
 struct Parser {
@@ -485,9 +485,8 @@ impl Parser {
 
     fn expr_call(&mut self) -> ExprResult {
         let term = self.expr_primary()?;
-        if self.peek_token()?.token_type == TokenType::LeftParen {
+        if self.match_exact(TokenType::LeftParen)? {
             if let Expr::Identifier(ExprIdenifier { ident, file_coords }) = term {
-                self.consume(TokenType::LeftParen)?;
                 let args = self.expr_arguments()?;
                 return Ok(Expr::Call(ExprCall {
                     name: ident,
@@ -499,6 +498,27 @@ impl Parser {
                 "Expected identifier after '('".to_string(),
                 self.get_prev_file_coords(),
             ));
+        } else if self.match_exact(TokenType::Dot)? {
+            let mut get_expr = term;
+
+            let token = self.consume(TokenType::Identifier)?;
+            let property = token.lexeme.as_ref().unwrap().clone();
+            get_expr = Expr::Get(ExprGet {
+                ident: Box::new(get_expr.clone()),
+                property,
+                file_coords: token.file_coords,
+            });
+
+            while self.match_exact(TokenType::Dot)? {
+                let token = self.consume(TokenType::Identifier)?;
+                let property = token.lexeme.as_ref().unwrap().clone();
+                get_expr = Expr::Get(ExprGet {
+                    ident: Box::new(get_expr.clone()),
+                    property,
+                    file_coords: token.file_coords,
+                });
+            }
+            return Ok(get_expr);
         }
         Ok(term)
     }

@@ -14,6 +14,11 @@ struct DateTime {
   time: Time 
 }
 
+struct Person {
+  name: str,
+  age: i32
+}
+
 func gib(): i32 {
   return 123;
 }
@@ -25,8 +30,13 @@ func gib2(a: i32, b: i32, c: bool): i32 {
   return a + b;
 }
 
+func meh() : Date {
+  return Date { year: 2024, month: gib2(5, 2, false), day: 15 };
+}
+
 func main(): i32 {
   var date: Date = Date { year: 2024, month: gib2(5, 2, false), day: 15 };
+  var datetime: DateTime = DateTime { date: date, time: Time { hour: 2, second: 23 } };
   #var year: i32 = date.year + date.month * 43 + date.day - (date.month + 45 / 4);
   #year = 10;
   #date.year = year;
@@ -38,6 +48,12 @@ func main(): i32 {
   var a = 123;
   var b = 1234;
   a = a + b / 2;
+  a = gib() + gib2(123, 32, false);
+  var date2 = meh();
+  a = datetime.date.year + 10 - datetime.time.second + date.month;
+
+  var person = Person { name: "gigel", age: 23 };
+  a = datetime.date.year + person.age;
 
   return 0;
 }

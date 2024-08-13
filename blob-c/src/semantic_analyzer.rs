@@ -3,7 +3,7 @@ use std::{collections::HashMap, fmt::Display};
 use blob_common::{error, file_coords::FileCoords, info};
 
 use crate::ast::{
-    btype::BType,
+    btype::{self, BType},
     expr::{
         Expr, ExprBinaryOp, ExprBool, ExprCall, ExprGet, ExprI32, ExprIdenifier, ExprString,
         ExprStructInstance, ExprUnaryOp,
@@ -373,22 +373,7 @@ impl<'a> Analyzer<'a> {
     }
 
     fn stmt_assign(&mut self, stmt_assign: &StmtAssign) -> AnalyzerRetType {
-        fn get_ident(expr: &Expr) -> Vec<String> {
-            match expr {
-                Expr::Identifier(expr_identifier) => vec![expr_identifier.ident.clone()],
-                Expr::Get(expr_get) => {
-                    let mut v: Vec<String> = vec![expr_get.property.clone()];
-                    v.append(&mut get_ident(&expr_get.ident));
-                    v
-                }
-                _ => unreachable!(
-                    "Got unexpected Expr type while getting assign to identifier: '{:?}'",
-                    expr
-                ),
-            }
-        }
-
-        let idents = get_ident(&stmt_assign.ident_expr);
+        let idents = self.get_idents(&stmt_assign.ident_expr);
         let mut found = false;
         let mut var_btype = BType::None;
 
@@ -717,7 +702,59 @@ impl<'a> Analyzer<'a> {
     }
 
     fn expr_get(&mut self, expr_get: &ExprGet) -> AnalyzerRetType {
-        todo!()
+        let mut idents = self.get_idents(&Expr::Get(expr_get.clone()));
+        let ident = idents.pop().unwrap();
+
+        for env in self.envs.iter().rev() {
+            let var = env.vars.iter().filter(|var| var.ident == *ident).last();
+            if var.is_none() {
+                continue;
+            }
+            let var = var.unwrap();
+
+            if let BType::Struct(struct_name) = &var.btype {
+                let mut struct_info = self.get_struct_info(&struct_name);
+                let mut btype = BType::None;
+                while let Some(ident) = idents.pop() {
+                    let field_maybe = struct_info
+                        .fields
+                        .iter()
+                        .filter(|field| field.ident == *ident)
+                        .last();
+                    if field_maybe.is_none() {
+                        return Err(AnalyzerError::ErrorFC(
+                            format!(
+                                "'{:?}' does not have a field named '{ident}'",
+                                struct_info.ident
+                            ),
+                            expr_get.file_coords,
+                        ));
+                    }
+                    let field = field_maybe.unwrap();
+                    if let BType::Struct(struct_name) = &field.btype {
+                        struct_info = self.get_struct_info(&struct_name);
+                    } else {
+                        btype = field.btype.clone();
+                        break;
+                    }
+                }
+                if !idents.is_empty() {
+                    return Err(AnalyzerError::ErrorFC(format!("Cannot get properties from basic data types. Trying to get a property from '{:?}'", btype), expr_get.file_coords));
+                }
+                return Ok(btype);
+            } else {
+                return Err(AnalyzerError::ErrorFC(
+                    format!("'{:?}' is not a struct", ident),
+                    expr_get.file_coords,
+                ));
+            }
+        }
+
+        Err(AnalyzerError::ErrorFC(
+            format!("'{:?}' is undefined", ident),
+            expr_get.file_coords,
+        ))
+
         //let ident = &expr_get_property.ident;
         //for env in self.envs.iter().rev() {
         //    let var = env.vars.iter().filter(|var| var.ident == *ident).last();
@@ -761,6 +798,21 @@ impl<'a> Analyzer<'a> {
                 "How did a variable with a non existing struct type {} got created?",
                 ident
             ))
+    }
+
+    fn get_idents(&self, expr: &Expr) -> Vec<String> {
+        match expr {
+            Expr::Identifier(expr_identifier) => vec![expr_identifier.ident.clone()],
+            Expr::Get(expr_get) => {
+                let mut v: Vec<String> = vec![expr_get.property.clone()];
+                v.append(&mut self.get_idents(&expr_get.ident));
+                v
+            }
+            _ => unreachable!(
+                "Got unexpected Expr type while getting assign to identifier: '{:?}'",
+                expr
+            ),
+        }
     }
 }
 
