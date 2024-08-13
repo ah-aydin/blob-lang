@@ -58,8 +58,8 @@ pub struct ExprCall {
 }
 
 #[derive(Debug, Clone)]
-pub struct ExprGetProperty {
-    pub ident: String,
+pub struct ExprGet {
+    pub ident: Box<Expr>,
     pub property: String,
     pub file_coords: FileCoords,
 }
@@ -77,7 +77,7 @@ pub enum Expr {
 
     Call(ExprCall),
 
-    GetProperty(ExprGetProperty),
+    Get(ExprGet),
 }
 
 impl Expr {
@@ -91,7 +91,14 @@ impl Expr {
             Expr::BinaryOp(expr) => expr.file_coords,
             Expr::UnaryOp(expr) => expr.file_coords,
             Expr::Call(expr) => expr.file_coords,
-            Expr::GetProperty(expr) => expr.file_coords,
+            Expr::Get(expr) => expr.file_coords,
+        }
+    }
+
+    pub fn is_assignable(&self) -> bool {
+        match self {
+            Expr::Identifier(_) | Expr::Get(_) => true,
+            _ => false,
         }
     }
 }
