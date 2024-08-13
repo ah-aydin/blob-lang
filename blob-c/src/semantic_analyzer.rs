@@ -377,7 +377,6 @@ impl<'a> Analyzer<'a> {
         let mut found = false;
         let mut var_btype = BType::None;
 
-        // Identifier
         if idents.len() == 1 {
             let ident = idents.get(0).unwrap();
             for env in self.envs.iter().rev() {
@@ -407,72 +406,22 @@ impl<'a> Analyzer<'a> {
                 ));
             }
         } else {
-            // Struct field
-            todo!("Extract type of struct field");
+            let var_btype = self.expr(&stmt_assign.ident_expr)?;
+            let expr_btype = self.expr(&stmt_assign.assign_to_expr)?;
+            if var_btype != expr_btype {
+                return Err(AnalyzerError::ErrorFC(
+                    format!(
+                        "Variable '{}' has type '{:?}' but '{:?}' was given",
+                        stmt_assign.ident_expr.get_file_coords(),
+                        var_btype,
+                        expr_btype
+                    ),
+                    stmt_assign.assign_to_expr.get_file_coords(),
+                ));
+            }
         }
 
         Ok(BType::None)
-
-        //let ident_expr = &stmt_assign.ident_expr;
-        //let property = stmt_assign.property.as_ref();
-        //let mut found = false;
-        //let mut var_btype = BType::None;
-        //for env in self.envs.iter().rev() {
-        //    let var_maybe = env
-        //        .vars
-        //        .iter()
-        //        .filter(|var| var.ident == *ident_expr)
-        //        .last();
-        //    if let Some(var) = var_maybe {
-        //        if property.is_none() {
-        //            found = true;
-        //            var_btype = var.btype.clone();
-        //            break;
-        //        } else {
-        //            let property = property.unwrap();
-        //            if let Some(struct_name) = var.btype.get_struct_name() {
-        //                let field = self
-        //                    .get_struct_info(struct_name)
-        //                    .fields
-        //                    .iter()
-        //                    .filter(|var_type_info| var_type_info.ident == *property)
-        //                    .next();
-        //                if field.is_some() {
-        //                    found = true;
-        //                    var_btype = field.unwrap().btype.clone();
-        //                } else {
-        //                    return Err(AnalyzerError::ErrorFC(
-        //                        format!(
-        //                            "Struct {:?} does not have a field {:?}",
-        //                            ident_expr, property
-        //                        ),
-        //                        stmt_assign.assign_to_expr.get_file_coords(),
-        //                    ));
-        //                }
-        //            }
-        //        }
-        //    }
-        //}
-        //
-        //if !found {
-        //    return Err(AnalyzerError::ErrorFC(
-        //        format!("{:?} is undefined", ident_expr),
-        //        stmt_assign.assign_to_expr.get_file_coords(),
-        //    ));
-        //}
-        //
-        //let expr_btype = self.expr(&stmt_assign.assign_to_expr)?;
-        //if var_btype != expr_btype {
-        //    return Err(AnalyzerError::ErrorFC(
-        //        format!(
-        //            "Variable {} has type '{:?}' but '{:?}' was given",
-        //            ident_expr, var_btype, expr_btype
-        //        ),
-        //        stmt_assign.assign_to_expr.get_file_coords(),
-        //    ));
-        //}
-        //
-        //Ok(BType::None)
     }
 
     fn stmt_while(&mut self, stmt_while: &StmtWhile) -> AnalyzerRetType {

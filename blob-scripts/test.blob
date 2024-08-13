@@ -54,6 +54,8 @@ func main(): i32 {
 
   var person = Person { name: "gigel", age: 23 };
   a = datetime.date.year + person.age;
+  date.year = 123 + 123;
+  datetime.date.year = a + b + gib();
 
   return 0;
 }
