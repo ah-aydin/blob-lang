@@ -3,7 +3,7 @@ use std::{collections::HashMap, fmt::Display};
 use blob_common::{error, file_coords::FileCoords, info};
 
 use crate::ast::{
-    btype::{self, BType},
+    btype::BType,
     expr::{
         Expr, ExprBinaryOp, ExprBool, ExprCall, ExprGet, ExprI32, ExprIdenifier, ExprString,
         ExprStructInstance, ExprUnaryOp,
