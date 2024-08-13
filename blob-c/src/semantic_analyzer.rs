@@ -3,10 +3,10 @@ use std::{collections::HashMap, fmt::Display};
 use blob_common::{error, file_coords::FileCoords, info};
 
 use crate::ast::{
-    btype::BType,
+    btype::{self, BType},
     expr::{
-        Expr, ExprBinaryOp, ExprBool, ExprCall, ExprGetProperty, ExprI32, ExprIdenifier,
-        ExprString, ExprStructInstance, ExprUnaryOp,
+        Expr, ExprBinaryOp, ExprBool, ExprCall, ExprGet, ExprI32, ExprIdenifier, ExprString,
+        ExprStructInstance, ExprUnaryOp,
     },
     op::OpBTypes,
     stmt::{
@@ -146,7 +146,7 @@ impl<'a> Analyzer<'a> {
             Expr::StructInstance(expr_struct_instance) => {
                 self.expr_struct_instance(expr_struct_instance)
             }
-            Expr::GetProperty(expr_get_property) => self.expr_get_property(expr_get_property),
+            Expr::Get(expr_get_property) => self.expr_get(expr_get_property),
         }
     }
 
@@ -245,7 +245,7 @@ impl<'a> Analyzer<'a> {
             )),
             Stmt::Assign(stmt_assign) => Err(AnalyzerError::ErrorFC(
                 "Last statment must be for return".to_string(),
-                stmt_assign.expr.get_file_coords(),
+                stmt_assign.assign_to_expr.get_file_coords(),
             )),
             Stmt::While(stmt_while) => Err(AnalyzerError::ErrorFC(
                 "Last statment must be for return".to_string(),
@@ -373,55 +373,18 @@ impl<'a> Analyzer<'a> {
     }
 
     fn stmt_assign(&mut self, stmt_assign: &StmtAssign) -> AnalyzerRetType {
-        let ident = &stmt_assign.ident;
-        let property = stmt_assign.property.as_ref();
-        let mut found = false;
-        let mut var_btype = BType::None;
-        for env in self.envs.iter().rev() {
-            let var_maybe = env.vars.iter().filter(|var| var.ident == *ident).last();
-            if let Some(var) = var_maybe {
-                if property.is_none() {
-                    found = true;
-                    var_btype = var.btype.clone();
-                    break;
-                } else {
-                    let property = property.unwrap();
-                    if let Some(struct_name) = var.btype.get_struct_name() {
-                        let field = self
-                            .get_struct_info(struct_name)
-                            .fields
-                            .iter()
-                            .filter(|var_type_info| var_type_info.ident == *property)
-                            .next();
-                        if field.is_some() {
-                            found = true;
-                            var_btype = field.unwrap().btype.clone();
-                        } else {
-                            return Err(AnalyzerError::ErrorFC(
-                                format!("Struct {:?} does not have a field {:?}", ident, property),
-                                stmt_assign.expr.get_file_coords(),
-                            ));
-                        }
-                    }
-                }
-            }
-        }
+        let var_btype = self.expr(&stmt_assign.ident_expr)?;
+        let expr_btype = self.expr(&stmt_assign.assign_to_expr)?;
 
-        if !found {
-            return Err(AnalyzerError::ErrorFC(
-                format!("{:?} is undefined", ident),
-                stmt_assign.expr.get_file_coords(),
-            ));
-        }
-
-        let expr_btype = self.expr(&stmt_assign.expr)?;
         if var_btype != expr_btype {
             return Err(AnalyzerError::ErrorFC(
                 format!(
-                    "Variable {} has type '{:?}' but '{:?}' was given",
-                    ident, var_btype, expr_btype
+                    "Variable '{}' has type '{:?}' but '{:?}' was given",
+                    stmt_assign.ident_expr.get_file_coords(),
+                    var_btype,
+                    expr_btype
                 ),
-                stmt_assign.expr.get_file_coords(),
+                stmt_assign.assign_to_expr.get_file_coords(),
             ));
         }
 
@@ -654,8 +617,25 @@ impl<'a> Analyzer<'a> {
         Ok(BType::Struct(expr_struct_instance.ident.clone()))
     }
 
-    fn expr_get_property(&mut self, expr_get_property: &ExprGetProperty) -> AnalyzerRetType {
-        let ident = &expr_get_property.ident;
+    fn expr_get(&mut self, expr_get: &ExprGet) -> AnalyzerRetType {
+        fn get_idents(expr: &Expr) -> Vec<String> {
+            match expr {
+                Expr::Identifier(expr_identifier) => vec![expr_identifier.ident.clone()],
+                Expr::Get(expr_get) => {
+                    let mut v: Vec<String> = vec![expr_get.property.clone()];
+                    v.append(&mut get_idents(&expr_get.ident));
+                    v
+                }
+                _ => unreachable!(
+                    "Got unexpected Expr type while getting assign to identifier: '{:?}'",
+                    expr
+                ),
+            }
+        }
+
+        let mut idents = get_idents(&Expr::Get(expr_get.clone()));
+        let ident = idents.pop().unwrap();
+
         for env in self.envs.iter().rev() {
             let var = env.vars.iter().filter(|var| var.ident == *ident).last();
             if var.is_none() {
@@ -664,21 +644,46 @@ impl<'a> Analyzer<'a> {
             let var = var.unwrap();
 
             if let BType::Struct(struct_name) = &var.btype {
-                let property_info = self
-                    .get_struct_info(&struct_name)
-                    .fields
-                    .iter()
-                    .filter(|var_type_info| var_type_info.ident == expr_get_property.property)
-                    .next();
-                if let Some(property_info) = property_info {
-                    return Ok(property_info.btype.clone());
+                let mut struct_info = self.get_struct_info(&struct_name);
+                let mut btype = BType::None;
+                while let Some(ident) = idents.pop() {
+                    let field_maybe = struct_info
+                        .fields
+                        .iter()
+                        .filter(|field| field.ident == *ident)
+                        .last();
+                    if field_maybe.is_none() {
+                        return Err(AnalyzerError::ErrorFC(
+                            format!(
+                                "'{:?}' does not have a field named '{ident}'",
+                                struct_info.ident
+                            ),
+                            expr_get.file_coords,
+                        ));
+                    }
+                    let field = field_maybe.unwrap();
+                    if let BType::Struct(struct_name) = &field.btype {
+                        struct_info = self.get_struct_info(&struct_name);
+                    } else {
+                        btype = field.btype.clone();
+                        break;
+                    }
                 }
+                if !idents.is_empty() {
+                    return Err(AnalyzerError::ErrorFC(format!("Cannot get properties from basic data types. Trying to get a property from '{:?}'", btype), expr_get.file_coords));
+                }
+                return Ok(btype);
+            } else {
+                return Err(AnalyzerError::ErrorFC(
+                    format!("'{:?}' is not a struct", ident),
+                    expr_get.file_coords,
+                ));
             }
         }
 
         Err(AnalyzerError::ErrorFC(
             format!("'{:?}' is undefined", ident),
-            expr_get_property.file_coords,
+            expr_get.file_coords,
         ))
     }
 

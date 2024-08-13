@@ -57,9 +57,8 @@ pub struct StmtVarDecl {
 
 #[derive(Debug, Clone)]
 pub struct StmtAssign {
-    pub ident: String,
-    pub property: Option<String>,
-    pub expr: Expr,
+    pub ident_expr: Expr,
+    pub assign_to_expr: Expr,
 }
 
 #[derive(Debug, Clone)]
