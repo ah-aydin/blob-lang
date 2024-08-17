@@ -15,33 +15,33 @@ lazy_static! {
         map.insert("sp", TokenType::Reg(SP_REG as u8));
         map.insert("lr", TokenType::Reg(LR_REG as u8));
 
-        map.insert("hlt", TokenType::Op(OpCode::HLT));
+        map.insert("hlt", TokenType::Op(OpCode::Hlt));
 
-        map.insert("load", TokenType::Op(OpCode::LOAD));
+        map.insert("load", TokenType::Op(OpCode::Load));
 
-        map.insert("add", TokenType::Op(OpCode::ADD));
-        map.insert("sub", TokenType::Op(OpCode::SUB));
-        map.insert("mul", TokenType::Op(OpCode::MUL));
-        map.insert("div", TokenType::Op(OpCode::DIV));
+        map.insert("add", TokenType::Op(OpCode::Add));
+        map.insert("sub", TokenType::Op(OpCode::Sub));
+        map.insert("mul", TokenType::Op(OpCode::Mul));
+        map.insert("div", TokenType::Op(OpCode::Div));
 
-        map.insert("jmp", TokenType::Op(OpCode::JMP));
-        map.insert("jmpf", TokenType::Op(OpCode::JMPF));
-        map.insert("jmpb", TokenType::Op(OpCode::JMPB));
-        map.insert("jcmp", TokenType::Op(OpCode::JCMP));
-        map.insert("jcmpf", TokenType::Op(OpCode::JCMPF));
-        map.insert("jcmpb", TokenType::Op(OpCode::JCMPB));
+        map.insert("jmp", TokenType::Op(OpCode::Jmp));
+        map.insert("jmpf", TokenType::Op(OpCode::JmpF));
+        map.insert("jmpb", TokenType::Op(OpCode::JmpB));
+        map.insert("jcmp", TokenType::Op(OpCode::JCmp));
+        map.insert("jcmpf", TokenType::Op(OpCode::JCmpF));
+        map.insert("jcmpb", TokenType::Op(OpCode::JCmpB));
 
-        map.insert("eq", TokenType::Op(OpCode::EQ));
-        map.insert("neq", TokenType::Op(OpCode::NEQ));
-        map.insert("gt", TokenType::Op(OpCode::GT));
-        map.insert("lt", TokenType::Op(OpCode::LT));
-        map.insert("ge", TokenType::Op(OpCode::GE));
-        map.insert("le", TokenType::Op(OpCode::LE));
+        map.insert("eq", TokenType::Op(OpCode::Eq));
+        map.insert("neq", TokenType::Op(OpCode::NEq));
+        map.insert("gt", TokenType::Op(OpCode::Gt));
+        map.insert("lt", TokenType::Op(OpCode::Lt));
+        map.insert("ge", TokenType::Op(OpCode::Ge));
+        map.insert("le", TokenType::Op(OpCode::Le));
 
-        map.insert("push", TokenType::Op(OpCode::PUSH));
-        map.insert("pop", TokenType::Op(OpCode::POP));
+        map.insert("push", TokenType::Op(OpCode::Push));
+        map.insert("pop", TokenType::Op(OpCode::Pop));
 
-        map.insert("aloc", TokenType::Op(OpCode::ALOC));
+        map.insert("aloc", TokenType::Op(OpCode::Aloc));
         map.insert("igl", TokenType::Op(OpCode::IGL));
 
         map.insert(".asciz", TokenType::Directive(DirectiveType::ASCIZ));
@@ -327,7 +327,7 @@ mod test {
         assert_eq!(
             *result.get(0).unwrap(),
             Token {
-                token_type: TokenType::Op(OpCode::ADD),
+                token_type: TokenType::Op(OpCode::Add),
                 file_coords: FileCoords { line: 1, col: 1 }
             }
         );
@@ -340,7 +340,7 @@ mod test {
         assert_eq!(
             *result.get(0).unwrap(),
             Token {
-                token_type: TokenType::Op(OpCode::ADD),
+                token_type: TokenType::Op(OpCode::Add),
                 file_coords: FileCoords { line: 1, col: 1 }
             }
         );
@@ -353,7 +353,7 @@ mod test {
         assert_eq!(
             *result.get(0).unwrap(),
             Token {
-                token_type: TokenType::Op(OpCode::LOAD),
+                token_type: TokenType::Op(OpCode::Load),
                 file_coords: FileCoords { line: 1, col: 1 }
             }
         );
@@ -366,7 +366,7 @@ mod test {
         assert_eq!(
             *result.get(0).unwrap(),
             Token {
-                token_type: TokenType::Op(OpCode::LOAD),
+                token_type: TokenType::Op(OpCode::Load),
                 file_coords: FileCoords { line: 1, col: 1 }
             }
         );
@@ -443,7 +443,7 @@ mod test {
         let result = scan("load r0 #10");
         assert_eq!(
             result.get(0).unwrap().token_type,
-            TokenType::Op(OpCode::LOAD)
+            TokenType::Op(OpCode::Load)
         );
         assert_eq!(result.get(1).unwrap().token_type, TokenType::Reg(0));
         assert_eq!(result.get(2).unwrap().token_type, TokenType::ImdVal(10));
@@ -455,7 +455,7 @@ mod test {
         let result = scan("load r0 r31");
         assert_eq!(
             result.get(0).unwrap().token_type,
-            TokenType::Op(OpCode::LOAD)
+            TokenType::Op(OpCode::Load)
         );
         assert_eq!(result.get(1).unwrap().token_type, TokenType::Reg(0));
         assert_eq!(result.get(2).unwrap().token_type, TokenType::Reg(31));
@@ -472,10 +472,10 @@ mod test {
         let expected_token_types = vec![
             TokenType::Section(SectionType::DATA),
             TokenType::Section(SectionType::TEXT),
-            TokenType::Op(OpCode::LOAD),
+            TokenType::Op(OpCode::Load),
             TokenType::Reg(0),
             TokenType::Reg(31),
-            TokenType::Op(OpCode::ADD),
+            TokenType::Op(OpCode::Add),
             TokenType::Reg(1),
             TokenType::ImdVal(54),
             TokenType::EOF,
@@ -499,15 +499,15 @@ mod test {
             TokenType::String("hello".to_string()),
             TokenType::Section(SectionType::TEXT),
             TokenType::LabelDecl("my_label".to_owned()),
-            TokenType::Op(OpCode::LOAD),
+            TokenType::Op(OpCode::Load),
             TokenType::Reg(0),
             TokenType::Reg(31),
-            TokenType::Op(OpCode::ADD),
+            TokenType::Op(OpCode::Add),
             TokenType::Reg(1),
             TokenType::ImdVal(54),
-            TokenType::Op(OpCode::JMP),
+            TokenType::Op(OpCode::Jmp),
             TokenType::LabelUsg("my_label".to_owned()),
-            TokenType::Op(OpCode::ADD),
+            TokenType::Op(OpCode::Add),
             TokenType::Reg(1),
             TokenType::LeftBracket,
             TokenType::Reg(2),

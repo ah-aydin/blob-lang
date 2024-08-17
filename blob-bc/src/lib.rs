@@ -1,50 +1,50 @@
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(u8)]
 pub enum OpCode {
-    HLT,
+    Hlt,
 
-    LOAD,
-    LOADIMD,
-    LOADWORD,
-    LOADMEM,
+    Load,
+    LoadImd,
+    LoadWord,
+    LoadMem,
 
-    ADD,
-    ADDIMD,
-    SUB,
-    SUBIMD,
-    MUL,
-    MULIMD,
-    DIV,
-    DIVIMD,
+    Add,
+    AddImd,
+    Sub,
+    SubImd,
+    Mul,
+    MulImd,
+    Div,
+    DivImd,
 
-    JMP,
-    JMPF,
-    JMPFIMD,
-    JMPB,
-    JMPBIMD,
-    JCMP,
-    JCMPF,
-    JCMPFIMD,
-    JCMPB,
-    JCMPBIMD,
+    Jmp,
+    JmpF,
+    JmpFImd,
+    JmpB,
+    JmpBImd,
+    JCmp,
+    JCmpF,
+    JCmpFImd,
+    JCmpB,
+    JCmpBImd,
 
-    EQ,
-    EQIMD,
-    NEQ,
-    NEQIMD,
-    GT,
-    GTIMD,
-    LT,
-    LTIMD,
-    GE,
-    GEIMD,
-    LE,
-    LEIMD,
+    Eq,
+    EqImd,
+    NEq,
+    NEqImd,
+    Gt,
+    GtImd,
+    Lt,
+    LtImd,
+    Ge,
+    GeImd,
+    Le,
+    LeiImd,
 
-    PUSH,
-    POP,
+    Push,
+    Pop,
 
-    ALOC,
+    Aloc,
 
     IGL,
 }
@@ -93,43 +93,43 @@ impl OpCode {
 
     pub fn get_args_types(&self) -> Vec<Vec<InsArgType>> {
         match self {
-            OpCode::HLT => vec![],
-            OpCode::LOAD | OpCode::LOADIMD | OpCode::LOADWORD | OpCode::LOADMEM => {
+            OpCode::Hlt => vec![],
+            OpCode::Load | OpCode::LoadImd | OpCode::LoadWord | OpCode::LoadMem => {
                 vec![arg_types!(reg), arg_types!(reg, imd, mem)]
             }
-            OpCode::ADD
-            | OpCode::ADDIMD
-            | OpCode::SUB
-            | OpCode::SUBIMD
-            | OpCode::MUL
-            | OpCode::MULIMD
-            | OpCode::DIV
-            | OpCode::DIVIMD => vec![arg_types!(reg), arg_types!(reg), arg_types!(reg, imd)],
+            OpCode::Add
+            | OpCode::AddImd
+            | OpCode::Sub
+            | OpCode::SubImd
+            | OpCode::Mul
+            | OpCode::MulImd
+            | OpCode::Div
+            | OpCode::DivImd => vec![arg_types!(reg), arg_types!(reg), arg_types!(reg, imd)],
 
-            OpCode::JMP | OpCode::JCMP => vec![arg_types!(reg)],
-            OpCode::JMPF
-            | OpCode::JMPFIMD
-            | OpCode::JMPB
-            | OpCode::JMPBIMD
-            | OpCode::JCMPF
-            | OpCode::JCMPFIMD
-            | OpCode::JCMPB
-            | OpCode::JCMPBIMD => vec![arg_types!(reg, imd)],
+            OpCode::Jmp | OpCode::JCmp => vec![arg_types!(reg)],
+            OpCode::JmpF
+            | OpCode::JmpFImd
+            | OpCode::JmpB
+            | OpCode::JmpBImd
+            | OpCode::JCmpF
+            | OpCode::JCmpFImd
+            | OpCode::JCmpB
+            | OpCode::JCmpBImd => vec![arg_types!(reg, imd)],
 
-            OpCode::EQ
-            | OpCode::EQIMD
-            | OpCode::NEQ
-            | OpCode::NEQIMD
-            | OpCode::GT
-            | OpCode::GTIMD
-            | OpCode::LT
-            | OpCode::LTIMD
-            | OpCode::GE
-            | OpCode::GEIMD
-            | OpCode::LE
-            | OpCode::LEIMD => vec![arg_types!(reg), arg_types!(reg, imd)],
+            OpCode::Eq
+            | OpCode::EqImd
+            | OpCode::NEq
+            | OpCode::NEqImd
+            | OpCode::Gt
+            | OpCode::GtImd
+            | OpCode::Lt
+            | OpCode::LtImd
+            | OpCode::Ge
+            | OpCode::GeImd
+            | OpCode::Le
+            | OpCode::LeiImd => vec![arg_types!(reg), arg_types!(reg, imd)],
 
-            OpCode::PUSH | OpCode::POP | OpCode::ALOC => vec![arg_types!(reg)],
+            OpCode::Push | OpCode::Pop | OpCode::Aloc => vec![arg_types!(reg)],
 
             OpCode::IGL => unreachable!("Requeted instruction arg types on illegal op code"),
         }
@@ -148,20 +148,20 @@ mod test_opcode {
 
     #[test]
     fn it_gets_imd_variants() {
-        assert_eq!(OpCode::LOAD.get_imd_version(), OpCode::LOADIMD);
-        assert_eq!(OpCode::ADD.get_imd_version(), OpCode::ADDIMD);
-        assert_eq!(OpCode::MUL.get_imd_version(), OpCode::MULIMD);
-        assert_eq!(OpCode::DIV.get_imd_version(), OpCode::DIVIMD);
-        assert_eq!(OpCode::JMPF.get_imd_version(), OpCode::JMPFIMD);
-        assert_eq!(OpCode::JMPB.get_imd_version(), OpCode::JMPBIMD);
-        assert_eq!(OpCode::JCMPF.get_imd_version(), OpCode::JCMPFIMD);
-        assert_eq!(OpCode::JCMPB.get_imd_version(), OpCode::JCMPBIMD);
-        assert_eq!(OpCode::EQ.get_imd_version(), OpCode::EQIMD);
-        assert_eq!(OpCode::NEQ.get_imd_version(), OpCode::NEQIMD);
-        assert_eq!(OpCode::GT.get_imd_version(), OpCode::GTIMD);
-        assert_eq!(OpCode::LT.get_imd_version(), OpCode::LTIMD);
-        assert_eq!(OpCode::GE.get_imd_version(), OpCode::GEIMD);
-        assert_eq!(OpCode::LE.get_imd_version(), OpCode::LEIMD);
+        assert_eq!(OpCode::Load.get_imd_version(), OpCode::LoadImd);
+        assert_eq!(OpCode::Add.get_imd_version(), OpCode::AddImd);
+        assert_eq!(OpCode::Mul.get_imd_version(), OpCode::MulImd);
+        assert_eq!(OpCode::Div.get_imd_version(), OpCode::DivImd);
+        assert_eq!(OpCode::JmpF.get_imd_version(), OpCode::JmpFImd);
+        assert_eq!(OpCode::JmpB.get_imd_version(), OpCode::JmpBImd);
+        assert_eq!(OpCode::JCmpF.get_imd_version(), OpCode::JCmpFImd);
+        assert_eq!(OpCode::JCmpB.get_imd_version(), OpCode::JCmpBImd);
+        assert_eq!(OpCode::Eq.get_imd_version(), OpCode::EqImd);
+        assert_eq!(OpCode::NEq.get_imd_version(), OpCode::NEqImd);
+        assert_eq!(OpCode::Gt.get_imd_version(), OpCode::GtImd);
+        assert_eq!(OpCode::Lt.get_imd_version(), OpCode::LtImd);
+        assert_eq!(OpCode::Ge.get_imd_version(), OpCode::GeImd);
+        assert_eq!(OpCode::Le.get_imd_version(), OpCode::LeiImd);
     }
 }
 
