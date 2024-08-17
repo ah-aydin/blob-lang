@@ -6,11 +6,17 @@ pub enum OpCode {
     Load,
     LoadImd,
     LoadWord,
-
     LoadMemByte,
     LoadMemQuaterWord,
     LoadMemHalfWord,
     LoadMemWord,
+
+    StrByte,
+    StrByteImd,
+    StrQuaterWord,
+    StrQuaterWordImd,
+    StrHalfWord,
+    StrWord,
 
     Add,
     AddImd,
@@ -110,6 +116,7 @@ impl OpCode {
     pub fn get_args_types(&self) -> Vec<Vec<InsArgType>> {
         match self {
             OpCode::Hlt => vec![],
+
             OpCode::Load
             | OpCode::LoadImd
             | OpCode::LoadWord
@@ -119,6 +126,16 @@ impl OpCode {
             | OpCode::LoadMemWord => {
                 vec![arg_types!(reg), arg_types!(reg, imd, mem)]
             }
+
+            OpCode::StrByte
+            | OpCode::StrByteImd
+            | OpCode::StrQuaterWord
+            | OpCode::StrQuaterWordImd
+            | OpCode::StrHalfWord
+            | OpCode::StrWord => {
+                vec![arg_types!(reg), arg_types!(reg, imd)]
+            }
+
             OpCode::Add
             | OpCode::AddImd
             | OpCode::Sub

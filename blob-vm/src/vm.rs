@@ -100,6 +100,37 @@ impl VM {
                     ]);
                 }
 
+                OpCode::StrByte => {
+                    let addr = self.registers[self.get_reg()] as usize;
+                    let src = self.registers[self.get_reg()];
+                    self.memory[addr] = (src & 0xFF) as u8;
+                }
+                OpCode::StrByteImd => {
+                    let addr = self.registers[self.get_reg()] as usize;
+                    let src = self.get_1_byte_imd_val();
+                    self.memory[addr] = src;
+                }
+                OpCode::StrQuaterWord => {
+                    let addr = self.registers[self.get_reg()] as usize;
+                    let src = self.registers[self.get_reg()];
+                    self.memory[addr..addr + 2].copy_from_slice(&src.to_be_bytes()[6..]);
+                }
+                OpCode::StrQuaterWordImd => {
+                    let addr = self.registers[self.get_reg()] as usize;
+                    let src = self.get_imd_val();
+                    self.memory[addr..addr + 2].copy_from_slice(&src.to_be_bytes()[6..]);
+                }
+                OpCode::StrHalfWord => {
+                    let addr = self.registers[self.get_reg()] as usize;
+                    let src = self.registers[self.get_reg()];
+                    self.memory[addr..addr + 4].copy_from_slice(&src.to_be_bytes()[4..]);
+                }
+                OpCode::StrWord => {
+                    let addr = self.registers[self.get_reg()] as usize;
+                    let src = self.registers[self.get_reg()];
+                    self.memory[addr..addr + 8].copy_from_slice(&src.to_be_bytes());
+                }
+
                 OpCode::Add => {
                     let dest_reg = self.get_reg();
                     let left_operand = self.registers[self.get_reg()];
@@ -330,6 +361,12 @@ impl VM {
         reg as usize
     }
 
+    fn get_1_byte_imd_val(&mut self) -> u8 {
+        let byte = self.program[self.pc as usize];
+        self.pc += 1;
+        byte
+    }
+
     fn get_imd_val(&mut self) -> i64 {
         let pc = self.pc as usize;
         let imd = i16::from_be_bytes([self.program[pc], self.program[pc + 1]]);
@@ -467,6 +504,82 @@ mod test {
         vm.run();
 
         assert_eq!(vm.registers[0], 500);
+    }
+
+    #[test]
+    fn str_byte_op_code() {
+        let mut vm = VM::new();
+        vm.program = vec![OpCode::StrByte as u8, 0, 1, OpCode::Hlt as u8];
+        vm.registers[0] = 4;
+        vm.registers[1] = i64::from_be_bytes([12, 32, 23, 32, 233, 22, 23, 128]);
+        vm.run();
+
+        assert_eq!(vm.memory[4], 128);
+    }
+
+    #[test]
+    fn str_byte_imd_op_code() {
+        let mut vm = VM::new();
+        vm.program = vec![OpCode::StrByteImd as u8, 0, 123, OpCode::Hlt as u8];
+        vm.registers[0] = 4;
+        vm.run();
+
+        assert_eq!(vm.memory[4], 123);
+    }
+
+    #[test]
+    fn str_quater_word_op_code() {
+        let mut vm = VM::new();
+        vm.program = vec![OpCode::StrQuaterWord as u8, 0, 1, OpCode::Hlt as u8];
+        vm.registers[0] = 4;
+        vm.registers[1] = i64::from_be_bytes([12, 32, 23, 32, 233, 22, 1, 244]);
+        vm.run();
+
+        assert_eq!(vm.memory[4], 1);
+        assert_eq!(vm.memory[5], 244);
+    }
+
+    #[test]
+    fn str_quater_word_imd_op_code() {
+        let mut vm = VM::new();
+        vm.program = vec![OpCode::StrQuaterWordImd as u8, 0, 1, 244, OpCode::Hlt as u8];
+        vm.registers[0] = 4;
+        vm.run();
+
+        assert_eq!(vm.memory[4], 1);
+        assert_eq!(vm.memory[5], 244);
+    }
+
+    #[test]
+    fn str_half_word_op_code() {
+        let mut vm = VM::new();
+        vm.program = vec![OpCode::StrHalfWord as u8, 0, 1, OpCode::Hlt as u8];
+        vm.registers[0] = 4;
+        vm.registers[1] = i64::from_be_bytes([12, 32, 23, 32, 233, 22, 1, 244]);
+        vm.run();
+
+        assert_eq!(vm.memory[4], 233);
+        assert_eq!(vm.memory[5], 22);
+        assert_eq!(vm.memory[6], 1);
+        assert_eq!(vm.memory[7], 244);
+    }
+
+    #[test]
+    fn str_word_op_code() {
+        let mut vm = VM::new();
+        vm.program = vec![OpCode::StrWord as u8, 0, 1, OpCode::Hlt as u8];
+        vm.registers[0] = 4;
+        vm.registers[1] = i64::from_be_bytes([12, 32, 23, 32, 233, 22, 1, 244]);
+        vm.run();
+
+        assert_eq!(vm.memory[4], 12);
+        assert_eq!(vm.memory[5], 32);
+        assert_eq!(vm.memory[6], 23);
+        assert_eq!(vm.memory[7], 32);
+        assert_eq!(vm.memory[8], 233);
+        assert_eq!(vm.memory[9], 22);
+        assert_eq!(vm.memory[10], 1);
+        assert_eq!(vm.memory[11], 244);
     }
 
     #[test]
