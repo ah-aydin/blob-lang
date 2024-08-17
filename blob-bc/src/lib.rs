@@ -6,7 +6,11 @@ pub enum OpCode {
     Load,
     LoadImd,
     LoadWord,
-    LoadMem,
+
+    LoadMemByte,
+    LoadMemQuaterWord,
+    LoadMemHalfWord,
+    LoadMemWord,
 
     Add,
     AddImd,
@@ -83,8 +87,20 @@ impl OpCode {
         unsafe { std::mem::transmute::<u8, OpCode>(*self as u8 + 2) }
     }
 
-    pub fn get_mem_version(&self) -> OpCode {
+    pub fn get_mem_byte_version(&self) -> OpCode {
         unsafe { std::mem::transmute::<u8, OpCode>(*self as u8 + 3) }
+    }
+
+    pub fn get_mem_quater_word_version(&self) -> OpCode {
+        unsafe { std::mem::transmute::<u8, OpCode>(*self as u8 + 4) }
+    }
+
+    pub fn get_mem_quater_half_version(&self) -> OpCode {
+        unsafe { std::mem::transmute::<u8, OpCode>(*self as u8 + 5) }
+    }
+
+    pub fn get_mem_word_version(&self) -> OpCode {
+        unsafe { std::mem::transmute::<u8, OpCode>(*self as u8 + 6) }
     }
 
     pub fn to_byte(&self) -> u8 {
@@ -94,7 +110,13 @@ impl OpCode {
     pub fn get_args_types(&self) -> Vec<Vec<InsArgType>> {
         match self {
             OpCode::Hlt => vec![],
-            OpCode::Load | OpCode::LoadImd | OpCode::LoadWord | OpCode::LoadMem => {
+            OpCode::Load
+            | OpCode::LoadImd
+            | OpCode::LoadWord
+            | OpCode::LoadMemByte
+            | OpCode::LoadMemQuaterWord
+            | OpCode::LoadMemHalfWord
+            | OpCode::LoadMemWord => {
                 vec![arg_types!(reg), arg_types!(reg, imd, mem)]
             }
             OpCode::Add
