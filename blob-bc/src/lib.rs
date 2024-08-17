@@ -52,6 +52,7 @@ pub enum InsArgType {
     Reg,
     Imd,
     Label,
+    Memory,
 }
 
 macro_rules! arg_types {

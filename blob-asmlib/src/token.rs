@@ -13,7 +13,7 @@ pub enum DirectiveType {
     BYTE,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum SectionType {
     DATA,
     TEXT,
@@ -43,6 +43,7 @@ impl TokenType {
             TokenType::Reg(_) => Some(InsArgType::Reg),
             TokenType::ImdVal(_) => Some(InsArgType::Imd),
             TokenType::LabelUsg(_) => Some(InsArgType::Label),
+            TokenType::LeftBracket => Some(InsArgType::Memory),
             _ => None,
         }
     }

@@ -11,5 +11,7 @@ MUL r5 r0 r1
 my_label:
 
 DIV r6 R0 r2
+PUSH r6
 LOAD r7 SP
+POP r8
 HLT

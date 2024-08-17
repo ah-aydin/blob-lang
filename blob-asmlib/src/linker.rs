@@ -1,9 +1,9 @@
-use std::{collections::HashMap, slice::Iter};
+use std::{collections::HashMap, slice::Iter, usize};
 
 use blob_bc::{Ins, InsArg, OpCode};
 use blob_common::error;
 
-use crate::token::{Token, TokenType};
+use crate::token::{DirectiveType, SectionType, Token, TokenType};
 
 /// Parsing rules
 /// ```ignore
@@ -40,6 +40,8 @@ use crate::token::{Token, TokenType};
 struct Linker {
     tokens: Vec<Token>,
     label_to_instruction: HashMap<String, usize>,
+    label_to_memory: HashMap<String, usize>,
+    section: SectionType,
 }
 
 impl Linker {
@@ -47,27 +49,100 @@ impl Linker {
         Linker {
             tokens,
             label_to_instruction: HashMap::new(),
+            label_to_memory: HashMap::new(),
+            section: SectionType::TEXT,
         }
     }
 
     fn link(&mut self) -> Result<Vec<u8>, ()> {
         let mut t_iter = self.tokens.iter();
-        let mut instructions: Vec<u8> = Vec::new();
+        let mut instructions: Vec<Ins> = Vec::new();
+        let mut instruction_bytes: usize = 0;
 
+        let mut data_section: Vec<u8> = Vec::new();
         while let Some(token) = t_iter.next() {
             match &token.token_type {
-                TokenType::Op(op_code) => instructions
-                    .append(&mut self.link_op(&token, *op_code, &mut t_iter)?.to_bytes()),
-                TokenType::LabelDecl(lbl) => {
-                    self.label_to_instruction
-                        .insert(lbl.clone(), instructions.len());
+                TokenType::Section(section_type) => {
+                    self.section = *section_type;
+                    Ok(())
                 }
+                TokenType::Op(op_code) => {
+                    if self.section != SectionType::TEXT {
+                        error!("Cannot have instruction outside the '.text' section");
+                        return Err(());
+                    }
+                    let ins = self.link_op(&token, *op_code, &mut t_iter)?;
+                    instruction_bytes = ins.to_bytes().len();
+                    instructions.push(ins);
+                    Ok(())
+                }
+                TokenType::LabelDecl(lbl) => {
+                    match self.section {
+                        SectionType::DATA => {
+                            self.label_to_memory.insert(lbl.clone(), data_section.len())
+                        }
+                        SectionType::TEXT => self
+                            .label_to_instruction
+                            .insert(lbl.clone(), instruction_bytes),
+                    };
+                    Ok(())
+                }
+                TokenType::Directive(directive) => match directive {
+                    DirectiveType::ASCIZ => {
+                        let s = t_iter.next();
+                        if s.is_none() {
+                            error!("Expected a string after '.asciz' directive");
+                            return Err(());
+                        }
+
+                        let s = s.unwrap();
+                        if let TokenType::String(s) = &s.token_type {
+                            if !s.is_ascii() {
+                                error!("Given string does not consist of ascii characters");
+                            }
+                            data_section.append(&mut s.clone().into_bytes());
+                            data_section.push(b'\0');
+                        } else {
+                            error!("Expected a string after '.asciz' directive");
+                            return Err(());
+                        }
+
+                        Ok(())
+                    }
+                    DirectiveType::ASCI => {
+                        let s = t_iter.next();
+                        if s.is_none() {
+                            error!("Expected a string after '.asciz' directive");
+                            return Err(());
+                        }
+
+                        let s = s.unwrap();
+                        if let TokenType::String(s) = &s.token_type {
+                            if !s.is_ascii() {
+                                error!("Given string does not consist of ascii characters");
+                            }
+                            data_section.append(&mut s.clone().into_bytes());
+                        } else {
+                            error!("Expected a string after '.asciz' directive");
+                            return Err(());
+                        }
+
+                        Ok(())
+                    }
+                    DirectiveType::WORD => todo!(),
+                    DirectiveType::BYTE => todo!(),
+                },
                 TokenType::EOF => break,
                 _ => todo!("{:?}", token),
-            };
+            }?;
         }
 
-        Ok(instructions)
+        let text_section: Vec<u8> = instructions
+            .iter()
+            .map(|ins| ins.to_bytes())
+            .flat_map(|v| v)
+            .collect();
+        Ok(text_section)
     }
 
     fn link_op(&self, token: &Token, op_code: OpCode, t_iter: &mut Iter<Token>) -> Result<Ins, ()> {
