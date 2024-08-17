@@ -55,6 +55,10 @@ impl Linker {
     }
 
     fn link(&mut self) -> Result<Vec<u8>, ()> {
+        self.second_pass()
+    }
+
+    fn second_pass(&mut self) -> Result<Vec<u8>, ()> {
         let mut t_iter = self.tokens.iter();
         let mut instructions: Vec<Ins> = Vec::new();
         let mut instruction_bytes: usize = 0;

@@ -5,6 +5,8 @@ pub enum OpCode {
 
     LOAD,
     LOADIMD,
+    LOADWORD,
+    LOADMEM,
 
     ADD,
     ADDIMD,
@@ -51,7 +53,7 @@ pub enum OpCode {
 pub enum InsArgType {
     Reg,
     Imd,
-    Label,
+    Word,
     Memory,
 }
 
@@ -62,14 +64,27 @@ macro_rules! arg_types {
     (reg, imd) => {
         vec![InsArgType::Reg, InsArgType::Imd]
     };
-    (reg, imd, label) => {
-        vec![InsArgType::Reg, InsArgType::Imd, InsArgType::Label]
+    (reg, imd, mem) => {
+        vec![
+            InsArgType::Reg,
+            InsArgType::Imd,
+            InsArgType::Word,
+            InsArgType::Memory,
+        ]
     };
 }
 
 impl OpCode {
     pub fn get_imd_version(&self) -> OpCode {
         unsafe { std::mem::transmute::<u8, OpCode>(*self as u8 + 1) }
+    }
+
+    pub fn get_word_version(&self) -> OpCode {
+        unsafe { std::mem::transmute::<u8, OpCode>(*self as u8 + 2) }
+    }
+
+    pub fn get_mem_version(&self) -> OpCode {
+        unsafe { std::mem::transmute::<u8, OpCode>(*self as u8 + 3) }
     }
 
     pub fn to_byte(&self) -> u8 {
@@ -79,8 +94,8 @@ impl OpCode {
     pub fn get_args_types(&self) -> Vec<Vec<InsArgType>> {
         match self {
             OpCode::HLT => vec![],
-            OpCode::LOAD | OpCode::LOADIMD => {
-                vec![arg_types!(reg), arg_types!(reg, imd, label)]
+            OpCode::LOAD | OpCode::LOADIMD | OpCode::LOADWORD | OpCode::LOADMEM => {
+                vec![arg_types!(reg), arg_types!(reg, imd, mem)]
             }
             OpCode::ADD
             | OpCode::ADDIMD

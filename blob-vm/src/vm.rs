@@ -42,9 +42,29 @@ impl VM {
                     self.registers[dest_reg] = self.registers[src_reg];
                 }
                 OpCode::LOADIMD => {
-                    let register = self.get_reg();
+                    let dest_reg = self.get_reg();
                     let number = self.get_imd_val();
-                    self.registers[register] = number;
+                    self.registers[dest_reg] = number;
+                }
+                OpCode::LOADWORD => {
+                    let dest_reg = self.get_reg();
+                    let mem = self.get_word();
+                    self.registers[dest_reg] = mem as i64;
+                }
+                OpCode::LOADMEM => {
+                    let dest_reg = self.get_reg();
+                    let mem = self.registers[self.get_reg()] as usize;
+                    let word = i64::from_be_bytes([
+                        self.memory[mem],
+                        self.memory[mem + 1],
+                        self.memory[mem + 2],
+                        self.memory[mem + 3],
+                        self.memory[mem + 4],
+                        self.memory[mem + 5],
+                        self.memory[mem + 6],
+                        self.memory[mem + 7],
+                    ]);
+                    self.registers[dest_reg] = word;
                 }
 
                 OpCode::ADD => {
@@ -284,6 +304,22 @@ impl VM {
         imd as i64
     }
 
+    fn get_word(&mut self) -> usize {
+        let pc = self.pc as usize;
+        let mem = usize::from_be_bytes([
+            self.program[pc],
+            self.program[pc + 1],
+            self.program[pc + 2],
+            self.program[pc + 3],
+            self.program[pc + 4],
+            self.program[pc + 5],
+            self.program[pc + 6],
+            self.program[pc + 7],
+        ]);
+        self.pc += 8;
+        mem
+    }
+
     pub fn print_regs(&self) {
         self.registers.iter().enumerate().for_each(|(i, reg)| {
             if i == LR_REG {
@@ -319,6 +355,45 @@ mod test {
     fn loadimd_op_code() {
         let mut vm = VM::new();
         vm.program = vec![OpCode::LOADIMD as u8, 0, 1, 244, OpCode::HLT as u8];
+        vm.run();
+
+        assert_eq!(vm.registers[0], 500);
+    }
+
+    #[test]
+    fn load_word_op_code() {
+        let mut vm = VM::new();
+        vm.program = vec![
+            OpCode::LOADWORD as u8,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            244,
+            OpCode::HLT as u8,
+        ];
+        vm.run();
+
+        assert_eq!(vm.registers[0], 500);
+    }
+
+    #[test]
+    fn load_mem_op_code() {
+        let mut vm = VM::new();
+        vm.program = vec![OpCode::LOADMEM as u8, 0, 1, OpCode::HLT as u8];
+        vm.registers[1] = 4;
+        vm.memory[4] = 0;
+        vm.memory[5] = 0;
+        vm.memory[6] = 0;
+        vm.memory[7] = 0;
+        vm.memory[8] = 0;
+        vm.memory[9] = 0;
+        vm.memory[10] = 1;
+        vm.memory[11] = 244;
         vm.run();
 
         assert_eq!(vm.registers[0], 500);

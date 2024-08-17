@@ -32,6 +32,7 @@ pub enum TokenType {
 
     LeftBracket,
     RightBracket,
+    Equal,
 
     NL,
     EOF,
@@ -42,8 +43,8 @@ impl TokenType {
         match self {
             TokenType::Reg(_) => Some(InsArgType::Reg),
             TokenType::ImdVal(_) => Some(InsArgType::Imd),
-            TokenType::LabelUsg(_) => Some(InsArgType::Label),
-            TokenType::LeftBracket => Some(InsArgType::Memory),
+            TokenType::LeftBracket => Some(InsArgType::Word),
+            TokenType::Equal => Some(InsArgType::Memory),
             _ => None,
         }
     }

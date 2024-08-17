@@ -107,6 +107,13 @@ impl Scanner {
                         file_coords: self.file_coords.clone(),
                     })
                 }
+                Some('=') => {
+                    self.advance();
+                    Ok(Token {
+                        token_type: TokenType::Equal,
+                        file_coords: self.file_coords.clone(),
+                    })
+                }
 
                 // Registers
                 Some('r') | Some('R') => {
