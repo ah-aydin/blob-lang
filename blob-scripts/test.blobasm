@@ -1,3 +1,5 @@
+
+
 LOAD R0 #10
 LOAD R1 #9
 LOAD r2 #4
@@ -5,7 +7,9 @@ LOAD r3 r2
 ADD r3 r3 r2
 SUB r4 r0 r1
 MUL r5 r0 r1 
+
 my_label:
+
 DIV r6 R0 r2
 LOAD r7 SP
 HLT

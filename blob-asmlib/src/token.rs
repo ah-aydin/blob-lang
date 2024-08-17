@@ -2,12 +2,33 @@ use blob_bc::{InsArgType, OpCode};
 use blob_common::file_coords::FileCoords;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
+pub enum DirectiveType {
+    /// Null terminated string
+    ASCIZ,
+    /// Non null terminated string
+    ASCI,
+    /// 4-byte number
+    WORD,
+    /// 1-byte number
+    BYTE,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum SectionType {
+    DATA,
+    TEXT,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum TokenType {
     Op(OpCode),
     Reg(u8),
     ImdVal(i32),
     LabelDecl(String),
     LabelUsg(String),
+    Directive(DirectiveType),
+    Section(SectionType),
+    String(String),
 
     LeftBracket,
     RightBracket,

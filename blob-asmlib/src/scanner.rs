@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    token::{Token, TokenType},
+    token::{DirectiveType, SectionType, Token, TokenType},
     LR_REG, SP_REG,
 };
 use blob_bc::OpCode;
@@ -43,6 +43,14 @@ lazy_static! {
 
         map.insert("aloc", TokenType::Op(OpCode::ALOC));
         map.insert("igl", TokenType::Op(OpCode::IGL));
+
+        map.insert(".asciz", TokenType::Directive(DirectiveType::ASCIZ));
+        map.insert(".asci", TokenType::Directive(DirectiveType::ASCI));
+        map.insert(".word", TokenType::Directive(DirectiveType::WORD));
+        map.insert(".byte", TokenType::Directive(DirectiveType::BYTE));
+
+        map.insert(".data", TokenType::Section(SectionType::DATA));
+        map.insert(".text", TokenType::Section(SectionType::TEXT));
 
         map
     };
@@ -143,6 +151,32 @@ impl Scanner {
                     if let Ok(imd_val) = lexeme.parse::<i32>() {
                         Ok(Token {
                             token_type: TokenType::ImdVal(imd_val),
+                            file_coords,
+                        })
+                    } else {
+                        Err(())
+                    }
+                }
+
+                Some('"') => {
+                    self.advance();
+
+                    let start_index = self.current_index;
+                    while let Some(c) = src_iter.peek() {
+                        if *c == '\"' {
+                            break;
+                        }
+                        self.advance();
+                        src_iter.next();
+                    }
+
+                    let lexeme = src[start_index..self.current_index].to_string();
+                    let file_coords = self.file_coords.new_offset(0, -(lexeme.len() as isize));
+                    self.advance();
+                    src_iter.next();
+                    if lexeme.is_ascii() {
+                        Ok(Token {
+                            token_type: TokenType::String(lexeme.to_string()),
                             file_coords,
                         })
                     } else {
@@ -423,66 +457,57 @@ mod test {
 
     #[test]
     fn program_1() {
-        let result = scan("load r0 r31\n\t add r1 #54");
+        let result_token_types: Vec<TokenType> = scan(".data .text load r0 r31\n\t add r1 #54")
+            .iter()
+            .map(|token| token.token_type.clone())
+            .collect();
 
-        assert_eq!(
-            result.get(0).unwrap().token_type,
-            TokenType::Op(OpCode::LOAD)
-        );
-        assert_eq!(result.get(1).unwrap().token_type, TokenType::Reg(0));
-        assert_eq!(result.get(2).unwrap().token_type, TokenType::Reg(31));
+        let expected_token_types = vec![
+            TokenType::Section(SectionType::DATA),
+            TokenType::Section(SectionType::TEXT),
+            TokenType::Op(OpCode::LOAD),
+            TokenType::Reg(0),
+            TokenType::Reg(31),
+            TokenType::Op(OpCode::ADD),
+            TokenType::Reg(1),
+            TokenType::ImdVal(54),
+            TokenType::EOF,
+        ];
 
-        assert_eq!(
-            result.get(3).unwrap().token_type,
-            TokenType::Op(OpCode::ADD)
-        );
-        assert_eq!(result.get(4).unwrap().token_type, TokenType::Reg(1));
-        assert_eq!(result.get(5).unwrap().token_type, TokenType::ImdVal(54));
-        assert_eq!(result.last().unwrap().token_type, TokenType::EOF);
+        assert_eq!(result_token_types, expected_token_types);
     }
 
     #[test]
     fn program_2() {
-        let result =
-            scan("my_label:\n\t load r0 r31\n\t add r1 #54\n\tjmp my_label \n add r1 [r2]");
+        let result_token_types: Vec<TokenType> =
+            scan(".data my_string: .asciz \"hello\" .text my_label:\n\t load r0 r31\n\t add r1 #54\n\tjmp my_label \n add r1 [r2]")
+                .iter()
+                .map(|token| token.token_type.clone())
+                .collect();
 
-        assert_eq!(
-            result.get(0).unwrap().token_type,
-            TokenType::LabelDecl("my_label".to_owned())
-        );
+        let expected_token_types = vec![
+            TokenType::Section(SectionType::DATA),
+            TokenType::LabelDecl("my_string".to_owned()),
+            TokenType::Directive(DirectiveType::ASCIZ),
+            TokenType::String("hello".to_string()),
+            TokenType::Section(SectionType::TEXT),
+            TokenType::LabelDecl("my_label".to_owned()),
+            TokenType::Op(OpCode::LOAD),
+            TokenType::Reg(0),
+            TokenType::Reg(31),
+            TokenType::Op(OpCode::ADD),
+            TokenType::Reg(1),
+            TokenType::ImdVal(54),
+            TokenType::Op(OpCode::JMP),
+            TokenType::LabelUsg("my_label".to_owned()),
+            TokenType::Op(OpCode::ADD),
+            TokenType::Reg(1),
+            TokenType::LeftBracket,
+            TokenType::Reg(2),
+            TokenType::RightBracket,
+            TokenType::EOF,
+        ];
 
-        assert_eq!(
-            result.get(1).unwrap().token_type,
-            TokenType::Op(OpCode::LOAD)
-        );
-        assert_eq!(result.get(2).unwrap().token_type, TokenType::Reg(0));
-        assert_eq!(result.get(3).unwrap().token_type, TokenType::Reg(31));
-
-        assert_eq!(
-            result.get(4).unwrap().token_type,
-            TokenType::Op(OpCode::ADD)
-        );
-        assert_eq!(result.get(5).unwrap().token_type, TokenType::Reg(1));
-        assert_eq!(result.get(6).unwrap().token_type, TokenType::ImdVal(54));
-
-        assert_eq!(
-            result.get(7).unwrap().token_type,
-            TokenType::Op(OpCode::JMP)
-        );
-        assert_eq!(
-            result.get(8).unwrap().token_type,
-            TokenType::LabelUsg("my_label".to_owned())
-        );
-
-        assert_eq!(
-            result.get(9).unwrap().token_type,
-            TokenType::Op(OpCode::ADD)
-        );
-        assert_eq!(result.get(10).unwrap().token_type, TokenType::Reg(1));
-        assert_eq!(result.get(11).unwrap().token_type, TokenType::LeftBracket);
-        assert_eq!(result.get(12).unwrap().token_type, TokenType::Reg(2));
-        assert_eq!(result.get(13).unwrap().token_type, TokenType::RightBracket);
-
-        assert_eq!(result.last().unwrap().token_type, TokenType::EOF);
+        assert_eq!(result_token_types, expected_token_types);
     }
 }
