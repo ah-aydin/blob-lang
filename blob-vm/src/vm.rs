@@ -215,7 +215,7 @@ impl VM {
                     let sp = self.registers[SP_REG] as usize;
 
                     if sp + 8 > self.hp || sp + 8 > self.memory.len() {
-                        todo!("Expanding stack. Don't have enough memory. Implement memeory expansion");
+                        todo!("Must expand stack. Don't have enough memory. Implement memeory expansion");
                     }
 
                     self.memory[sp..sp + 8].copy_from_slice(&data.to_be_bytes());
@@ -234,7 +234,7 @@ impl VM {
                     let new_hp = self.hp - bytes as usize;
                     if new_hp < self.registers[SP_REG] as usize {
                         todo!(
-                            "Expanding heap. Don't have enough memory. Implement memory expansion"
+                            "Must expand heap. Don't have enough memory. Implement memory expansion"
                         );
                     }
                     self.hp = new_hp;
