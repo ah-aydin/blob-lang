@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
 use crate::{
-    token::{DirectiveType, SectionType, Token, TokenType},
+    token::{Token, TokenType},
     LR_REG, SP_REG,
 };
-use blob_bc::OpCode;
+use blob_bc::{DirectiveType, OpCode, SectionType};
 use blob_common::{error, file_coords::FileCoords, info};
 use lazy_static::lazy_static;
 
@@ -44,13 +44,15 @@ lazy_static! {
         map.insert("aloc", TokenType::Op(OpCode::Aloc));
         map.insert("igl", TokenType::Op(OpCode::IGL));
 
-        map.insert(".asciiz", TokenType::Directive(DirectiveType::ASCIIZ));
-        map.insert(".ascii", TokenType::Directive(DirectiveType::ASCII));
-        map.insert(".word", TokenType::Directive(DirectiveType::WORD));
-        map.insert(".byte", TokenType::Directive(DirectiveType::BYTE));
+        map.insert(".asciiz", TokenType::Directive(DirectiveType::Asciiz));
+        map.insert(".ascii", TokenType::Directive(DirectiveType::Ascii));
+        map.insert(".word", TokenType::Directive(DirectiveType::Word));
+        map.insert(".hword", TokenType::Directive(DirectiveType::HalfWord));
+        map.insert(".qword", TokenType::Directive(DirectiveType::QuaterWord));
+        map.insert(".byte", TokenType::Directive(DirectiveType::Byte));
 
-        map.insert(".data", TokenType::Section(SectionType::DATA));
-        map.insert(".text", TokenType::Section(SectionType::TEXT));
+        map.insert(".data", TokenType::Section(SectionType::Data));
+        map.insert(".text", TokenType::Section(SectionType::Text));
 
         map
     };
@@ -470,8 +472,8 @@ mod test {
             .collect();
 
         let expected_token_types = vec![
-            TokenType::Section(SectionType::DATA),
-            TokenType::Section(SectionType::TEXT),
+            TokenType::Section(SectionType::Data),
+            TokenType::Section(SectionType::Text),
             TokenType::Op(OpCode::Load),
             TokenType::Reg(0),
             TokenType::Reg(31),
@@ -487,17 +489,17 @@ mod test {
     #[test]
     fn program_2() {
         let result_token_types: Vec<TokenType> =
-            scan(".data my_string: .asciz \"hello\" .text my_label:\n\t load r0 r31\n\t add r1 #54\n\tjmp my_label \n add r1 [r2]")
+            scan(".data my_string: .asciiz \"hello\" .text my_label:\n\t load r0 r31\n\t add r1 #54\n\tjmp my_label \n add r1 [r2]")
                 .iter()
                 .map(|token| token.token_type.clone())
                 .collect();
 
         let expected_token_types = vec![
-            TokenType::Section(SectionType::DATA),
+            TokenType::Section(SectionType::Data),
             TokenType::LabelDecl("my_string".to_owned()),
-            TokenType::Directive(DirectiveType::ASCIIZ),
+            TokenType::Directive(DirectiveType::Asciiz),
             TokenType::String("hello".to_string()),
-            TokenType::Section(SectionType::TEXT),
+            TokenType::Section(SectionType::Text),
             TokenType::LabelDecl("my_label".to_owned()),
             TokenType::Op(OpCode::Load),
             TokenType::Reg(0),

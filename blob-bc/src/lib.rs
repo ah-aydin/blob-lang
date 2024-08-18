@@ -92,24 +92,25 @@ impl InsArg {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Ins {
-    N(OpCode),
-    A(OpCode, InsArg),
-    AA(OpCode, InsArg, InsArg),
-    AAA(OpCode, InsArg, InsArg, InsArg),
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum InsText {
+    Arg0(OpCode),
+    Arg1(OpCode, InsArg),
+    Arg2(OpCode, InsArg, InsArg),
+    Arg3(OpCode, InsArg, InsArg, InsArg),
+    Label(String),
 }
 
-impl Ins {
-    pub fn from_ins_args(mut op_code: OpCode, args: Vec<InsArg>) -> Ins {
+impl InsText {
+    pub fn from_ins_args(mut op_code: OpCode, args: Vec<InsArg>) -> InsText {
         if let Some(InsArg::Imd(_)) = args.last() {
             op_code = op_code.get_imd_version();
         }
         match args.len() {
-            0 => Ins::N(op_code),
-            1 => Ins::A(op_code, *args.get(0).unwrap()),
-            2 => Ins::AA(op_code, *args.get(0).unwrap(), *args.get(1).unwrap()),
-            3 => Ins::AAA(
+            0 => InsText::Arg0(op_code),
+            1 => InsText::Arg1(op_code, *args.get(0).unwrap()),
+            2 => InsText::Arg2(op_code, *args.get(0).unwrap(), *args.get(1).unwrap()),
+            3 => InsText::Arg3(
                 op_code,
                 *args.get(0).unwrap(),
                 *args.get(1).unwrap(),
@@ -121,22 +122,78 @@ impl Ins {
 
     pub fn to_bytes(&self) -> Vec<u8> {
         match self {
-            Ins::N(op) => vec![op.to_byte()],
-            Ins::A(op, ins) => vec![op.to_byte()]
+            InsText::Arg0(op) => vec![op.to_byte()],
+            InsText::Arg1(op, arg) => vec![op.to_byte()]
                 .into_iter()
-                .chain(ins.to_bytes().into_iter())
+                .chain(arg.to_bytes().into_iter())
                 .collect(),
-            Ins::AA(op, ins1, ins2) => vec![op.to_byte()]
+            InsText::Arg2(op, arg1, arg2) => vec![op.to_byte()]
                 .into_iter()
-                .chain(ins1.to_bytes().into_iter())
-                .chain(ins2.to_bytes().into_iter())
+                .chain(arg1.to_bytes().into_iter())
+                .chain(arg2.to_bytes().into_iter())
                 .collect(),
-            Ins::AAA(op, ins1, ins2, ins3) => vec![op.to_byte()]
+            InsText::Arg3(op, arg1, arg2, arg3) => vec![op.to_byte()]
                 .into_iter()
-                .chain(ins1.to_bytes().into_iter())
-                .chain(ins2.to_bytes().into_iter())
-                .chain(ins3.to_bytes().into_iter())
+                .chain(arg1.to_bytes().into_iter())
+                .chain(arg2.to_bytes().into_iter())
+                .chain(arg3.to_bytes().into_iter())
                 .collect(),
+            InsText::Label(_) => unreachable!("A label instructions cannot be made into a byte array"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum SectionType {
+    Data,
+    Text,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum DirectiveType {
+    /// Null terminated string
+    Asciiz,
+    /// Non null terminated string
+    Ascii,
+    /// 8-byte
+    Word,
+    /// 4-byte
+    HalfWord,
+    /// 2-byte
+    QuaterWord,
+    /// 1-byte number
+    Byte,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum InsData {
+    Directive(DirectiveType, String),
+    Label(String),
+}
+
+impl InsData {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        match self {
+            InsData::Directive(directive_type, lexeme) => {
+                self.directive_to_bytes(*directive_type, lexeme)
+            }
+            InsData::Label(_) => {
+                unreachable!("A label instructions cannot be made into a byte array")
+            }
+        }
+    }
+
+    fn directive_to_bytes(&self, direcitve_type: DirectiveType, lexeme: &str) -> Vec<u8> {
+        match direcitve_type {
+            DirectiveType::Asciiz => [lexeme.as_bytes().to_vec(), vec![b'\0']]
+                .into_iter()
+                .flat_map(|v| v)
+                .collect(),
+            DirectiveType::Ascii => lexeme.as_bytes().to_vec(),
+            DirectiveType::Word => lexeme.parse::<i64>().unwrap().to_be_bytes().to_vec(),
+            DirectiveType::HalfWord => lexeme.parse::<i32>().unwrap().to_be_bytes().to_vec(),
+            DirectiveType::QuaterWord => lexeme.parse::<i16>().unwrap().to_be_bytes().to_vec(),
+            DirectiveType::Byte => lexeme.parse::<u8>().unwrap().to_be_bytes().to_vec(),
         }
     }
 }
