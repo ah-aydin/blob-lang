@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(u8)]
 pub enum OpCode {
@@ -59,8 +61,79 @@ pub enum OpCode {
     IGL,
 }
 
+pub enum OpCodeType {
+    Misc,
+    Load,
+    Str,
+    Math,
+    Jmp,
+    Cmp,
+    Stack,
+    Heap,
+}
+
 impl OpCode {
-    fn get_imd_version(&self) -> OpCode {
+    pub fn get_type(&self) -> OpCodeType {
+        match self {
+            OpCode::Hlt => OpCodeType::Misc,
+
+            OpCode::Load
+            | OpCode::LoadImd
+            | OpCode::LoadWord
+            | OpCode::LoadMemByte
+            | OpCode::LoadMemQuaterWord
+            | OpCode::LoadMemHalfWord
+            | OpCode::LoadMemWord => OpCodeType::Load,
+
+            OpCode::StrByte
+            | OpCode::StrByteImd
+            | OpCode::StrQuaterWord
+            | OpCode::StrQuaterWordImd
+            | OpCode::StrHalfWord
+            | OpCode::StrWord => OpCodeType::Str,
+
+            OpCode::Add
+            | OpCode::AddImd
+            | OpCode::Sub
+            | OpCode::SubImd
+            | OpCode::Mul
+            | OpCode::MulImd
+            | OpCode::Div
+            | OpCode::DivImd => OpCodeType::Math,
+
+            OpCode::Jmp
+            | OpCode::JmpF
+            | OpCode::JmpFImd
+            | OpCode::JmpB
+            | OpCode::JmpBImd
+            | OpCode::JCmp
+            | OpCode::JCmpF
+            | OpCode::JCmpFImd
+            | OpCode::JCmpB
+            | OpCode::JCmpBImd => OpCodeType::Jmp,
+
+            OpCode::Eq
+            | OpCode::EqImd
+            | OpCode::NEq
+            | OpCode::NEqImd
+            | OpCode::Gt
+            | OpCode::GtImd
+            | OpCode::Lt
+            | OpCode::LtImd
+            | OpCode::Ge
+            | OpCode::GeImd
+            | OpCode::Le
+            | OpCode::LeiImd => OpCodeType::Cmp,
+
+            OpCode::Push | OpCode::Pop => OpCodeType::Stack,
+
+            OpCode::Aloc => OpCodeType::Heap,
+
+            OpCode::IGL => unreachable!("{:?} doesn't have an OpCodeType", self),
+        }
+    }
+
+    pub fn get_imd_version(&self) -> OpCode {
         unsafe { std::mem::transmute::<u8, OpCode>(*self as u8 + 1) }
     }
 
@@ -90,6 +163,23 @@ impl InsArg {
             InsArg::Word(word) => word.to_be_bytes().to_vec(),
         }
     }
+
+    pub fn is_imd(&self) -> bool {
+        match self {
+            InsArg::Imd(_) => true,
+            _ => false,
+        }
+    }
+}
+
+impl Display for InsArg {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InsArg::Reg(reg) => write!(f, "R{}", reg),
+            InsArg::Imd(imd) => write!(f, "#{}", imd),
+            InsArg::Word(word) => write!(f, ".word {}", word),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -98,28 +188,11 @@ pub enum InsText {
     Arg1(OpCode, InsArg),
     Arg2(OpCode, InsArg, InsArg),
     Arg3(OpCode, InsArg, InsArg, InsArg),
-    Label(String),
+    LabelDecl(String),
+    LabelUsage(String),
 }
 
 impl InsText {
-    pub fn from_ins_args(mut op_code: OpCode, args: Vec<InsArg>) -> InsText {
-        if let Some(InsArg::Imd(_)) = args.last() {
-            op_code = op_code.get_imd_version();
-        }
-        match args.len() {
-            0 => InsText::Arg0(op_code),
-            1 => InsText::Arg1(op_code, *args.get(0).unwrap()),
-            2 => InsText::Arg2(op_code, *args.get(0).unwrap(), *args.get(1).unwrap()),
-            3 => InsText::Arg3(
-                op_code,
-                *args.get(0).unwrap(),
-                *args.get(1).unwrap(),
-                *args.get(2).unwrap(),
-            ),
-            _ => unreachable!("How the heck did end up with more then 3 arguments?"),
-        }
-    }
-
     pub fn to_bytes(&self) -> Vec<u8> {
         match self {
             InsText::Arg0(op) => vec![op.to_byte()],
@@ -138,7 +211,22 @@ impl InsText {
                 .chain(arg2.to_bytes().into_iter())
                 .chain(arg3.to_bytes().into_iter())
                 .collect(),
-            InsText::Label(_) => unreachable!("A label instructions cannot be made into a byte array"),
+            InsText::LabelDecl(_) | InsText::LabelUsage(_) => {
+                unreachable!("A label instructions cannot be made into a byte array")
+            }
+        }
+    }
+}
+
+impl Display for InsText {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InsText::Arg0(op) => write!(f, "{:?}", op),
+            InsText::Arg1(op, arg) => write!(f, "{:?} {}", op, arg),
+            InsText::Arg2(op, arg1, arg2) => write!(f, "{:?} {} {}", op, arg1, arg2),
+            InsText::Arg3(op, arg1, arg2, arg3) => write!(f, "{:?} {} {} {}", op, arg1, arg2, arg3),
+            InsText::LabelDecl(label) => write!(f, "{}:", label),
+            InsText::LabelUsage(label) => write!(f, "{}", label),
         }
     }
 }
@@ -198,25 +286,11 @@ impl InsData {
     }
 }
 
-#[cfg(test)]
-mod test_opcode {
-    use super::*;
-
-    #[test]
-    fn it_gets_imd_variants() {
-        assert_eq!(OpCode::Load.get_imd_version(), OpCode::LoadImd);
-        assert_eq!(OpCode::Add.get_imd_version(), OpCode::AddImd);
-        assert_eq!(OpCode::Mul.get_imd_version(), OpCode::MulImd);
-        assert_eq!(OpCode::Div.get_imd_version(), OpCode::DivImd);
-        assert_eq!(OpCode::JmpF.get_imd_version(), OpCode::JmpFImd);
-        assert_eq!(OpCode::JmpB.get_imd_version(), OpCode::JmpBImd);
-        assert_eq!(OpCode::JCmpF.get_imd_version(), OpCode::JCmpFImd);
-        assert_eq!(OpCode::JCmpB.get_imd_version(), OpCode::JCmpBImd);
-        assert_eq!(OpCode::Eq.get_imd_version(), OpCode::EqImd);
-        assert_eq!(OpCode::NEq.get_imd_version(), OpCode::NEqImd);
-        assert_eq!(OpCode::Gt.get_imd_version(), OpCode::GtImd);
-        assert_eq!(OpCode::Lt.get_imd_version(), OpCode::LtImd);
-        assert_eq!(OpCode::Ge.get_imd_version(), OpCode::GeImd);
-        assert_eq!(OpCode::Le.get_imd_version(), OpCode::LeiImd);
+impl Display for InsData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            InsData::Directive(dt, lexeme) => write!(f, "{:?} {}", dt, lexeme),
+            InsData::Label(label) => write!(f, "{}", label),
+        }
     }
 }

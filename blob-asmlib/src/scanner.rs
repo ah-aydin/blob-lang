@@ -261,17 +261,17 @@ impl Scanner {
     }
 }
 
-pub fn scan(src: &str) -> Result<Vec<Token>, ()> {
+pub fn scan(src: &str) -> Vec<Token> {
     info!("Scanning...");
     let result = Scanner::new().scan(src);
     match result {
         Ok(tokens) => {
             info!("Scanning comlpete!");
-            Ok(tokens)
+            tokens
         }
         Err(scanner_error) => {
             error!("Scanning failed: {:?}!", scanner_error);
-            Err(())
+            std::process::exit(1);
         }
     }
 }
@@ -281,7 +281,7 @@ mod test {
     use super::*;
 
     fn scan(src: &str) -> Vec<Token> {
-        super::scan(src).unwrap()
+        super::scan(src)
     }
 
     #[test]

@@ -20,6 +20,15 @@ pub enum TokenType {
     EOF,
 }
 
+impl TokenType {
+    pub fn get_reg(&self) -> Result<u8, ()> {
+        match self {
+            TokenType::Reg(reg) => Ok(*reg),
+            _ => Err(()),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Token {
     pub token_type: TokenType,

@@ -1,4 +1,4 @@
-mod linker;
+mod parser;
 mod scanner;
 mod token;
 
@@ -31,6 +31,20 @@ pub fn assemble_file(file_name: &str) -> Result<BlobExecutable, ()> {
 
     info!("Assembling {}...", file_name);
 
-    let tokens = scanner::scan(&src)?;
-    Ok(linker::link(tokens)?)
+    let tokens = scanner::scan(&src);
+    let parse_data = parser::parse(tokens);
+
+    println!("DATA:");
+    parse_data
+        .ins_data
+        .iter()
+        .for_each(|ins| println!("{}", ins));
+
+    println!("\n\nTEXT:");
+    parse_data
+        .ins_text
+        .iter()
+        .for_each(|ins| println!("{}", ins));
+
+    todo!("Link parsed assembly")
 }
