@@ -17,6 +17,7 @@ version = "0.1.0"
 dependencies = [
  "blob-bc",
  "blob-common",
+ "blob-executable",
  "lazy_static",
 ]
 

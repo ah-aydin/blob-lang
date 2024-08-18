@@ -59,119 +59,13 @@ pub enum OpCode {
     IGL,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum InsArgType {
-    Reg,
-    Imd,
-    Word,
-    Memory,
-}
-
-macro_rules! arg_types {
-    (reg) => {
-        vec![InsArgType::Reg]
-    };
-    (reg, imd) => {
-        vec![InsArgType::Reg, InsArgType::Imd]
-    };
-    (reg, imd, mem) => {
-        vec![
-            InsArgType::Reg,
-            InsArgType::Imd,
-            InsArgType::Word,
-            InsArgType::Memory,
-        ]
-    };
-}
-
 impl OpCode {
-    pub fn get_imd_version(&self) -> OpCode {
+    fn get_imd_version(&self) -> OpCode {
         unsafe { std::mem::transmute::<u8, OpCode>(*self as u8 + 1) }
     }
 
-    pub fn get_word_version(&self) -> OpCode {
-        unsafe { std::mem::transmute::<u8, OpCode>(*self as u8 + 2) }
-    }
-
-    pub fn get_mem_byte_version(&self) -> OpCode {
-        unsafe { std::mem::transmute::<u8, OpCode>(*self as u8 + 3) }
-    }
-
-    pub fn get_mem_quater_word_version(&self) -> OpCode {
-        unsafe { std::mem::transmute::<u8, OpCode>(*self as u8 + 4) }
-    }
-
-    pub fn get_mem_quater_half_version(&self) -> OpCode {
-        unsafe { std::mem::transmute::<u8, OpCode>(*self as u8 + 5) }
-    }
-
-    pub fn get_mem_word_version(&self) -> OpCode {
-        unsafe { std::mem::transmute::<u8, OpCode>(*self as u8 + 6) }
-    }
-
-    pub fn to_byte(&self) -> u8 {
+    fn to_byte(&self) -> u8 {
         *self as u8
-    }
-
-    pub fn get_args_types(&self) -> Vec<Vec<InsArgType>> {
-        match self {
-            OpCode::Hlt => vec![],
-
-            OpCode::Load
-            | OpCode::LoadImd
-            | OpCode::LoadWord
-            | OpCode::LoadMemByte
-            | OpCode::LoadMemQuaterWord
-            | OpCode::LoadMemHalfWord
-            | OpCode::LoadMemWord => {
-                vec![arg_types!(reg), arg_types!(reg, imd, mem)]
-            }
-
-            OpCode::StrByte
-            | OpCode::StrByteImd
-            | OpCode::StrQuaterWord
-            | OpCode::StrQuaterWordImd
-            | OpCode::StrHalfWord
-            | OpCode::StrWord => {
-                vec![arg_types!(reg), arg_types!(reg, imd)]
-            }
-
-            OpCode::Add
-            | OpCode::AddImd
-            | OpCode::Sub
-            | OpCode::SubImd
-            | OpCode::Mul
-            | OpCode::MulImd
-            | OpCode::Div
-            | OpCode::DivImd => vec![arg_types!(reg), arg_types!(reg), arg_types!(reg, imd)],
-
-            OpCode::Jmp | OpCode::JCmp => vec![arg_types!(reg)],
-            OpCode::JmpF
-            | OpCode::JmpFImd
-            | OpCode::JmpB
-            | OpCode::JmpBImd
-            | OpCode::JCmpF
-            | OpCode::JCmpFImd
-            | OpCode::JCmpB
-            | OpCode::JCmpBImd => vec![arg_types!(reg, imd)],
-
-            OpCode::Eq
-            | OpCode::EqImd
-            | OpCode::NEq
-            | OpCode::NEqImd
-            | OpCode::Gt
-            | OpCode::GtImd
-            | OpCode::Lt
-            | OpCode::LtImd
-            | OpCode::Ge
-            | OpCode::GeImd
-            | OpCode::Le
-            | OpCode::LeiImd => vec![arg_types!(reg), arg_types!(reg, imd)],
-
-            OpCode::Push | OpCode::Pop | OpCode::Aloc => vec![arg_types!(reg)],
-
-            OpCode::IGL => unreachable!("Requeted instruction arg types on illegal op code"),
-        }
     }
 }
 
@@ -208,13 +102,15 @@ mod test_opcode {
 pub enum InsArg {
     Reg(u8),
     Imd(u16),
+    Word(u64),
 }
 
 impl InsArg {
     pub fn to_bytes(&self) -> Vec<u8> {
         match self {
             InsArg::Reg(reg) => vec![*reg],
-            InsArg::Imd(imd) => vec![(imd >> 8) as u8, (imd & 0xFF) as u8],
+            InsArg::Imd(imd) => imd.to_be_bytes().to_vec(),
+            InsArg::Word(word) => word.to_be_bytes().to_vec(),
         }
     }
 }

@@ -1,5 +1,3 @@
-
-
 LOAD R0 #10
 LOAD R1 #9
 LOAD r2 #4

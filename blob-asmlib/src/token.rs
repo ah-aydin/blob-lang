@@ -1,12 +1,12 @@
-use blob_bc::{InsArgType, OpCode};
+use blob_bc::OpCode;
 use blob_common::file_coords::FileCoords;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum DirectiveType {
     /// Null terminated string
-    ASCIZ,
+    ASCIIZ,
     /// Non null terminated string
-    ASCI,
+    ASCII,
     /// 4-byte number
     WORD,
     /// 1-byte number
@@ -36,18 +36,6 @@ pub enum TokenType {
 
     NL,
     EOF,
-}
-
-impl TokenType {
-    pub fn get_ins_arg_type(&self) -> Option<InsArgType> {
-        match self {
-            TokenType::Reg(_) => Some(InsArgType::Reg),
-            TokenType::ImdVal(_) => Some(InsArgType::Imd),
-            TokenType::LeftBracket => Some(InsArgType::Word),
-            TokenType::Equal => Some(InsArgType::Memory),
-            _ => None,
-        }
-    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

@@ -44,8 +44,8 @@ lazy_static! {
         map.insert("aloc", TokenType::Op(OpCode::Aloc));
         map.insert("igl", TokenType::Op(OpCode::IGL));
 
-        map.insert(".asciz", TokenType::Directive(DirectiveType::ASCIZ));
-        map.insert(".asci", TokenType::Directive(DirectiveType::ASCI));
+        map.insert(".asciiz", TokenType::Directive(DirectiveType::ASCIIZ));
+        map.insert(".ascii", TokenType::Directive(DirectiveType::ASCII));
         map.insert(".word", TokenType::Directive(DirectiveType::WORD));
         map.insert(".byte", TokenType::Directive(DirectiveType::BYTE));
 
@@ -495,7 +495,7 @@ mod test {
         let expected_token_types = vec![
             TokenType::Section(SectionType::DATA),
             TokenType::LabelDecl("my_string".to_owned()),
-            TokenType::Directive(DirectiveType::ASCIZ),
+            TokenType::Directive(DirectiveType::ASCIIZ),
             TokenType::String("hello".to_string()),
             TokenType::Section(SectionType::TEXT),
             TokenType::LabelDecl("my_label".to_owned()),

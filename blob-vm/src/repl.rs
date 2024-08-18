@@ -88,8 +88,7 @@ impl REPL {
                         match blob_asmlib::assemble_file(file) {
                             Ok(program) => {
                                 info!("Running file '{file}'...");
-                                self.vm
-                                    .set_and_run_program(BlobExecutable::new(vec![], program));
+                                self.vm.set_and_run_program(program);
                                 info!("Run complete!");
                             }
                             Err(()) => {

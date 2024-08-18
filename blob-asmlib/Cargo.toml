@@ -6,4 +6,5 @@ edition = "2021"
 [dependencies]
 blob-bc = { path = "../blob-bc" }
 blob-common = { path = "../blob-common" }
+blob-executable = { path = "../blob-executable" }
 lazy_static = "1.5.0"
