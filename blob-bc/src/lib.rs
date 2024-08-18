@@ -75,29 +75,6 @@ impl From<u8> for OpCode {
     }
 }
 
-#[cfg(test)]
-mod test_opcode {
-    use super::*;
-
-    #[test]
-    fn it_gets_imd_variants() {
-        assert_eq!(OpCode::Load.get_imd_version(), OpCode::LoadImd);
-        assert_eq!(OpCode::Add.get_imd_version(), OpCode::AddImd);
-        assert_eq!(OpCode::Mul.get_imd_version(), OpCode::MulImd);
-        assert_eq!(OpCode::Div.get_imd_version(), OpCode::DivImd);
-        assert_eq!(OpCode::JmpF.get_imd_version(), OpCode::JmpFImd);
-        assert_eq!(OpCode::JmpB.get_imd_version(), OpCode::JmpBImd);
-        assert_eq!(OpCode::JCmpF.get_imd_version(), OpCode::JCmpFImd);
-        assert_eq!(OpCode::JCmpB.get_imd_version(), OpCode::JCmpBImd);
-        assert_eq!(OpCode::Eq.get_imd_version(), OpCode::EqImd);
-        assert_eq!(OpCode::NEq.get_imd_version(), OpCode::NEqImd);
-        assert_eq!(OpCode::Gt.get_imd_version(), OpCode::GtImd);
-        assert_eq!(OpCode::Lt.get_imd_version(), OpCode::LtImd);
-        assert_eq!(OpCode::Ge.get_imd_version(), OpCode::GeImd);
-        assert_eq!(OpCode::Le.get_imd_version(), OpCode::LeiImd);
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InsArg {
     Reg(u8),
@@ -161,5 +138,28 @@ impl Ins {
                 .chain(ins3.to_bytes().into_iter())
                 .collect(),
         }
+    }
+}
+
+#[cfg(test)]
+mod test_opcode {
+    use super::*;
+
+    #[test]
+    fn it_gets_imd_variants() {
+        assert_eq!(OpCode::Load.get_imd_version(), OpCode::LoadImd);
+        assert_eq!(OpCode::Add.get_imd_version(), OpCode::AddImd);
+        assert_eq!(OpCode::Mul.get_imd_version(), OpCode::MulImd);
+        assert_eq!(OpCode::Div.get_imd_version(), OpCode::DivImd);
+        assert_eq!(OpCode::JmpF.get_imd_version(), OpCode::JmpFImd);
+        assert_eq!(OpCode::JmpB.get_imd_version(), OpCode::JmpBImd);
+        assert_eq!(OpCode::JCmpF.get_imd_version(), OpCode::JCmpFImd);
+        assert_eq!(OpCode::JCmpB.get_imd_version(), OpCode::JCmpBImd);
+        assert_eq!(OpCode::Eq.get_imd_version(), OpCode::EqImd);
+        assert_eq!(OpCode::NEq.get_imd_version(), OpCode::NEqImd);
+        assert_eq!(OpCode::Gt.get_imd_version(), OpCode::GtImd);
+        assert_eq!(OpCode::Lt.get_imd_version(), OpCode::LtImd);
+        assert_eq!(OpCode::Ge.get_imd_version(), OpCode::GeImd);
+        assert_eq!(OpCode::Le.get_imd_version(), OpCode::LeiImd);
     }
 }
