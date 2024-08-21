@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     token::{Token, TokenType},
-    LR_REG, SP_REG,
+    LR_REG, MEM_REG, SP_REG,
 };
 use blob_bc::{DirectiveType, OpCode, SectionType};
 use blob_common::{error, file_coords::FileCoords, info};
@@ -12,12 +12,14 @@ lazy_static! {
     static ref KEYWORDS: HashMap<&'static str, TokenType> = {
         let mut map = HashMap::new();
 
+        map.insert("mem", TokenType::Reg(MEM_REG as u8));
         map.insert("sp", TokenType::Reg(SP_REG as u8));
         map.insert("lr", TokenType::Reg(LR_REG as u8));
 
         map.insert("hlt", TokenType::Op(OpCode::Hlt));
 
         map.insert("load", TokenType::Op(OpCode::Load));
+        map.insert("str", TokenType::Op(OpCode::StrWord));
 
         map.insert("add", TokenType::Op(OpCode::Add));
         map.insert("sub", TokenType::Op(OpCode::Sub));

@@ -6,10 +6,11 @@ use blob_common::{error, info};
 use blob_executable::BlobExecutable;
 use std::{fs::File, io::Read};
 
-pub const GENERAL_REG_COUNT: usize = 28;
-pub const SP_REG: usize = GENERAL_REG_COUNT;
-pub const LR_REG: usize = GENERAL_REG_COUNT + 1;
-pub const REG_COUNT: usize = LR_REG + 1;
+pub const GENERAL_REG_COUNT: usize = 27;
+pub const MEM_REG: usize = GENERAL_REG_COUNT;
+pub const SP_REG: usize = GENERAL_REG_COUNT + 1;
+pub const LR_REG: usize = GENERAL_REG_COUNT + 2;
+pub const REG_COUNT: usize = GENERAL_REG_COUNT + 3;
 
 pub fn assemble_file(file_name: &str) -> Result<BlobExecutable, ()> {
     let mut file = match File::open(file_name) {

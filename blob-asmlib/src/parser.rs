@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use blob_bc::{InsArg, InsData, InsText, OpCode, OpCodeType, SectionType};
+use blob_bc::{DirectiveType, InsArg, InsData, InsText, OpCode, OpCodeType, SectionType};
 use blob_common::{error, info};
 
 use crate::token::{Token, TokenType};
@@ -107,11 +107,10 @@ impl Parser {
             OpCodeType::Misc => Ok(InsText::Arg0(op_code)),
             OpCodeType::Load => {
                 let oc;
-
-                let dest_arg = self.get_reg_arg_token()?;
-
+                let dest_arg = self.get_reg_arg()?;
                 let src_token = self.get_and_advance()?;
                 let src_arg;
+
                 match src_token.token_type {
                     TokenType::Reg(src_reg) => {
                         oc = OpCode::Load;
@@ -121,10 +120,26 @@ impl Parser {
                         oc = OpCode::LoadImd;
                         src_arg = InsArg::Imd(imd_val as u16);
                     }
-                    // TODO add rest of the loading methods
+
+                    TokenType::Directive(DirectiveType::Word) => {
+                        oc = OpCode::LoadMemRegWord;
+                        src_arg = self.parse_mem_reg()?;
+                    }
+                    TokenType::Directive(DirectiveType::HalfWord) => {
+                        oc = OpCode::LoadMemRegHalfWord;
+                        src_arg = self.parse_mem_reg()?;
+                    }
+                    TokenType::Directive(DirectiveType::QuaterWord) => {
+                        oc = OpCode::LoadMemRegQuaterWord;
+                        src_arg = self.parse_mem_reg()?;
+                    }
+                    TokenType::Directive(DirectiveType::Byte) => {
+                        oc = OpCode::LoadMemRegByte;
+                        src_arg = self.parse_mem_reg()?;
+                    }
                     _ => {
                         error!(
-                            "{} Expected a register or immediate value as source.",
+                            "{} Expected a register, immediate value, or a memory reg as source.",
                             src_token.file_coords
                         );
                         return Err(());
@@ -133,11 +148,51 @@ impl Parser {
 
                 Ok(InsText::Arg2(oc, dest_arg, src_arg))
             }
-            OpCodeType::Str => todo!(),
+            OpCodeType::Str => {
+                let mut oc;
+                let directive_token = self.get_and_advance()?;
+                let file_coords = directive_token.file_coords.clone();
+                match directive_token.token_type {
+                    TokenType::Directive(DirectiveType::Word) => {
+                        oc = OpCode::StrWord;
+                    }
+                    TokenType::Directive(DirectiveType::HalfWord) => {
+                        oc = OpCode::StrHalfWord;
+                    }
+                    TokenType::Directive(DirectiveType::QuaterWord) => {
+                        oc = OpCode::StrQuaterWord;
+                    }
+                    TokenType::Directive(DirectiveType::Byte) => {
+                        oc = OpCode::StrByte;
+                    }
+                    _ => {
+                        error!(
+                            "{} Expected a register, immediate value, or a memory reg as source.",
+                            directive_token.file_coords
+                        );
+                        return Err(());
+                    }
+                };
+
+                let dest_arg = self.parse_mem_reg()?;
+                let src_arg = self.get_reg_or_imd_arg()?;
+                if src_arg.is_imd() {
+                    if oc == OpCode::StrWord || oc == OpCode::StrHalfWord {
+                        error!(
+                            "{} '{:?}' cannot haave an immedate value as source.",
+                            file_coords, oc
+                        );
+                        return Err(());
+                    }
+                    oc = oc.get_imd_version();
+                }
+
+                Ok(InsText::Arg2(oc, dest_arg, src_arg))
+            }
             OpCodeType::Math => {
-                let dest_arg = self.get_reg_arg_token()?;
-                let operand_1 = self.get_reg_arg_token()?;
-                let operand_2 = self.get_reg_or_imd_arg_token()?;
+                let dest_arg = self.get_reg_arg()?;
+                let operand_1 = self.get_reg_arg()?;
+                let operand_2 = self.get_reg_or_imd_arg()?;
 
                 let oc = match operand_2.is_imd() {
                     true => op_code.get_imd_version(),
@@ -153,7 +208,7 @@ impl Parser {
         }
     }
 
-    fn get_reg_arg_token(&mut self) -> Result<InsArg, ()> {
+    fn get_reg_arg(&mut self) -> Result<InsArg, ()> {
         let token = self.get_and_advance()?;
         match token.token_type.get_reg() {
             Ok(reg) => Ok(InsArg::Reg(reg)),
@@ -167,7 +222,7 @@ impl Parser {
         }
     }
 
-    fn get_reg_or_imd_arg_token(&mut self) -> Result<InsArg, ()> {
+    fn get_reg_or_imd_arg(&mut self) -> Result<InsArg, ()> {
         let token = self.get_and_advance()?;
         match token.token_type {
             TokenType::Reg(reg) => Ok(InsArg::Reg(reg)),
@@ -180,6 +235,21 @@ impl Parser {
                 Err(())
             }
         }
+    }
+
+    fn parse_mem_reg(&mut self) -> Result<InsArg, ()> {
+        let token = self.get_and_advance()?;
+        if token.token_type != TokenType::LeftBracket {
+            error!("{} Expected '[' to specify memory", token.file_coords);
+            return Err(());
+        }
+        let reg_arg = self.get_reg_arg()?;
+        let token = self.get_and_advance()?;
+        if token.token_type != TokenType::RightBracket {
+            error!("{} Expected ']' missing closing", token.file_coords);
+            return Err(());
+        }
+        Ok(reg_arg)
     }
 
     fn get_and_advance(&mut self) -> Result<&Token, ()> {

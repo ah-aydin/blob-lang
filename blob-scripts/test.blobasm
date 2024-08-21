@@ -5,6 +5,17 @@ LOAD r3 r2
 ADD r3 r3 r2
 SUB r4 r0 r1
 MUL r5 r0 r1 
+LOAD r5 .word [r3]
+LOAD r5 .qword [mem]
+LOAD r6 .hword [mem]
+LOAD r7 .byte [r8]
+
+STR .word [r7] r3
+STR .hword [mem] r9
+STR .qword [r0] r2
+STR .qword [r0] #343
+STR .byte [r0] r2
+STR .byte [r0] #343
 
 my_label:
 

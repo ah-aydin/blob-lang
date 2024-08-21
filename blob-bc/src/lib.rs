@@ -7,11 +7,10 @@ pub enum OpCode {
 
     Load,
     LoadImd,
-    LoadWord,
-    LoadMemByte,
-    LoadMemQuaterWord,
-    LoadMemHalfWord,
-    LoadMemWord,
+    LoadMemRegByte,
+    LoadMemRegQuaterWord,
+    LoadMemRegHalfWord,
+    LoadMemRegWord,
 
     StrByte,
     StrByteImd,
@@ -79,11 +78,10 @@ impl OpCode {
 
             OpCode::Load
             | OpCode::LoadImd
-            | OpCode::LoadWord
-            | OpCode::LoadMemByte
-            | OpCode::LoadMemQuaterWord
-            | OpCode::LoadMemHalfWord
-            | OpCode::LoadMemWord => OpCodeType::Load,
+            | OpCode::LoadMemRegByte
+            | OpCode::LoadMemRegQuaterWord
+            | OpCode::LoadMemRegHalfWord
+            | OpCode::LoadMemRegWord => OpCodeType::Load,
 
             OpCode::StrByte
             | OpCode::StrByteImd
@@ -148,11 +146,12 @@ impl From<u8> for OpCode {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InsArg {
     Reg(u8),
     Imd(u16),
-    Word(u64),
+    Mem(u8),
+    Label(String),
 }
 
 impl InsArg {
@@ -160,7 +159,8 @@ impl InsArg {
         match self {
             InsArg::Reg(reg) => vec![*reg],
             InsArg::Imd(imd) => imd.to_be_bytes().to_vec(),
-            InsArg::Word(word) => word.to_be_bytes().to_vec(),
+            InsArg::Mem(reg) => reg.to_be_bytes().to_vec(),
+            InsArg::Label(_) => unreachable!("Cannot make Label into bytes"),
         }
     }
 
@@ -177,7 +177,8 @@ impl Display for InsArg {
         match self {
             InsArg::Reg(reg) => write!(f, "R{}", reg),
             InsArg::Imd(imd) => write!(f, "#{}", imd),
-            InsArg::Word(word) => write!(f, ".word {}", word),
+            InsArg::Mem(mem) => write!(f, "[{}]", mem),
+            InsArg::Label(label) => write!(f, "{}", label),
         }
     }
 }

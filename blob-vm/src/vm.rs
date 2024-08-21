@@ -46,18 +46,13 @@ impl VM {
                     let number = self.get_imd_val();
                     self.registers[dest_reg] = number;
                 }
-                OpCode::LoadWord => {
-                    let dest_reg = self.get_reg();
-                    let mem = self.get_word();
-                    self.registers[dest_reg] = mem as i64;
-                }
-                OpCode::LoadMemByte => {
+                OpCode::LoadMemRegByte => {
                     let dest_reg = self.get_reg();
                     let mem = self.registers[self.get_reg()] as usize;
                     self.registers[dest_reg] =
                         i64::from_be_bytes([0, 0, 0, 0, 0, 0, 0, self.memory[mem]]);
                 }
-                OpCode::LoadMemQuaterWord => {
+                OpCode::LoadMemRegQuaterWord => {
                     let dest_reg = self.get_reg();
                     let mem = self.registers[self.get_reg()] as usize;
                     self.registers[dest_reg] = i64::from_be_bytes([
@@ -71,7 +66,7 @@ impl VM {
                         self.memory[mem + 1],
                     ]);
                 }
-                OpCode::LoadMemHalfWord => {
+                OpCode::LoadMemRegHalfWord => {
                     let dest_reg = self.get_reg();
                     let mem = self.registers[self.get_reg()] as usize;
                     self.registers[dest_reg] = i64::from_be_bytes([
@@ -85,7 +80,7 @@ impl VM {
                         self.memory[mem + 3],
                     ]);
                 }
-                OpCode::LoadMemWord => {
+                OpCode::LoadMemRegWord => {
                     let dest_reg = self.get_reg();
                     let mem = self.registers[self.get_reg()] as usize;
                     self.registers[dest_reg] = i64::from_be_bytes([
@@ -107,8 +102,8 @@ impl VM {
                 }
                 OpCode::StrByteImd => {
                     let addr = self.registers[self.get_reg()] as usize;
-                    let src = self.get_1_byte_imd_val();
-                    self.memory[addr] = src;
+                    let src = self.get_imd_val();
+                    self.memory[addr] = src as u8;
                 }
                 OpCode::StrQuaterWord => {
                     let addr = self.registers[self.get_reg()] as usize;
@@ -361,33 +356,11 @@ impl VM {
         reg as usize
     }
 
-    fn get_1_byte_imd_val(&mut self) -> u8 {
-        let byte = self.program[self.pc as usize];
-        self.pc += 1;
-        byte
-    }
-
     fn get_imd_val(&mut self) -> i64 {
         let pc = self.pc as usize;
         let imd = i16::from_be_bytes([self.program[pc], self.program[pc + 1]]);
         self.pc += 2;
         imd as i64
-    }
-
-    fn get_word(&mut self) -> usize {
-        let pc = self.pc as usize;
-        let mem = usize::from_be_bytes([
-            self.program[pc],
-            self.program[pc + 1],
-            self.program[pc + 2],
-            self.program[pc + 3],
-            self.program[pc + 4],
-            self.program[pc + 5],
-            self.program[pc + 6],
-            self.program[pc + 7],
-        ]);
-        self.pc += 8;
-        mem
     }
 
     pub fn print_regs(&self) {
@@ -431,30 +404,9 @@ mod test {
     }
 
     #[test]
-    fn load_word_op_code() {
+    fn load_mem_reg_byte_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![
-            OpCode::LoadWord as u8,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            0,
-            1,
-            244,
-            OpCode::Hlt as u8,
-        ];
-        vm.run();
-
-        assert_eq!(vm.registers[0], 500);
-    }
-
-    #[test]
-    fn load_mem_byte_op_code() {
-        let mut vm = VM::new();
-        vm.program = vec![OpCode::LoadMemByte as u8, 0, 1, OpCode::Hlt as u8];
+        vm.program = vec![OpCode::LoadMemRegByte as u8, 0, 1, OpCode::Hlt as u8];
         vm.registers[1] = 4;
         vm.memory[4] = 244;
         vm.run();
@@ -463,9 +415,9 @@ mod test {
     }
 
     #[test]
-    fn load_mem_quater_word_op_code() {
+    fn load_mem_reg_quater_word_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![OpCode::LoadMemQuaterWord as u8, 0, 1, OpCode::Hlt as u8];
+        vm.program = vec![OpCode::LoadMemRegQuaterWord as u8, 0, 1, OpCode::Hlt as u8];
         vm.registers[1] = 4;
         vm.memory[4] = 1;
         vm.memory[5] = 244;
@@ -475,9 +427,9 @@ mod test {
     }
 
     #[test]
-    fn load_mem_hafl_word_op_code() {
+    fn load_mem_reg_hafl_word_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![OpCode::LoadMemHalfWord as u8, 0, 1, OpCode::Hlt as u8];
+        vm.program = vec![OpCode::LoadMemRegHalfWord as u8, 0, 1, OpCode::Hlt as u8];
         vm.registers[1] = 4;
         vm.memory[4] = 0;
         vm.memory[5] = 0;
@@ -489,9 +441,9 @@ mod test {
     }
 
     #[test]
-    fn load_mem_word_op_code() {
+    fn load_mem_reg_word_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![OpCode::LoadMemWord as u8, 0, 1, OpCode::Hlt as u8];
+        vm.program = vec![OpCode::LoadMemRegWord as u8, 0, 1, OpCode::Hlt as u8];
         vm.registers[1] = 4;
         vm.memory[4] = 0;
         vm.memory[5] = 0;
@@ -520,7 +472,7 @@ mod test {
     #[test]
     fn str_byte_imd_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![OpCode::StrByteImd as u8, 0, 123, OpCode::Hlt as u8];
+        vm.program = vec![OpCode::StrByteImd as u8, 0, 0, 123, OpCode::Hlt as u8];
         vm.registers[0] = 4;
         vm.run();
 
