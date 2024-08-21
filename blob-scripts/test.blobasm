@@ -28,6 +28,12 @@ JMPB #123
 JCMPB #123
 JCMPB r2
 
+EQ r1 r2
+EQ r1 #23
+GT r2 r5
+Gt r2 mem
+gt r8 #123
+
 my_label:
 
 DIV r6 R0 r2

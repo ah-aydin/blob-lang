@@ -217,7 +217,17 @@ impl Parser {
                 }
                 Ok(InsText::Arg1(oc, arg))
             }
-            OpCodeType::Cmp => todo!(),
+            OpCodeType::Cmp => {
+                let operand_1 = self.parse_reg_arg()?;
+                let operand_2 = self.parse_reg_or_imd_arg()?;
+
+                let oc = match operand_2.is_imd() {
+                    true => op_code.get_imd_version(),
+                    false => op_code,
+                };
+
+                Ok(InsText::Arg2(oc, operand_1, operand_2))
+            }
             OpCodeType::Stack => todo!(),
             OpCodeType::Heap => todo!(),
         }
