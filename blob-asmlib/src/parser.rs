@@ -228,7 +228,10 @@ impl Parser {
 
                 Ok(InsText::Arg2(oc, operand_1, operand_2))
             }
-            OpCodeType::Stack => todo!(),
+            OpCodeType::Stack => {
+                let arg = self.parse_reg_arg()?;
+                Ok(InsText::Arg1(op_code, arg))
+            }
             OpCodeType::Heap => todo!(),
         }
     }

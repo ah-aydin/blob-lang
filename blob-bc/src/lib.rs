@@ -240,12 +240,6 @@ impl Display for InsText {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum SectionType {
-    Data,
-    Text,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum DirectiveType {
     /// Null terminated string
     Asciiz,
@@ -301,4 +295,10 @@ impl Display for InsData {
             InsData::Label(label) => write!(f, "{}", label),
         }
     }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum SectionType {
+    Data,
+    Text,
 }

@@ -34,6 +34,10 @@ GT r2 r5
 Gt r2 mem
 gt r8 #123
 
+push r12
+push r23
+pop r23
+
 my_label:
 
 DIV r6 R0 r2
