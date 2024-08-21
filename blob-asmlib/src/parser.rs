@@ -107,7 +107,7 @@ impl Parser {
             OpCodeType::Misc => Ok(InsText::Arg0(op_code)),
             OpCodeType::Load => {
                 let oc;
-                let dest_arg = self.get_reg_arg()?;
+                let dest_arg = self.parse_reg_arg()?;
                 let src_token = self.get_and_advance()?;
                 let src_arg;
 
@@ -175,7 +175,7 @@ impl Parser {
                 };
 
                 let dest_arg = self.parse_mem_reg()?;
-                let src_arg = self.get_reg_or_imd_arg()?;
+                let src_arg = self.parse_reg_or_imd_arg()?;
                 if src_arg.is_imd() {
                     if oc == OpCode::StrWord || oc == OpCode::StrHalfWord {
                         error!(
@@ -190,9 +190,9 @@ impl Parser {
                 Ok(InsText::Arg2(oc, dest_arg, src_arg))
             }
             OpCodeType::Math => {
-                let dest_arg = self.get_reg_arg()?;
-                let operand_1 = self.get_reg_arg()?;
-                let operand_2 = self.get_reg_or_imd_arg()?;
+                let dest_arg = self.parse_reg_arg()?;
+                let operand_1 = self.parse_reg_arg()?;
+                let operand_2 = self.parse_reg_or_imd_arg()?;
 
                 let oc = match operand_2.is_imd() {
                     true => op_code.get_imd_version(),
@@ -201,14 +201,29 @@ impl Parser {
 
                 Ok(InsText::Arg3(oc, dest_arg, operand_1, operand_2))
             }
-            OpCodeType::Jmp => todo!(),
+            OpCodeType::Jmp => {
+                let oc;
+                let arg = self.parse_reg_or_imd_or_label_arg()?;
+                if arg.is_label() && op_code != OpCode::Jmp && op_code != OpCode::JCmp {
+                    error!(
+                        "{} Only `JMP` and `JCMP` can use label as arguments",
+                        self.peek_prev_token()?.file_coords
+                    );
+                    return Err(());
+                } else if arg.is_imd() {
+                    oc = op_code.get_imd_version();
+                } else {
+                    oc = op_code;
+                }
+                Ok(InsText::Arg1(oc, arg))
+            }
             OpCodeType::Cmp => todo!(),
             OpCodeType::Stack => todo!(),
             OpCodeType::Heap => todo!(),
         }
     }
 
-    fn get_reg_arg(&mut self) -> Result<InsArg, ()> {
+    fn parse_reg_arg(&mut self) -> Result<InsArg, ()> {
         let token = self.get_and_advance()?;
         match token.token_type.get_reg() {
             Ok(reg) => Ok(InsArg::Reg(reg)),
@@ -222,7 +237,7 @@ impl Parser {
         }
     }
 
-    fn get_reg_or_imd_arg(&mut self) -> Result<InsArg, ()> {
+    fn parse_reg_or_imd_arg(&mut self) -> Result<InsArg, ()> {
         let token = self.get_and_advance()?;
         match token.token_type {
             TokenType::Reg(reg) => Ok(InsArg::Reg(reg)),
@@ -237,13 +252,29 @@ impl Parser {
         }
     }
 
+    fn parse_reg_or_imd_or_label_arg(&mut self) -> Result<InsArg, ()> {
+        let token = self.get_and_advance()?;
+        match &token.token_type {
+            TokenType::Reg(reg) => Ok(InsArg::Reg(*reg)),
+            TokenType::LabelUsg(label) => Ok(InsArg::Label(label.clone())),
+            TokenType::ImdVal(imd_val) => Ok(InsArg::Imd(*imd_val as u16)),
+            _ => {
+                error!(
+                    "{} Expected an immediate value or label, but got '{:?}'",
+                    token.file_coords, token.token_type
+                );
+                Err(())
+            }
+        }
+    }
+
     fn parse_mem_reg(&mut self) -> Result<InsArg, ()> {
         let token = self.get_and_advance()?;
         if token.token_type != TokenType::LeftBracket {
             error!("{} Expected '[' to specify memory", token.file_coords);
             return Err(());
         }
-        let reg_arg = self.get_reg_arg()?;
+        let reg_arg = self.parse_reg_arg()?;
         let token = self.get_and_advance()?;
         if token.token_type != TokenType::RightBracket {
             error!("{} Expected ']' missing closing", token.file_coords);
@@ -263,6 +294,10 @@ impl Parser {
 
     fn peek_token(&self) -> Result<&Token, ()> {
         self.tokens.get(self.current).ok_or(())
+    }
+
+    fn peek_prev_token(&self) -> Result<&Token, ()> {
+        self.tokens.get(self.current - 1).ok_or(())
     }
 }
 

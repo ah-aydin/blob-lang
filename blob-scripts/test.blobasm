@@ -14,8 +14,19 @@ STR .word [r7] r3
 STR .hword [mem] r9
 STR .qword [r0] r2
 STR .qword [r0] #343
-STR .byte [r0] r2
+STR .byte [r0] r3
 STR .byte [r0] #343
+
+JMP my_label
+
+JMP #1234
+JCMP my_label
+JCMP #1234
+JMPF #123
+JMPB r2
+JMPB #123
+JCMPB #123
+JCMPB r2
 
 my_label:
 

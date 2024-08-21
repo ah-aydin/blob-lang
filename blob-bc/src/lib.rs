@@ -170,6 +170,13 @@ impl InsArg {
             _ => false,
         }
     }
+
+    pub fn is_label(&self) -> bool {
+        match self {
+            InsArg::Label(_) => true,
+            _ => false,
+        }
+    }
 }
 
 impl Display for InsArg {
