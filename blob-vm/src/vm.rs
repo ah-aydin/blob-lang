@@ -135,6 +135,19 @@ impl VM {
                     self.memory[addr..addr + 8].copy_from_slice(&src.to_be_bytes());
                 }
 
+                OpCode::LShift => {
+                    let dest_reg = self.get_reg();
+                    let shift_amount = self.get_imd_val();
+                    assert!(shift_amount < 64, "Cannot shift more the 63 bits");
+                    self.registers[dest_reg] = self.registers[dest_reg] << shift_amount;
+                }
+                OpCode::RShift => {
+                    let dest_reg = self.get_reg();
+                    let shift_amount = self.get_imd_val();
+                    assert!(shift_amount < 64, "Cannot shift more the 63 bits");
+                    self.registers[dest_reg] = self.registers[dest_reg] >> shift_amount;
+                }
+
                 OpCode::Add => {
                     let dest_reg = self.get_reg();
                     let left_operand = self.registers[self.get_reg()];
@@ -606,6 +619,26 @@ mod test {
         assert_eq!(vm.memory[9], 22);
         assert_eq!(vm.memory[10], 1);
         assert_eq!(vm.memory[11], 244);
+    }
+
+    #[test]
+    fn lshift_op_code() {
+        let mut vm = VM::new();
+        vm.program = vec![OpCode::LShift as u8, 0, 0, 7, OpCode::Hlt as u8];
+        vm.registers[0] = 255;
+        vm.run();
+
+        assert_eq!(vm.registers[0], 255 << 7);
+    }
+
+    #[test]
+    fn rshift_op_code() {
+        let mut vm = VM::new();
+        vm.program = vec![OpCode::RShift as u8, 0, 0, 3, OpCode::Hlt as u8];
+        vm.registers[0] = 255;
+        vm.run();
+
+        assert_eq!(vm.registers[0], 255 >> 3);
     }
 
     #[test]

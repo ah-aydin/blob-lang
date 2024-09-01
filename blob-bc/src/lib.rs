@@ -19,6 +19,9 @@ pub enum OpCode {
     StrHalfWord,
     StrWord,
 
+    LShift,
+    RShift,
+
     Add,
     AddImd,
     Sub,
@@ -64,6 +67,7 @@ pub enum OpCodeType {
     Misc,
     Load,
     Str,
+    Shift,
     Math,
     Jmp,
     Cmp,
@@ -89,6 +93,8 @@ impl OpCode {
             | OpCode::StrQuaterWordImd
             | OpCode::StrHalfWord
             | OpCode::StrWord => OpCodeType::Str,
+
+            OpCode::LShift | OpCode::RShift => OpCodeType::Shift,
 
             OpCode::Add
             | OpCode::AddImd
@@ -186,7 +192,6 @@ pub enum InsText {
     LabelDecl(String),
     LabelUsage(String),
 }
-
 
 impl Display for InsText {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

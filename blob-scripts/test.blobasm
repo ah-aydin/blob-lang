@@ -42,4 +42,8 @@ my_label:
 
 DIV r6 R0 r2
 LOAD r7 SP
+
+LSHIFT R2 #4
+RSHIFT R0 #2
+
 HLT

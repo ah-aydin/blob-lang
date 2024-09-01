@@ -110,6 +110,7 @@ impl Parser {
         }
         match op_code.get_type() {
             OpCodeType::Misc => Ok(InsText::Arg0(op_code)),
+
             OpCodeType::Load => {
                 let oc;
                 let dest_arg = self.parse_reg_arg()?;
@@ -153,6 +154,7 @@ impl Parser {
 
                 Ok(InsText::Arg2(oc, dest_arg, src_arg))
             }
+
             OpCodeType::Str => {
                 let mut oc;
                 let directive_token = self.get_and_advance()?;
@@ -194,6 +196,14 @@ impl Parser {
 
                 Ok(InsText::Arg2(oc, dest_arg, src_arg))
             }
+
+            OpCodeType::Shift => {
+                let target_reg = self.parse_reg_arg()?;
+                let operand = self.parse_imd_arg()?;
+
+                Ok(InsText::Arg2(op_code, target_reg, operand))
+            }
+
             OpCodeType::Math => {
                 let dest_arg = self.parse_reg_arg()?;
                 let operand_1 = self.parse_reg_arg()?;
@@ -206,6 +216,7 @@ impl Parser {
 
                 Ok(InsText::Arg3(oc, dest_arg, operand_1, operand_2))
             }
+
             OpCodeType::Jmp => {
                 let oc;
                 let arg = self.parse_reg_or_imd_or_label_arg()?;
@@ -222,6 +233,7 @@ impl Parser {
                 }
                 Ok(InsText::Arg1(oc, arg))
             }
+
             OpCodeType::Cmp => {
                 let operand_1 = self.parse_reg_arg()?;
                 let operand_2 = self.parse_reg_or_imd_arg()?;
@@ -233,10 +245,12 @@ impl Parser {
 
                 Ok(InsText::Arg2(oc, operand_1, operand_2))
             }
+
             OpCodeType::Stack => {
                 let arg = self.parse_reg_arg()?;
                 Ok(InsText::Arg1(op_code, arg))
             }
+
             OpCodeType::Heap => todo!(),
         }
     }
@@ -259,6 +273,20 @@ impl Parser {
             Err(_) => {
                 error!(
                     "{} Expected a register but got '{:?}'",
+                    token.file_coords, token.token_type
+                );
+                Err(())
+            }
+        }
+    }
+
+    fn parse_imd_arg(&mut self) -> Result<InsArg, ()> {
+        let token = self.get_and_advance()?;
+        match token.token_type {
+            TokenType::ImdVal(imd_val) => Ok(InsArg::Imd(imd_val as u16)),
+            _ => {
+                error!(
+                    "{} Expected a immediate value, but got '{:?}'",
                     token.file_coords, token.token_type
                 );
                 Err(())

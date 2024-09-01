@@ -21,6 +21,9 @@ lazy_static! {
         map.insert("load", TokenType::Op(OpCode::Load));
         map.insert("str", TokenType::Op(OpCode::StrWord));
 
+        map.insert("lshift", TokenType::Op(OpCode::LShift));
+        map.insert("rshift", TokenType::Op(OpCode::RShift));
+
         map.insert("add", TokenType::Op(OpCode::Add));
         map.insert("sub", TokenType::Op(OpCode::Sub));
         map.insert("mul", TokenType::Op(OpCode::Mul));
@@ -120,7 +123,9 @@ impl Scanner {
                 }
 
                 // Registers
-                Some('r') | Some('R') => {
+                Some('r') | Some('R')
+                    if src_iter.peek().or_else(|| Some(&'v')).unwrap().is_numeric() =>
+                {
                     self.advance();
 
                     let start_index = self.current_index;
