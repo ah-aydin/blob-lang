@@ -1,4 +1,4 @@
-use std::{collections::HashSet, u16};
+use std::{collections::HashSet, i32, u16};
 
 use blob_bc::{DirectiveType, InsArg, InsData, InsText, OpCode, OpCodeType, SectionType};
 use blob_common::{error, info};
@@ -126,7 +126,10 @@ impl Parser {
                         oc = OpCode::LoadImd;
                         src_arg = InsArg::Imd(imd_val);
                         if !(0 <= imd_val && imd_val <= u16::MAX as i64) {
-                            error!("Given immediate value '{imd_val}' cannot fit in 2 bytes");
+                            error!(
+                                "{} Given immediate value '{imd_val}' cannot fit in 2 bytes",
+                                self.peek_token()?.file_coords
+                            );
                             return Err(());
                         }
                     }
@@ -197,7 +200,10 @@ impl Parser {
                     }
                     let imd_val = unsafe { src_arg.get_imd_val() };
                     if !(0 <= imd_val && imd_val <= u16::MAX as i64) {
-                        error!("Given immediate value '{imd_val}' cannot fit in 2 bytes");
+                        error!(
+                            "{} Given immediate value '{imd_val}' cannot fit in 2 bytes",
+                            self.peek_token()?.file_coords,
+                        );
                         return Err(());
                     }
                     oc = oc.get_imd_version();
@@ -213,7 +219,8 @@ impl Parser {
                 let imd_val = unsafe { operand.get_imd_val() };
                 if !(0 <= imd_val && imd_val <= 63) {
                     error!(
-                        "For shifting operations, the immediate value must not be bigger then 63"
+                        "{} For shifting operations, the immediate value must not be bigger then 63",
+                        self.peek_token()?.file_coords
                     );
                     return Err(());
                 }
@@ -230,7 +237,10 @@ impl Parser {
                     true => {
                         let imd_val = unsafe { operand_2.get_imd_val() };
                         if !(0 <= imd_val && imd_val <= u16::MAX as i64) {
-                            error!("Given immediate value '{imd_val}' cannot fit in 2 bytes");
+                            error!(
+                                "{} Given immediate value '{imd_val}' cannot fit in 2 bytes",
+                                self.peek_token()?.file_coords
+                            );
                             return Err(());
                         }
                         op_code.get_imd_version()
@@ -253,7 +263,10 @@ impl Parser {
                 } else if arg.is_imd() {
                     let imd_val = unsafe { arg.get_imd_val() };
                     if !(0 <= imd_val && imd_val <= u16::MAX as i64) {
-                        error!("Given immediate value '{imd_val}' cannot fit in 2 bytes");
+                        error!(
+                            "{} Given immediate value '{imd_val}' cannot fit in 2 bytes",
+                            self.peek_token()?.file_coords
+                        );
                         return Err(());
                     }
                     oc = op_code.get_imd_version();
@@ -271,7 +284,10 @@ impl Parser {
                     true => {
                         let imd_val = unsafe { operand_2.get_imd_val() };
                         if !(0 <= imd_val && imd_val <= u16::MAX as i64) {
-                            error!("Given immediate value '{imd_val}' cannot fit in 2 bytes");
+                            error!(
+                                "{} Given immediate value '{imd_val}' cannot fit in 2 bytes",
+                                self.peek_token()?.file_coords
+                            );
                             return Err(());
                         }
                         op_code.get_imd_version()
@@ -290,7 +306,11 @@ impl Parser {
             OpCodeType::Heap => todo!(),
 
             other => {
-                error!("Got unexpected OpCodeType: {:?}", other);
+                error!(
+                    "{} Got unexpected OpCodeType: {:?}",
+                    self.peek_token()?.file_coords,
+                    other
+                );
                 Err(())
             }
         }
@@ -304,7 +324,52 @@ impl Parser {
             );
             return Err(());
         }
-        todo!("parse directive")
+        match directive_type {
+            DirectiveType::Asciiz => todo!(),
+            DirectiveType::Ascii => todo!(),
+            DirectiveType::Word => {
+                let arg = self.parse_imd_arg()?;
+                Ok(InsData::Number(directive_type, unsafe {
+                    arg.get_imd_val()
+                }))
+            }
+            DirectiveType::HalfWord => {
+                let arg = self.parse_imd_arg()?;
+                let imd_val = unsafe { arg.get_imd_val() };
+                if !(u32::MIN as i64 <= imd_val && imd_val <= u32::MAX as i64) {
+                    error!(
+                        "{} Given value does not fit in 4 bytes",
+                        self.peek_prev_token()?.file_coords
+                    );
+                    return Err(());
+                }
+                Ok(InsData::Number(directive_type, imd_val))
+            }
+            DirectiveType::QuaterWord => {
+                let arg = self.parse_imd_arg()?;
+                let imd_val = unsafe { arg.get_imd_val() };
+                if !(u16::MIN as i64 <= imd_val && imd_val <= u16::MAX as i64) {
+                    error!(
+                        "{} Given value does not fit in 2 bytes",
+                        self.peek_prev_token()?.file_coords
+                    );
+                    return Err(());
+                }
+                Ok(InsData::Number(directive_type, imd_val))
+            }
+            DirectiveType::Byte => {
+                let arg = self.parse_imd_arg()?;
+                let imd_val = unsafe { arg.get_imd_val() };
+                if !(u8::MIN as i64 <= imd_val && imd_val <= u8::MAX as i64) {
+                    error!(
+                        "{} Given value does not fit in 1 bytes",
+                        self.peek_prev_token()?.file_coords
+                    );
+                    return Err(());
+                }
+                Ok(InsData::Number(directive_type, imd_val))
+            }
+        }
     }
 
     fn parse_reg_arg(&mut self) -> Result<InsArg, ()> {

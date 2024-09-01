@@ -238,14 +238,16 @@ pub enum DirectiveType {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InsData {
-    Directive(DirectiveType, String),
+    String(DirectiveType, String),
+    Number(DirectiveType, i64),
     Label(String),
 }
 
 impl Display for InsData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            InsData::Directive(dt, lexeme) => write!(f, "{:?} {}", dt, lexeme),
+            InsData::String(dt, lexeme) => write!(f, "{:?} {}", dt, lexeme),
+            InsData::Number(dt, number) => write!(f, "{:?} {}", dt, number),
             InsData::Label(label) => write!(f, "{}", label),
         }
     }

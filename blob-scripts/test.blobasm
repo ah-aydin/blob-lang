@@ -1,49 +1,59 @@
-LOAD R0 #10
-LOAD R1 #9
-LOAD r2 #4
-LOAD r3 r2
-ADD r3 r3 r2
-SUB r4 r0 r1
-MUL r5 r0 r1 
-LOAD r5 .word [r3]
-LOAD r5 .qword [mem]
-LOAD r6 .hword [mem]
-LOAD r7 .byte [r8]
+.data
 
-STR .word [r7] r3
-STR .hword [mem] r9
-STR .qword [r0] r2
-STR .qword [r0] #343
-STR .byte [r0] r3
-STR .byte [r0] #343
+  some_random_struct:
+    .word #123456789
+    .hword #12345
+    .qword #2233
+    .byte #2
 
-JMP my_label
+.text
 
-JMP #1234
-JCMP my_label
-JCMP #1234
-JMPF #123
-JMPB r2
-JMPB #123
-JCMPB #123
-JCMPB r2
+  LOAD R0 #10
+  LOAD R1 #9
+  LOAD r2 #4
+  LOAD r3 r2
+  ADD r3 r3 r2
+  SUB r4 r0 r1
+  MUL r5 r0 r1 
+  LOAD r5 .word [r3]
+  LOAD r5 .qword [mem]
+  LOAD r6 .hword [mem]
+  LOAD r7 .byte [r8]
 
-EQ r1 r2
-EQ r1 #23
-GT r2 r5
-Gt r2 mem
-gt r8 #123
+  STR .word [r7] r3
+  STR .hword [mem] r9
+  STR .qword [r0] r2
+  STR .qword [r0] #343
+  STR .byte [r0] r3
+  STR .byte [r0] #343
 
-push r12
-push r23
-pop r23
+  JMP my_label
 
-my_label:
+  JMP #1234
+  JCMP my_label
+  JCMP #1234
+  JMPF #123
+  JMPB r2
+  JMPB #123
+  JCMPB #123
+  JCMPB r2
 
-DIV r6 R0 r2
-LOAD r7 SP
+  EQ r1 r2
+  EQ r1 #23
+  GT r2 r5
+  Gt r2 mem
+  gt r8 #123
 
-LSHIFT R2 #4
-RSHIFT R0 #2
+  push r12
+  push r23
+  pop r23
 
-HLT
+  my_label:
+
+  DIV r6 R0 r2
+  LOAD r7 SP
+
+  LSHIFT R2 #4
+  RSHIFT R0 #2
+
+  HLT
