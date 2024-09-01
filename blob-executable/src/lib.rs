@@ -6,14 +6,14 @@ use std::{
 use blob_common::{error, info, warn, BUILD_FILE_PATH, VERSION_MAJOR, VERSION_MINOR};
 
 pub const BLOB_EXECUTABLE_FILE_EXTENTION: &'static str = "blobexec";
-pub const BLOB_EXECUTABLE_HEADER_SIZE: usize = 64;
-pub const BLOB_EXECUTABLE_HEADER_PADDING: usize = BLOB_EXECUTABLE_HEADER_SIZE - 6;
-pub const BLOB_HEADER_MAGIC_NUMBER: [u8; 4] = [43, 67, 88, 145];
 
-const BLOB_EXECUTABLE_DATA_OFFSET_N_BYTES: usize = 8;
-const BLOB_EXECUTABLE_PROGRAM_OFFSET_N_BYTES: usize = 8;
-const BLOB_EXECUTABLE_TOTAL_OFFSET_BYTES: usize =
-    BLOB_EXECUTABLE_DATA_OFFSET_N_BYTES + BLOB_EXECUTABLE_PROGRAM_OFFSET_N_BYTES;
+const HEADER_SIZE: usize = 64;
+const HEADER_PADDING: usize = HEADER_SIZE - 6;
+const MAGIC_NUMBER: [u8; 4] = [43, 67, 88, 145];
+const DATA_OFFSET_N_BYTES: usize = 8;
+const PROGRAM_OFFSET_N_BYTES: usize = 8;
+const TOTAL_OFFSET_BYTES: usize =
+    DATA_OFFSET_N_BYTES + PROGRAM_OFFSET_N_BYTES;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -41,7 +41,7 @@ impl BlobExecutable {
             return Err(());
         }
         let mut file = file.unwrap();
-        let mut header_bytes = [0u8; BLOB_EXECUTABLE_HEADER_SIZE];
+        let mut header_bytes = [0u8; HEADER_SIZE];
         if file.read_exact(&mut header_bytes).is_err() {
             error!("Failed to read header bytes from file '{file_name}'");
             return Err(());
@@ -55,7 +55,7 @@ impl BlobExecutable {
         }
 
         // Deserialize data offset
-        let mut data_offset_bytes = [0u8; BLOB_EXECUTABLE_DATA_OFFSET_N_BYTES];
+        let mut data_offset_bytes = [0u8; DATA_OFFSET_N_BYTES];
         if file.read_exact(&mut data_offset_bytes).is_err() {
             error!("Failed to read data offset");
             return Err(());
@@ -63,7 +63,7 @@ impl BlobExecutable {
         let data_offset = u64::from_be_bytes(data_offset_bytes);
 
         // Deserialize program offset
-        let mut program_offset_bytes = [0u8; BLOB_EXECUTABLE_PROGRAM_OFFSET_N_BYTES];
+        let mut program_offset_bytes = [0u8; PROGRAM_OFFSET_N_BYTES];
         if file.read_exact(&mut program_offset_bytes).is_err() {
             error!("Failed to read program offset");
             return Err(());
@@ -72,7 +72,7 @@ impl BlobExecutable {
 
         // Deserialize jump table
         let jump_table_size = data_offset as usize
-            - (BLOB_EXECUTABLE_HEADER_SIZE + BLOB_EXECUTABLE_TOTAL_OFFSET_BYTES);
+            - (HEADER_SIZE + TOTAL_OFFSET_BYTES);
         assert!(jump_table_size % 8 == 0);
         let jump_table: Vec<u64>;
         if jump_table_size != 0 {
@@ -131,8 +131,8 @@ impl BlobExecutable {
         }
 
         let mut bytes: Vec<u8> = Vec::with_capacity(
-            BLOB_EXECUTABLE_HEADER_SIZE
-                + BLOB_EXECUTABLE_PROGRAM_OFFSET_N_BYTES
+            HEADER_SIZE
+                + PROGRAM_OFFSET_N_BYTES
                 + self.program.len() * 2,
         );
 
@@ -141,9 +141,9 @@ impl BlobExecutable {
 
         // Make space for proram offset
         let data_offset_pos = bytes.len();
-        bytes.extend_from_slice(&[0u8; BLOB_EXECUTABLE_DATA_OFFSET_N_BYTES]);
+        bytes.extend_from_slice(&[0u8; DATA_OFFSET_N_BYTES]);
         let program_offset_pos = bytes.len();
-        bytes.extend_from_slice(&[0u8; BLOB_EXECUTABLE_PROGRAM_OFFSET_N_BYTES]);
+        bytes.extend_from_slice(&[0u8; PROGRAM_OFFSET_N_BYTES]);
 
         // Serialize jump table
         bytes.extend_from_slice(
@@ -157,7 +157,7 @@ impl BlobExecutable {
         // Populate data offset
         let data_offset = bytes.len();
         let data_offset_bytes = (data_offset as u64).to_be_bytes();
-        bytes[data_offset_pos..data_offset_pos + BLOB_EXECUTABLE_DATA_OFFSET_N_BYTES]
+        bytes[data_offset_pos..data_offset_pos + DATA_OFFSET_N_BYTES]
             .copy_from_slice(&data_offset_bytes);
 
         // Serialize data section
@@ -166,7 +166,7 @@ impl BlobExecutable {
         // Populate program offset
         let program_offset = bytes.len();
         let program_offset_bytes = (program_offset as u64).to_be_bytes();
-        bytes[program_offset_pos..program_offset_pos + BLOB_EXECUTABLE_PROGRAM_OFFSET_N_BYTES]
+        bytes[program_offset_pos..program_offset_pos + PROGRAM_OFFSET_N_BYTES]
             .copy_from_slice(&program_offset_bytes);
 
         // Serialize program
@@ -213,27 +213,27 @@ struct BlobExecutableHeader {
     magic_number: [u8; 4],
     version_major: u8,
     version_minor: u8,
-    _padding: [u8; BLOB_EXECUTABLE_HEADER_PADDING],
+    _padding: [u8; HEADER_PADDING],
 }
 
 impl BlobExecutableHeader {
     pub fn new() -> BlobExecutableHeader {
         BlobExecutableHeader {
-            magic_number: BLOB_HEADER_MAGIC_NUMBER,
+            magic_number: MAGIC_NUMBER,
             version_major: VERSION_MAJOR,
             version_minor: VERSION_MINOR,
-            _padding: [0; BLOB_EXECUTABLE_HEADER_PADDING],
+            _padding: [0; HEADER_PADDING],
         }
     }
 
-    pub fn from_bytes(bytes: &[u8; BLOB_EXECUTABLE_HEADER_SIZE]) -> BlobExecutableHeader {
+    pub fn from_bytes(bytes: &[u8; HEADER_SIZE]) -> BlobExecutableHeader {
         unsafe {
-            std::mem::transmute::<[u8; BLOB_EXECUTABLE_HEADER_SIZE], BlobExecutableHeader>(*bytes)
+            std::mem::transmute::<[u8; HEADER_SIZE], BlobExecutableHeader>(*bytes)
         }
     }
 
     fn is_magic_number_valid(&self) -> bool {
-        self.magic_number.eq(&BLOB_HEADER_MAGIC_NUMBER)
+        self.magic_number.eq(&MAGIC_NUMBER)
     }
 
     fn to_bytes(&self) -> [u8; 64] {

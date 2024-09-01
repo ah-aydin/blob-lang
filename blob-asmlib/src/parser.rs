@@ -1,4 +1,4 @@
-use std::{collections::HashSet, i32, u16};
+use std::{collections::HashSet, u16};
 
 use blob_bc::{DirectiveType, InsArg, InsData, InsText, OpCode, OpCodeType, SectionType};
 use blob_common::{error, info};
