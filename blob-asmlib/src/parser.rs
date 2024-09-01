@@ -73,6 +73,11 @@ impl Parser {
                     Ok(())
                 }
 
+                TokenType::Directive(directive_type) => {
+                    ins_data.push(self.parse_directive(directive_type)?);
+                    Ok(())
+                }
+
                 TokenType::Section(st) => {
                     self.section_type = st;
                     Ok(())
@@ -234,6 +239,17 @@ impl Parser {
             }
             OpCodeType::Heap => todo!(),
         }
+    }
+
+    fn parse_directive(&mut self, directive_type: DirectiveType) -> Result<InsData, ()> {
+        if self.section_type != SectionType::Data {
+            error!(
+                "{} Can only have directive operation without op code inside the '.data' section",
+                self.peek_token()?.file_coords
+            );
+            return Err(());
+        }
+        todo!("parse directive")
     }
 
     fn parse_reg_arg(&mut self) -> Result<InsArg, ()> {

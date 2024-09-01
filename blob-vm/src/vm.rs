@@ -39,6 +39,7 @@ impl VM {
                 OpCode::Load => {
                     let dest_reg = self.get_reg();
                     let src_reg = self.get_reg();
+                    self.padding_1_byte();
                     self.registers[dest_reg] = self.registers[src_reg];
                 }
                 OpCode::LoadImd => {
@@ -49,12 +50,14 @@ impl VM {
                 OpCode::LoadMemRegByte => {
                     let dest_reg = self.get_reg();
                     let mem = self.registers[self.get_reg()] as usize;
+                    self.padding_1_byte();
                     self.registers[dest_reg] =
                         i64::from_be_bytes([0, 0, 0, 0, 0, 0, 0, self.memory[mem]]);
                 }
                 OpCode::LoadMemRegQuaterWord => {
                     let dest_reg = self.get_reg();
                     let mem = self.registers[self.get_reg()] as usize;
+                    self.padding_1_byte();
                     self.registers[dest_reg] = i64::from_be_bytes([
                         0,
                         0,
@@ -69,6 +72,7 @@ impl VM {
                 OpCode::LoadMemRegHalfWord => {
                     let dest_reg = self.get_reg();
                     let mem = self.registers[self.get_reg()] as usize;
+                    self.padding_1_byte();
                     self.registers[dest_reg] = i64::from_be_bytes([
                         0,
                         0,
@@ -83,6 +87,7 @@ impl VM {
                 OpCode::LoadMemRegWord => {
                     let dest_reg = self.get_reg();
                     let mem = self.registers[self.get_reg()] as usize;
+                    self.padding_1_byte();
                     self.registers[dest_reg] = i64::from_be_bytes([
                         self.memory[mem],
                         self.memory[mem + 1],
@@ -98,6 +103,7 @@ impl VM {
                 OpCode::StrByte => {
                     let addr = self.registers[self.get_reg()] as usize;
                     let src = self.registers[self.get_reg()];
+                    self.padding_1_byte();
                     self.memory[addr] = (src & 0xFF) as u8;
                 }
                 OpCode::StrByteImd => {
@@ -108,6 +114,7 @@ impl VM {
                 OpCode::StrQuaterWord => {
                     let addr = self.registers[self.get_reg()] as usize;
                     let src = self.registers[self.get_reg()];
+                    self.padding_1_byte();
                     self.memory[addr..addr + 2].copy_from_slice(&src.to_be_bytes()[6..]);
                 }
                 OpCode::StrQuaterWordImd => {
@@ -118,11 +125,13 @@ impl VM {
                 OpCode::StrHalfWord => {
                     let addr = self.registers[self.get_reg()] as usize;
                     let src = self.registers[self.get_reg()];
+                    self.padding_1_byte();
                     self.memory[addr..addr + 4].copy_from_slice(&src.to_be_bytes()[4..]);
                 }
                 OpCode::StrWord => {
                     let addr = self.registers[self.get_reg()] as usize;
                     let src = self.registers[self.get_reg()];
+                    self.padding_1_byte();
                     self.memory[addr..addr + 8].copy_from_slice(&src.to_be_bytes());
                 }
 
@@ -179,43 +188,53 @@ impl VM {
 
                 OpCode::Jmp => {
                     let target = self.registers[self.get_reg()] as usize;
+                    self.padding_2_bytes();
                     self.pc = target;
                 }
                 OpCode::JmpF => {
-                    self.pc += self.registers[self.get_reg()] as usize;
+                    let target = self.registers[self.get_reg()];
+                    self.padding_2_bytes();
+                    self.pc += target as usize;
                 }
                 OpCode::JmpFImd => {
                     let jmp = self.get_imd_val() as usize;
+                    self.padding_1_byte();
                     self.pc += jmp;
                 }
                 OpCode::JmpB => {
                     let jmp = self.registers[self.get_reg()] as usize;
+                    self.padding_2_bytes();
                     self.pc = self.pc - jmp;
                 }
                 OpCode::JmpBImd => {
                     let jmp = self.get_imd_val() as usize;
+                    self.padding_1_byte();
                     self.pc = self.pc - jmp;
                 }
                 OpCode::JCmp => {
                     let register = self.get_reg();
+                    self.padding_2_bytes();
                     if self.cmp_flag {
                         self.pc = self.registers[register] as usize;
                     }
                 }
                 OpCode::JCmpF => {
                     let register = self.get_reg();
+                    self.padding_2_bytes();
                     if self.cmp_flag {
                         self.pc += self.registers[register] as usize;
                     }
                 }
                 OpCode::JCmpFImd => {
                     let jmp = self.get_imd_val() as usize;
+                    self.padding_1_byte();
                     if self.cmp_flag {
                         self.pc += jmp;
                     }
                 }
                 OpCode::JCmpB => {
                     let register = self.get_reg();
+                    self.padding_2_bytes();
                     if self.cmp_flag {
                         let jmp = self.registers[register] as usize;
                         self.pc = self.pc - jmp;
@@ -223,6 +242,7 @@ impl VM {
                 }
                 OpCode::JCmpBImd => {
                     let jmp = self.get_imd_val() as usize;
+                    self.padding_1_byte();
                     if self.cmp_flag {
                         self.pc = self.pc - jmp;
                     }
@@ -231,6 +251,7 @@ impl VM {
                 OpCode::Eq => {
                     let left_operant = self.registers[self.get_reg()];
                     let right_operant = self.registers[self.get_reg()];
+                    self.padding_1_byte();
                     self.cmp_flag = left_operant == right_operant;
                 }
                 OpCode::EqImd => {
@@ -241,6 +262,7 @@ impl VM {
                 OpCode::NEq => {
                     let left_operant = self.registers[self.get_reg()];
                     let right_operant = self.registers[self.get_reg()];
+                    self.padding_1_byte();
                     self.cmp_flag = left_operant != right_operant;
                 }
                 OpCode::NEqImd => {
@@ -251,6 +273,7 @@ impl VM {
                 OpCode::Gt => {
                     let left_operant = self.registers[self.get_reg()];
                     let right_operant = self.registers[self.get_reg()];
+                    self.padding_1_byte();
                     self.cmp_flag = left_operant > right_operant;
                 }
                 OpCode::GtImd => {
@@ -261,6 +284,7 @@ impl VM {
                 OpCode::Lt => {
                     let left_operant = self.registers[self.get_reg()];
                     let right_operant = self.registers[self.get_reg()];
+                    self.padding_1_byte();
                     self.cmp_flag = left_operant < right_operant;
                 }
                 OpCode::LtImd => {
@@ -271,6 +295,7 @@ impl VM {
                 OpCode::Ge => {
                     let left_operant = self.registers[self.get_reg()];
                     let right_operant = self.registers[self.get_reg()];
+                    self.padding_1_byte();
                     self.cmp_flag = left_operant >= right_operant;
                 }
                 OpCode::GeImd => {
@@ -281,6 +306,7 @@ impl VM {
                 OpCode::Le => {
                     let left_operant = self.registers[self.get_reg()];
                     let right_operant = self.registers[self.get_reg()];
+                    self.padding_1_byte();
                     self.cmp_flag = left_operant <= right_operant;
                 }
                 OpCode::LeiImd => {
@@ -291,6 +317,7 @@ impl VM {
 
                 OpCode::Push => {
                     let data = self.registers[self.get_reg()];
+                    self.padding_2_bytes();
                     let sp = self.registers[SP_REG] as usize;
 
                     if sp + 8 > self.hp || sp + 8 > self.memory.len() {
@@ -305,6 +332,7 @@ impl VM {
                     let bytes: [u8; 8] = self.memory[sp - 8..sp].try_into().unwrap();
 
                     self.registers[self.get_reg() as usize] = i64::from_be_bytes(bytes);
+                    self.padding_2_bytes();
                     self.registers[SP_REG] -= 8;
                 }
 
@@ -350,6 +378,14 @@ impl VM {
         return op_code;
     }
 
+    fn padding_1_byte(&mut self) {
+        self.pc += 1;
+    }
+
+    fn padding_2_bytes(&mut self) {
+        self.pc += 2;
+    }
+
     fn get_reg(&mut self) -> usize {
         let reg = self.program[self.pc as usize];
         self.pc += 1;
@@ -381,6 +417,8 @@ impl VM {
 mod test {
     use super::*;
 
+    const PADDING: u8 = 0;
+
     #[test]
     fn load_op_code() {
         let mut vm = VM::new();
@@ -388,7 +426,13 @@ mod test {
         let src_reg: u8 = 1;
         let value = 80;
         vm.registers[src_reg as usize] = value;
-        vm.program = vec![OpCode::Load as u8, dest_reg, src_reg, OpCode::Hlt as u8];
+        vm.program = vec![
+            OpCode::Load as u8,
+            dest_reg,
+            src_reg,
+            PADDING,
+            OpCode::Hlt as u8,
+        ];
         vm.run();
 
         assert_eq!(vm.registers[dest_reg as usize], value);
@@ -406,7 +450,13 @@ mod test {
     #[test]
     fn load_mem_reg_byte_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![OpCode::LoadMemRegByte as u8, 0, 1, OpCode::Hlt as u8];
+        vm.program = vec![
+            OpCode::LoadMemRegByte as u8,
+            0,
+            1,
+            PADDING,
+            OpCode::Hlt as u8,
+        ];
         vm.registers[1] = 4;
         vm.memory[4] = 244;
         vm.run();
@@ -417,7 +467,13 @@ mod test {
     #[test]
     fn load_mem_reg_quater_word_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![OpCode::LoadMemRegQuaterWord as u8, 0, 1, OpCode::Hlt as u8];
+        vm.program = vec![
+            OpCode::LoadMemRegQuaterWord as u8,
+            0,
+            1,
+            PADDING,
+            OpCode::Hlt as u8,
+        ];
         vm.registers[1] = 4;
         vm.memory[4] = 1;
         vm.memory[5] = 244;
@@ -429,7 +485,13 @@ mod test {
     #[test]
     fn load_mem_reg_hafl_word_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![OpCode::LoadMemRegHalfWord as u8, 0, 1, OpCode::Hlt as u8];
+        vm.program = vec![
+            OpCode::LoadMemRegHalfWord as u8,
+            0,
+            1,
+            PADDING,
+            OpCode::Hlt as u8,
+        ];
         vm.registers[1] = 4;
         vm.memory[4] = 0;
         vm.memory[5] = 0;
@@ -443,7 +505,13 @@ mod test {
     #[test]
     fn load_mem_reg_word_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![OpCode::LoadMemRegWord as u8, 0, 1, OpCode::Hlt as u8];
+        vm.program = vec![
+            OpCode::LoadMemRegWord as u8,
+            0,
+            1,
+            PADDING,
+            OpCode::Hlt as u8,
+        ];
         vm.registers[1] = 4;
         vm.memory[4] = 0;
         vm.memory[5] = 0;
@@ -461,7 +529,7 @@ mod test {
     #[test]
     fn str_byte_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![OpCode::StrByte as u8, 0, 1, OpCode::Hlt as u8];
+        vm.program = vec![OpCode::StrByte as u8, 0, 1, PADDING, OpCode::Hlt as u8];
         vm.registers[0] = 4;
         vm.registers[1] = i64::from_be_bytes([12, 32, 23, 32, 233, 22, 23, 128]);
         vm.run();
@@ -482,7 +550,13 @@ mod test {
     #[test]
     fn str_quater_word_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![OpCode::StrQuaterWord as u8, 0, 1, OpCode::Hlt as u8];
+        vm.program = vec![
+            OpCode::StrQuaterWord as u8,
+            0,
+            1,
+            PADDING,
+            OpCode::Hlt as u8,
+        ];
         vm.registers[0] = 4;
         vm.registers[1] = i64::from_be_bytes([12, 32, 23, 32, 233, 22, 1, 244]);
         vm.run();
@@ -505,7 +579,7 @@ mod test {
     #[test]
     fn str_half_word_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![OpCode::StrHalfWord as u8, 0, 1, OpCode::Hlt as u8];
+        vm.program = vec![OpCode::StrHalfWord as u8, 0, 1, PADDING, OpCode::Hlt as u8];
         vm.registers[0] = 4;
         vm.registers[1] = i64::from_be_bytes([12, 32, 23, 32, 233, 22, 1, 244]);
         vm.run();
@@ -519,7 +593,7 @@ mod test {
     #[test]
     fn str_word_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![OpCode::StrWord as u8, 0, 1, OpCode::Hlt as u8];
+        vm.program = vec![OpCode::StrWord as u8, 0, 1, PADDING, OpCode::Hlt as u8];
         vm.registers[0] = 4;
         vm.registers[1] = i64::from_be_bytes([12, 32, 23, 32, 233, 22, 1, 244]);
         vm.run();
@@ -731,10 +805,12 @@ mod test {
     #[test]
     fn jmp_op_code() {
         let mut vm = VM::new();
-        vm.registers[1] = 5;
+        vm.registers[1] = 7;
         vm.program = vec![
             OpCode::Jmp as u8,
             1,
+            PADDING,
+            PADDING,
             OpCode::Hlt as u8,
             OpCode::Hlt as u8,
             OpCode::Hlt as u8,
@@ -756,6 +832,8 @@ mod test {
         vm.program = vec![
             OpCode::JmpF as u8,
             1,
+            PADDING,
+            PADDING,
             OpCode::Hlt as u8,
             OpCode::Hlt as u8,
             OpCode::Hlt as u8,
@@ -777,6 +855,7 @@ mod test {
             OpCode::JmpFImd as u8,
             0,
             3,
+            PADDING,
             OpCode::Hlt as u8,
             OpCode::Hlt as u8,
             OpCode::Hlt as u8,
@@ -795,7 +874,7 @@ mod test {
     fn jmpb_op_code() {
         let mut vm = VM::new();
         vm.pc = 5;
-        vm.registers[1] = 7;
+        vm.registers[1] = 9;
         vm.program = vec![
             OpCode::LoadImd as u8, // Should jump here
             0,
@@ -804,6 +883,8 @@ mod test {
             OpCode::Hlt as u8,
             OpCode::JmpB as u8, // Starts here
             1,
+            PADDING,
+            PADDING,
             OpCode::Hlt as u8,
         ];
         vm.run();
@@ -823,7 +904,8 @@ mod test {
             OpCode::Hlt as u8,
             OpCode::JmpBImd as u8, // Starts here
             0,
-            8,
+            9,
+            PADDING,
             OpCode::Hlt as u8,
         ];
         vm.run();
@@ -837,6 +919,8 @@ mod test {
         vm.program = vec![
             OpCode::JCmp as u8,
             1,
+            PADDING,
+            PADDING,
             OpCode::Hlt as u8,
             OpCode::Hlt as u8,
             OpCode::Hlt as u8,
@@ -847,7 +931,7 @@ mod test {
             OpCode::Hlt as u8,
         ];
 
-        vm.registers[1] = 5;
+        vm.registers[1] = 7;
         vm.cmp_flag = true;
         vm.run();
         assert_eq!(vm.registers[0], 10);
@@ -865,6 +949,8 @@ mod test {
         vm.program = vec![
             OpCode::JCmpF as u8,
             1,
+            PADDING,
+            PADDING,
             OpCode::Hlt as u8,
             OpCode::Hlt as u8,
             OpCode::Hlt as u8,
@@ -894,6 +980,7 @@ mod test {
             OpCode::JCmpFImd as u8,
             0,
             3,
+            PADDING,
             OpCode::Hlt as u8,
             OpCode::Hlt as u8,
             OpCode::Hlt as u8,
@@ -926,10 +1013,12 @@ mod test {
             OpCode::Hlt as u8,
             OpCode::JCmpB as u8, // Starts here
             1,
+            PADDING,
+            PADDING,
             OpCode::Hlt as u8,
         ];
 
-        vm.registers[1] = 7;
+        vm.registers[1] = 9;
         vm.pc = 5;
         vm.cmp_flag = true;
         vm.run();
@@ -953,7 +1042,8 @@ mod test {
             OpCode::Hlt as u8,
             OpCode::JCmpBImd as u8, // Starts here
             0,
-            8,
+            9,
+            PADDING,
             OpCode::Hlt as u8,
         ];
 
@@ -972,7 +1062,7 @@ mod test {
     #[test]
     fn eq_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![OpCode::Eq as u8, 0, 1, OpCode::Hlt as u8];
+        vm.program = vec![OpCode::Eq as u8, 0, 1, PADDING, OpCode::Hlt as u8];
 
         vm.registers[0] = 2;
         vm.registers[1] = 2;
@@ -1004,7 +1094,7 @@ mod test {
     #[test]
     fn neq_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![OpCode::NEq as u8, 0, 1, OpCode::Hlt as u8];
+        vm.program = vec![OpCode::NEq as u8, 0, 1, PADDING, OpCode::Hlt as u8];
 
         vm.registers[0] = 2;
         vm.registers[1] = 3;
@@ -1036,7 +1126,7 @@ mod test {
     #[test]
     fn gt_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![OpCode::Gt as u8, 0, 1, OpCode::Hlt as u8];
+        vm.program = vec![OpCode::Gt as u8, 0, 1, PADDING, OpCode::Hlt as u8];
 
         vm.registers[0] = 3;
         vm.registers[1] = 2;
@@ -1068,7 +1158,7 @@ mod test {
     #[test]
     fn lt_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![OpCode::Lt as u8, 0, 1, OpCode::Hlt as u8];
+        vm.program = vec![OpCode::Lt as u8, 0, 1, PADDING, OpCode::Hlt as u8];
 
         vm.registers[0] = 2;
         vm.registers[1] = 3;
@@ -1100,7 +1190,7 @@ mod test {
     #[test]
     fn ge_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![OpCode::Ge as u8, 0, 1, OpCode::Hlt as u8];
+        vm.program = vec![OpCode::Ge as u8, 0, 1, PADDING, OpCode::Hlt as u8];
 
         vm.registers[0] = 3;
         vm.registers[1] = 3;
@@ -1143,7 +1233,7 @@ mod test {
     #[test]
     fn le_op_code() {
         let mut vm = VM::new();
-        vm.program = vec![OpCode::Le as u8, 0, 1, OpCode::Hlt as u8];
+        vm.program = vec![OpCode::Le as u8, 0, 1, PADDING, OpCode::Hlt as u8];
 
         vm.registers[0] = 3;
         vm.registers[1] = 3;
@@ -1191,8 +1281,12 @@ mod test {
         vm.program = vec![
             OpCode::Push as u8,
             0,
+            PADDING,
+            PADDING,
             OpCode::Push as u8,
             1,
+            PADDING,
+            PADDING,
             OpCode::Hlt as u8,
         ];
         vm.run();
@@ -1210,12 +1304,20 @@ mod test {
         vm.program = vec![
             OpCode::Push as u8,
             0,
+            PADDING,
+            PADDING,
             OpCode::Push as u8,
             1,
+            PADDING,
+            PADDING,
             OpCode::Pop as u8,
             2,
+            PADDING,
+            PADDING,
             OpCode::Pop as u8,
             3,
+            PADDING,
+            PADDING,
             OpCode::Hlt as u8,
         ];
         vm.run();

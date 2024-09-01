@@ -134,10 +134,6 @@ impl OpCode {
     pub fn get_imd_version(&self) -> OpCode {
         unsafe { std::mem::transmute::<u8, OpCode>(*self as u8 + 1) }
     }
-
-    fn to_byte(&self) -> u8 {
-        *self as u8
-    }
 }
 
 impl From<u8> for OpCode {
@@ -155,15 +151,6 @@ pub enum InsArg {
 }
 
 impl InsArg {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        match self {
-            InsArg::Reg(reg) => vec![*reg],
-            InsArg::Imd(imd) => imd.to_be_bytes().to_vec(),
-            InsArg::Mem(reg) => reg.to_be_bytes().to_vec(),
-            InsArg::Label(_) => unreachable!("Cannot make Label into bytes"),
-        }
-    }
-
     pub fn is_imd(&self) -> bool {
         match self {
             InsArg::Imd(_) => true,
@@ -200,31 +187,6 @@ pub enum InsText {
     LabelUsage(String),
 }
 
-impl InsText {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        match self {
-            InsText::Arg0(op) => vec![op.to_byte()],
-            InsText::Arg1(op, arg) => vec![op.to_byte()]
-                .into_iter()
-                .chain(arg.to_bytes().into_iter())
-                .collect(),
-            InsText::Arg2(op, arg1, arg2) => vec![op.to_byte()]
-                .into_iter()
-                .chain(arg1.to_bytes().into_iter())
-                .chain(arg2.to_bytes().into_iter())
-                .collect(),
-            InsText::Arg3(op, arg1, arg2, arg3) => vec![op.to_byte()]
-                .into_iter()
-                .chain(arg1.to_bytes().into_iter())
-                .chain(arg2.to_bytes().into_iter())
-                .chain(arg3.to_bytes().into_iter())
-                .collect(),
-            InsText::LabelDecl(_) | InsText::LabelUsage(_) => {
-                unreachable!("A label instructions cannot be made into a byte array")
-            }
-        }
-    }
-}
 
 impl Display for InsText {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -259,33 +221,6 @@ pub enum DirectiveType {
 pub enum InsData {
     Directive(DirectiveType, String),
     Label(String),
-}
-
-impl InsData {
-    pub fn to_bytes(&self) -> Vec<u8> {
-        match self {
-            InsData::Directive(directive_type, lexeme) => {
-                self.directive_to_bytes(*directive_type, lexeme)
-            }
-            InsData::Label(_) => {
-                unreachable!("A label instructions cannot be made into a byte array")
-            }
-        }
-    }
-
-    fn directive_to_bytes(&self, direcitve_type: DirectiveType, lexeme: &str) -> Vec<u8> {
-        match direcitve_type {
-            DirectiveType::Asciiz => [lexeme.as_bytes().to_vec(), vec![b'\0']]
-                .into_iter()
-                .flat_map(|v| v)
-                .collect(),
-            DirectiveType::Ascii => lexeme.as_bytes().to_vec(),
-            DirectiveType::Word => lexeme.parse::<i64>().unwrap().to_be_bytes().to_vec(),
-            DirectiveType::HalfWord => lexeme.parse::<i32>().unwrap().to_be_bytes().to_vec(),
-            DirectiveType::QuaterWord => lexeme.parse::<i16>().unwrap().to_be_bytes().to_vec(),
-            DirectiveType::Byte => lexeme.parse::<u8>().unwrap().to_be_bytes().to_vec(),
-        }
-    }
 }
 
 impl Display for InsData {
