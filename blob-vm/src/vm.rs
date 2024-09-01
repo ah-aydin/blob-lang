@@ -10,6 +10,7 @@ pub struct VM {
     registers: [i64; REG_COUNT],
     hp: usize,
     pc: usize,
+    jump_table: Vec<usize>,
     program: Vec<u8>,
     memory: Vec<u8>,
     stack_start: usize,
@@ -23,6 +24,7 @@ impl VM {
             registers: [0; REG_COUNT],
             hp: INITIAL_MEMORY_SIZE_IN_BYTES - 1,
             pc: 0,
+            jump_table: vec![],
             program: vec![],
             memory: vec![0; INITIAL_MEMORY_SIZE_IN_BYTES],
             stack_start: 0,
@@ -199,6 +201,17 @@ impl VM {
                     self.remainder = (left_operand % right_operand) as u32;
                 }
 
+                OpCode::JmpTable => {
+                    let table_entry = self.registers[self.get_reg()] as usize;
+                    self.padding_2_bytes();
+                    self.pc = self.jump_table[table_entry];
+                }
+                OpCode::JmpTableImd => {
+                    let table_entry = self.get_imd_val() as usize;
+                    self.padding_1_byte();
+                    self.pc = self.jump_table[table_entry];
+                }
+
                 OpCode::Jmp => {
                     let target = self.registers[self.get_reg()] as usize;
                     self.padding_2_bytes();
@@ -368,6 +381,8 @@ impl VM {
     }
 
     pub fn set_program(&mut self, executable: BlobExecutable) {
+        self.jump_table = executable.get_jump_table();
+
         self.program = executable.get_program().clone();
 
         self.memory.fill(0);
@@ -833,6 +848,53 @@ mod test {
 
         assert_eq!(vm.registers[dest_reg as usize], 3);
         assert_eq!(vm.remainder, 1);
+    }
+
+    #[test]
+    fn jmp_table_op_code() {
+        let mut vm = VM::new();
+        vm.jump_table = vec![7];
+        vm.registers[1] = 0;
+        vm.program = vec![
+            OpCode::JmpTable as u8,
+            1,
+            PADDING,
+            PADDING,
+            OpCode::Hlt as u8,
+            OpCode::Hlt as u8,
+            OpCode::Hlt as u8,
+            OpCode::LoadImd as u8, // Should jump here
+            0,
+            0,
+            10,
+            OpCode::Hlt as u8,
+        ];
+        vm.run();
+
+        assert_eq!(vm.registers[0], 10);
+    }
+
+    #[test]
+    fn jmp_table_imd_op_code() {
+        let mut vm = VM::new();
+        vm.jump_table = vec![7];
+        vm.program = vec![
+            OpCode::JmpTableImd as u8,
+            0,
+            0,
+            PADDING,
+            OpCode::Hlt as u8,
+            OpCode::Hlt as u8,
+            OpCode::Hlt as u8,
+            OpCode::LoadImd as u8, // Should jump here
+            0,
+            0,
+            10,
+            OpCode::Hlt as u8,
+        ];
+        vm.run();
+
+        assert_eq!(vm.registers[0], 10);
     }
 
     #[test]

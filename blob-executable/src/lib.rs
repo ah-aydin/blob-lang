@@ -191,6 +191,13 @@ impl BlobExecutable {
         }
     }
 
+    pub fn get_jump_table(&self) -> Vec<usize> {
+        self.jump_table
+            .iter()
+            .map(|entry| *entry as usize)
+            .collect()
+    }
+
     pub fn get_program(&self) -> &Vec<u8> {
         &self.program
     }

@@ -31,6 +31,9 @@ pub enum OpCode {
     Div,
     DivImd,
 
+    JmpTable,
+    JmpTableImd,
+
     Jmp,
     JmpF,
     JmpFImd,
@@ -69,6 +72,7 @@ pub enum OpCodeType {
     Str,
     Shift,
     Math,
+    JmpTable,
     Jmp,
     Cmp,
     Stack,
@@ -104,6 +108,8 @@ impl OpCode {
             | OpCode::MulImd
             | OpCode::Div
             | OpCode::DivImd => OpCodeType::Math,
+
+            OpCode::JmpTable | OpCode::JmpTableImd => OpCodeType::JmpTable,
 
             OpCode::Jmp
             | OpCode::JmpF
