@@ -217,10 +217,6 @@ impl Parser {
                 Ok(InsText::Arg3(oc, dest_arg, operand_1, operand_2))
             }
 
-            OpCodeType::JmpTable => {
-                Err(())
-            }
-
             OpCodeType::Jmp => {
                 let oc;
                 let arg = self.parse_reg_or_imd_or_label_arg()?;
@@ -256,6 +252,11 @@ impl Parser {
             }
 
             OpCodeType::Heap => todo!(),
+
+            other => {
+                error!("Got unexpected OpCodeType: {:?}", other);
+                Err(())
+            }
         }
     }
 

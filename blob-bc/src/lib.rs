@@ -66,6 +66,7 @@ pub enum OpCode {
     IGL,
 }
 
+#[derive(Debug)]
 pub enum OpCodeType {
     Misc,
     Load,
