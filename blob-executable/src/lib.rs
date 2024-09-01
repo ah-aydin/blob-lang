@@ -12,8 +12,7 @@ const HEADER_PADDING: usize = HEADER_SIZE - 6;
 const MAGIC_NUMBER: [u8; 4] = [43, 67, 88, 145];
 const DATA_OFFSET_N_BYTES: usize = 8;
 const PROGRAM_OFFSET_N_BYTES: usize = 8;
-const TOTAL_OFFSET_BYTES: usize =
-    DATA_OFFSET_N_BYTES + PROGRAM_OFFSET_N_BYTES;
+const TOTAL_OFFSET_BYTES: usize = DATA_OFFSET_N_BYTES + PROGRAM_OFFSET_N_BYTES;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -71,8 +70,7 @@ impl BlobExecutable {
         let program_offset = u64::from_be_bytes(program_offset_bytes);
 
         // Deserialize jump table
-        let jump_table_size = data_offset as usize
-            - (HEADER_SIZE + TOTAL_OFFSET_BYTES);
+        let jump_table_size = data_offset as usize - (HEADER_SIZE + TOTAL_OFFSET_BYTES);
         assert!(jump_table_size % 8 == 0);
         let jump_table: Vec<u64>;
         if jump_table_size != 0 {
@@ -130,11 +128,8 @@ impl BlobExecutable {
             return Err(());
         }
 
-        let mut bytes: Vec<u8> = Vec::with_capacity(
-            HEADER_SIZE
-                + PROGRAM_OFFSET_N_BYTES
-                + self.program.len() * 2,
-        );
+        let mut bytes: Vec<u8> =
+            Vec::with_capacity(HEADER_SIZE + PROGRAM_OFFSET_N_BYTES + self.program.len() * 2);
 
         // Serialize header
         bytes.extend_from_slice(&self.header.to_bytes());
@@ -227,9 +222,7 @@ impl BlobExecutableHeader {
     }
 
     pub fn from_bytes(bytes: &[u8; HEADER_SIZE]) -> BlobExecutableHeader {
-        unsafe {
-            std::mem::transmute::<[u8; HEADER_SIZE], BlobExecutableHeader>(*bytes)
-        }
+        unsafe { std::mem::transmute::<[u8; HEADER_SIZE], BlobExecutableHeader>(*bytes) }
     }
 
     fn is_magic_number_valid(&self) -> bool {
