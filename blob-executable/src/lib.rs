@@ -9,20 +9,26 @@ pub const BLOB_EXECUTABLE_FILE_EXTENTION: &'static str = "blobexec";
 pub const BLOB_EXECUTABLE_HEADER_SIZE: usize = 64;
 pub const BLOB_EXECUTABLE_HEADER_PADDING: usize = BLOB_EXECUTABLE_HEADER_SIZE - 6;
 pub const BLOB_HEADER_MAGIC_NUMBER: [u8; 4] = [43, 67, 88, 145];
+
+const BLOB_EXECUTABLE_DATA_OFFSET_N_BYTES: usize = 8;
 const BLOB_EXECUTABLE_PROGRAM_OFFSET_N_BYTES: usize = 8;
+const BLOB_EXECUTABLE_TOTAL_OFFSET_BYTES: usize =
+    BLOB_EXECUTABLE_DATA_OFFSET_N_BYTES + BLOB_EXECUTABLE_PROGRAM_OFFSET_N_BYTES;
 
 #[repr(C)]
 #[derive(Debug)]
 pub struct BlobExecutable {
     header: BlobExecutableHeader,
+    jump_table: Vec<u64>,
     data: Vec<u8>,
     program: Vec<u8>,
 }
 
 impl BlobExecutable {
-    pub fn new(data: Vec<u8>, program: Vec<u8>) -> BlobExecutable {
+    pub fn new(jump_table: Vec<u64>, data: Vec<u8>, program: Vec<u8>) -> BlobExecutable {
         BlobExecutable {
             header: BlobExecutableHeader::new(),
+            jump_table,
             data,
             program,
         }
@@ -48,6 +54,14 @@ impl BlobExecutable {
             return Err(());
         }
 
+        // Deserialize data offset
+        let mut data_offset_bytes = [0u8; BLOB_EXECUTABLE_DATA_OFFSET_N_BYTES];
+        if file.read_exact(&mut data_offset_bytes).is_err() {
+            error!("Failed to read data offset");
+            return Err(());
+        }
+        let data_offset = u64::from_be_bytes(data_offset_bytes);
+
         // Deserialize program offset
         let mut program_offset_bytes = [0u8; BLOB_EXECUTABLE_PROGRAM_OFFSET_N_BYTES];
         if file.read_exact(&mut program_offset_bytes).is_err() {
@@ -56,9 +70,32 @@ impl BlobExecutable {
         }
         let program_offset = u64::from_be_bytes(program_offset_bytes);
 
+        // Deserialize jump table
+        let jump_table_size = data_offset as usize
+            - (BLOB_EXECUTABLE_HEADER_SIZE + BLOB_EXECUTABLE_TOTAL_OFFSET_BYTES);
+        assert!(jump_table_size % 8 == 0);
+        let jump_table: Vec<u64>;
+        if jump_table_size != 0 {
+            let mut jump_table_bytes: Vec<u8> = Vec::with_capacity(jump_table_size);
+            if file.read_exact(&mut jump_table_bytes).is_err() {
+                error!("Failed to read jump table for file '{file_name}'");
+                return Err(());
+            }
+
+            jump_table = jump_table_bytes
+                .chunks(8)
+                .map(|chunk| {
+                    let mut arr = [0u8; 8];
+                    arr.copy_from_slice(chunk);
+                    u64::from_be_bytes(arr)
+                })
+                .collect();
+        } else {
+            jump_table = vec![];
+        }
+
         // Deserialize data section
-        let data_section_size = program_offset as usize
-            - (BLOB_EXECUTABLE_HEADER_SIZE + BLOB_EXECUTABLE_PROGRAM_OFFSET_N_BYTES);
+        let data_section_size = (program_offset - data_offset) as usize;
         let mut data: Vec<u8>;
         if data_section_size != 0 {
             data = Vec::with_capacity(data_section_size);
@@ -84,7 +121,7 @@ impl BlobExecutable {
             return Err(());
         }
 
-        Ok(BlobExecutable::new(data, program))
+        Ok(BlobExecutable::new(jump_table, data, program))
     }
 
     pub fn save(&self, file_name: &str) -> Result<(), ()> {
@@ -103,8 +140,25 @@ impl BlobExecutable {
         bytes.extend_from_slice(&self.header.to_bytes());
 
         // Make space for proram offset
+        let data_offset_pos = bytes.len();
+        bytes.extend_from_slice(&[0u8; BLOB_EXECUTABLE_DATA_OFFSET_N_BYTES]);
         let program_offset_pos = bytes.len();
         bytes.extend_from_slice(&[0u8; BLOB_EXECUTABLE_PROGRAM_OFFSET_N_BYTES]);
+
+        // Serialize jump table
+        bytes.extend_from_slice(
+            &self
+                .jump_table
+                .iter()
+                .flat_map(|entry| entry.to_be_bytes())
+                .collect::<Vec<u8>>(),
+        );
+
+        // Populate data offset
+        let data_offset = bytes.len();
+        let data_offset_bytes = (data_offset as u64).to_be_bytes();
+        bytes[data_offset_pos..data_offset_pos + BLOB_EXECUTABLE_DATA_OFFSET_N_BYTES]
+            .copy_from_slice(&data_offset_bytes);
 
         // Serialize data section
         bytes.extend_from_slice(&self.data);
