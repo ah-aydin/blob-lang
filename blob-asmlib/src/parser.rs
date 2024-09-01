@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, u16};
 
 use blob_bc::{DirectiveType, InsArg, InsData, InsText, OpCode, OpCodeType, SectionType};
 use blob_common::{error, info};
@@ -124,7 +124,11 @@ impl Parser {
                     }
                     TokenType::ImdVal(imd_val) => {
                         oc = OpCode::LoadImd;
-                        src_arg = InsArg::Imd(imd_val as u16);
+                        src_arg = InsArg::Imd(imd_val);
+                        if !(0 <= imd_val && imd_val <= u16::MAX as i64) {
+                            error!("Given immediate value '{imd_val}' cannot fit in 2 bytes");
+                            return Err(());
+                        }
                     }
 
                     TokenType::Directive(DirectiveType::Word) => {
@@ -174,7 +178,7 @@ impl Parser {
                     }
                     _ => {
                         error!(
-                            "{} Expected a register, immediate value, or a memory reg as source.",
+                            "{} Expected a directive to specify the memory layout",
                             directive_token.file_coords
                         );
                         return Err(());
@@ -191,6 +195,11 @@ impl Parser {
                         );
                         return Err(());
                     }
+                    let imd_val = unsafe { src_arg.get_imd_val() };
+                    if !(0 <= imd_val && imd_val <= u16::MAX as i64) {
+                        error!("Given immediate value '{imd_val}' cannot fit in 2 bytes");
+                        return Err(());
+                    }
                     oc = oc.get_imd_version();
                 }
 
@@ -201,6 +210,14 @@ impl Parser {
                 let target_reg = self.parse_reg_arg()?;
                 let operand = self.parse_imd_arg()?;
 
+                let imd_val = unsafe { operand.get_imd_val() };
+                if !(0 <= imd_val && imd_val <= 63) {
+                    error!(
+                        "For shifting operations, the immediate value must not be bigger then 63"
+                    );
+                    return Err(());
+                }
+
                 Ok(InsText::Arg2(op_code, target_reg, operand))
             }
 
@@ -210,7 +227,14 @@ impl Parser {
                 let operand_2 = self.parse_reg_or_imd_arg()?;
 
                 let oc = match operand_2.is_imd() {
-                    true => op_code.get_imd_version(),
+                    true => {
+                        let imd_val = unsafe { operand_2.get_imd_val() };
+                        if !(0 <= imd_val && imd_val <= u16::MAX as i64) {
+                            error!("Given immediate value '{imd_val}' cannot fit in 2 bytes");
+                            return Err(());
+                        }
+                        op_code.get_imd_version()
+                    }
                     false => op_code,
                 };
 
@@ -227,6 +251,11 @@ impl Parser {
                     );
                     return Err(());
                 } else if arg.is_imd() {
+                    let imd_val = unsafe { arg.get_imd_val() };
+                    if !(0 <= imd_val && imd_val <= u16::MAX as i64) {
+                        error!("Given immediate value '{imd_val}' cannot fit in 2 bytes");
+                        return Err(());
+                    }
                     oc = op_code.get_imd_version();
                 } else {
                     oc = op_code;
@@ -239,7 +268,14 @@ impl Parser {
                 let operand_2 = self.parse_reg_or_imd_arg()?;
 
                 let oc = match operand_2.is_imd() {
-                    true => op_code.get_imd_version(),
+                    true => {
+                        let imd_val = unsafe { operand_2.get_imd_val() };
+                        if !(0 <= imd_val && imd_val <= u16::MAX as i64) {
+                            error!("Given immediate value '{imd_val}' cannot fit in 2 bytes");
+                            return Err(());
+                        }
+                        op_code.get_imd_version()
+                    }
                     false => op_code,
                 };
 
@@ -288,7 +324,7 @@ impl Parser {
     fn parse_imd_arg(&mut self) -> Result<InsArg, ()> {
         let token = self.get_and_advance()?;
         match token.token_type {
-            TokenType::ImdVal(imd_val) => Ok(InsArg::Imd(imd_val as u16)),
+            TokenType::ImdVal(imd_val) => Ok(InsArg::Imd(imd_val)),
             _ => {
                 error!(
                     "{} Expected a immediate value, but got '{:?}'",
@@ -303,7 +339,7 @@ impl Parser {
         let token = self.get_and_advance()?;
         match token.token_type {
             TokenType::Reg(reg) => Ok(InsArg::Reg(reg)),
-            TokenType::ImdVal(imd_val) => Ok(InsArg::Imd(imd_val as u16)),
+            TokenType::ImdVal(imd_val) => Ok(InsArg::Imd(imd_val)),
             _ => {
                 error!(
                     "{} Expected a registor or immediate value, but got '{:?}'",
@@ -319,7 +355,7 @@ impl Parser {
         match &token.token_type {
             TokenType::Reg(reg) => Ok(InsArg::Reg(*reg)),
             TokenType::LabelUsg(label) => Ok(InsArg::Label(label.clone())),
-            TokenType::ImdVal(imd_val) => Ok(InsArg::Imd(*imd_val as u16)),
+            TokenType::ImdVal(imd_val) => Ok(InsArg::Imd(*imd_val)),
             _ => {
                 error!(
                     "{} Expected an immediate value or label, but got '{:?}'",

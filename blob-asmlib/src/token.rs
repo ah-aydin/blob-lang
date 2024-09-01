@@ -5,7 +5,7 @@ use blob_common::file_coords::FileCoords;
 pub enum TokenType {
     Op(OpCode),
     Reg(u8),
-    ImdVal(i32),
+    ImdVal(i64),
     LabelDecl(String),
     LabelUsg(String),
     Directive(DirectiveType),

@@ -164,7 +164,7 @@ impl Scanner {
 
                     let lexeme = src[start_index..self.current_index].to_string();
                     let file_coords = self.file_coords.new_offset(0, -(lexeme.len() as isize));
-                    if let Ok(imd_val) = lexeme.parse::<i32>() {
+                    if let Ok(imd_val) = lexeme.parse::<i64>() {
                         Ok(Token {
                             token_type: TokenType::ImdVal(imd_val),
                             file_coords,

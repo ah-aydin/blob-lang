@@ -158,7 +158,7 @@ impl From<u8> for OpCode {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum InsArg {
     Reg(u8),
-    Imd(u16),
+    Imd(i64),
     Mem(u8),
     Label(String),
 }
@@ -168,6 +168,13 @@ impl InsArg {
         match self {
             InsArg::Imd(_) => true,
             _ => false,
+        }
+    }
+
+    pub unsafe fn get_imd_val(&self) -> i64 {
+        match self {
+            InsArg::Imd(val) => *val,
+            _ => unreachable!(),
         }
     }
 
