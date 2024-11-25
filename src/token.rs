@@ -5,7 +5,7 @@ use crate::ast::{
     op::{BinaryOp, UnaryOp},
 };
 
-use blob_common::file_coords::FileCoords;
+use crate::file_coords::FileCoords;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenType {

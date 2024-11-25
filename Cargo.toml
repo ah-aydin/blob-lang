@@ -1,11 +1,10 @@
-[workspace]
-resolver = "2"
-members = [
-  "blob-asm",
-  "blob-asmlib",
-  "blob-bc",
-  "blob-c",
-  "blob-common",
-  "blob-executable",
-  "blob-vm",
-]
+[package]
+name = "blob-c"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+lazy_static = "1.4.0"
+

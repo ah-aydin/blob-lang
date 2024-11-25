@@ -3,54 +3,10 @@
 version = 3
 
 [[package]]
-name = "blob-asm"
-version = "0.1.0"
-dependencies = [
- "blob-asmlib",
- "blob-common",
- "blob-executable",
-]
-
-[[package]]
-name = "blob-asmlib"
-version = "0.1.0"
-dependencies = [
- "blob-bc",
- "blob-common",
- "lazy_static",
-]
-
-[[package]]
-name = "blob-bc"
-version = "0.1.0"
-
-[[package]]
 name = "blob-c"
 version = "0.1.0"
 dependencies = [
- "blob-common",
  "lazy_static",
-]
-
-[[package]]
-name = "blob-common"
-version = "0.1.0"
-
-[[package]]
-name = "blob-executable"
-version = "0.1.0"
-dependencies = [
- "blob-common",
-]
-
-[[package]]
-name = "blob-vm"
-version = "0.1.0"
-dependencies = [
- "blob-asmlib",
- "blob-bc",
- "blob-common",
- "blob-executable",
 ]
 
 [[package]]

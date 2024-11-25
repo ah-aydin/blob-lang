@@ -1,6 +1,7 @@
 use std::{collections::HashMap, fmt::Display};
 
-use blob_common::{error, file_coords::FileCoords, info};
+use crate::{error, info};
+use crate::file_coords::FileCoords;
 
 use crate::{
     ast::{

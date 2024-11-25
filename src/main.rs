@@ -1,10 +1,11 @@
 mod ast;
+mod file_coords;
+mod log;
 mod parser;
 mod scanner;
 mod semantic_analyzer;
 mod token;
 
-use blob_common::{error, info};
 use std::{env, fs::File, io::Read};
 
 fn main() -> Result<(), i32> {

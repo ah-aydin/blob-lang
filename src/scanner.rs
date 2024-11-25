@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use blob_common::{error, file_coords::FileCoords, info};
-use lazy_static::lazy_static;
-
+use crate::file_coords::FileCoords;
 use crate::token::{Token, TokenType};
+use crate::{error, info};
+use lazy_static::lazy_static;
 
 lazy_static! {
     static ref KEYWORDS: HashMap<&'static str, TokenType> = {
