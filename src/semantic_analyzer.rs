@@ -1,5 +1,6 @@
 use std::{collections::HashMap, fmt::Display};
 
+use crate::declartions::Declarations;
 use crate::file_coords::FileCoords;
 use crate::{error, info};
 
@@ -88,15 +89,17 @@ type AnalyzerRetType = Result<BType, AnalyzerError>;
 
 struct Analyzer<'a> {
     ast: &'a Ast,
+    declarations: &'a Declarations,
     envs: Vec<Env>,
     current_func_ret_type: BType,
     contains_main: bool,
 }
 
 impl<'a> Analyzer<'a> {
-    fn new(ast: &Ast) -> Analyzer {
+    fn new(ast: &'a Ast, declarations: &'a Declarations) -> Analyzer<'a> {
         Analyzer {
             ast,
+            declarations,
             envs: vec![Env::new()],
             current_func_ret_type: BType::None,
             contains_main: false,
@@ -722,9 +725,9 @@ impl<'a> Analyzer<'a> {
     }
 }
 
-pub fn analyze(ast: &Ast) -> bool {
+pub fn analyze(ast: &Ast, extracted_declarations: &Declarations) -> bool {
     info!("Analyzing semantics...");
-    match Analyzer::new(ast).analyze() {
+    match Analyzer::new(ast, extracted_declarations).analyze() {
         Err(_) => {
             error!("Anaysis failed!");
             std::process::exit(1);

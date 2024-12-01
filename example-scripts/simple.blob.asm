@@ -18,5 +18,5 @@ main:
 _start:
 	call main
 	mov rdi, rax
-	mov rax,60
+	mov rax, 60
 	syscall

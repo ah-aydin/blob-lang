@@ -27,11 +27,15 @@ section .text
 _start:
 \tcall main
 \tmov rdi, rax
-\tmov rax,60
+\tmov rax, 60
 \tsyscall
 ";
     } else {
-        todo!("Implement compilation without main");
+        instructions = "
+section .text
+"
+        .to_owned()
+            + &instructions;
     }
 
     let mut file = match File::create(&file_name) {
