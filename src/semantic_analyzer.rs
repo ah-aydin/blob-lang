@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Display};
 
-use crate::declartions::Declarations;
+use crate::declartions::{Declarations, StructDecl};
 use crate::file_coords::FileCoords;
 use crate::{error, info};
 
@@ -40,48 +40,13 @@ impl Display for AnalyzerError {
 }
 
 #[derive(Debug, Clone)]
-struct Func {
-    ident: String,
-    arg_types: Vec<BType>,
-    ret_type: BType,
-}
-
-impl Func {
-    fn new(ident: String, arg_types: Vec<BType>, ret_type: BType) -> Func {
-        Func {
-            ident,
-            arg_types,
-            ret_type,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-struct Struct {
-    ident: String,
-    fields: Vec<VarTypeInfo>,
-}
-
-impl Struct {
-    fn new(ident: String, fields: Vec<VarTypeInfo>) -> Struct {
-        Struct { ident, fields }
-    }
-}
-
-#[derive(Debug, Clone)]
 struct Env {
-    funcs: Vec<Func>,
-    structs: Vec<Struct>,
     vars: Vec<VarTypeInfo>,
 }
 
 impl Env {
     fn new() -> Env {
-        Env {
-            funcs: vec![],
-            structs: vec![],
-            vars: vec![],
-        }
+        Env { vars: vec![] }
     }
 }
 
@@ -100,7 +65,7 @@ impl<'a> Analyzer<'a> {
         Analyzer {
             ast,
             declarations,
-            envs: vec![Env::new()],
+            envs: vec![],
             current_func_ret_type: BType::None,
             contains_main: false,
         }
@@ -159,19 +124,6 @@ impl<'a> Analyzer<'a> {
     fn stmt_func_decl(&mut self, stmt_func_decl: &StmtFuncDecl) -> AnalyzerRetType {
         let ret_type = stmt_func_decl.ret_type.clone();
         self.current_func_ret_type = ret_type.clone();
-        if self
-            .envs
-            .get(0)
-            .unwrap()
-            .funcs
-            .iter()
-            .any(|func_data| func_data.ident == stmt_func_decl.ident)
-        {
-            return Err(AnalyzerError::Error(format!(
-                "Function '{}' is already defined",
-                stmt_func_decl.ident
-            )));
-        }
         if stmt_func_decl.ident == "main" {
             if stmt_func_decl.args.len() != 0 {
                 return Err(AnalyzerError::Error(
@@ -185,16 +137,6 @@ impl<'a> Analyzer<'a> {
             }
             self.contains_main = true;
         }
-        // Insert func data to the root environment
-        (&mut self.envs.get_mut(0).unwrap().funcs).push(Func::new(
-            stmt_func_decl.ident.clone(),
-            stmt_func_decl
-                .args
-                .iter()
-                .map(|arg| arg.btype.clone())
-                .collect(),
-            ret_type.clone(),
-        ));
 
         let mut func_env = Env::new();
         func_env.vars = stmt_func_decl.args.clone();
@@ -210,26 +152,7 @@ impl<'a> Analyzer<'a> {
         Ok(ret_type)
     }
 
-    fn stmt_struct_decl(&mut self, stmt_struct_decl: &StmtStructDecl) -> AnalyzerRetType {
-        if self
-            .envs
-            .get(0)
-            .unwrap()
-            .structs
-            .iter()
-            .any(|sturct_data| sturct_data.ident == stmt_struct_decl.ident)
-        {
-            return Err(AnalyzerError::Error(format!(
-                "Struct '{}' is already defined",
-                stmt_struct_decl.ident
-            )));
-        }
-        // Insert func data to the root environment
-        (&mut self.envs.get_mut(0).unwrap().structs).push(Struct::new(
-            stmt_struct_decl.ident.clone(),
-            stmt_struct_decl.fields.clone(),
-        ));
-
+    fn stmt_struct_decl(&mut self, _stmt_struct_decl: &StmtStructDecl) -> AnalyzerRetType {
         Ok(BType::None)
     }
 
@@ -271,12 +194,12 @@ impl<'a> Analyzer<'a> {
                 stmt_while.condition.get_file_coords(),
             )),
             Stmt::Expr(_) => unreachable!("Shouldn't be processing expressions here"),
-            Stmt::FuncDecl(_) => unreachable!(
-                "Did not expect a function declaration inside another function or struct"
-            ),
-            Stmt::StructDecl(_) => unreachable!(
-                "Did not expect a struct declaration inside another function or struct"
-            ),
+            Stmt::FuncDecl(_) => {
+                unreachable!("Did not expect a function declaration inside another function")
+            }
+            Stmt::StructDecl(_) => {
+                unreachable!("Did not expect a struct declaration inside another function")
+            }
         }
     }
 
@@ -507,34 +430,28 @@ impl<'a> Analyzer<'a> {
     }
 
     fn expr_call(&mut self, expr_call: &ExprCall) -> AnalyzerRetType {
-        let func_data = self
-            .envs
-            .get(0)
-            .unwrap()
-            .funcs
-            .iter()
-            .find(|func| func.ident == expr_call.name);
-        if func_data.is_none() {
+        let func_decl = self.declarations.funcs.get(&expr_call.name);
+        if func_decl.is_none() {
             return Err(AnalyzerError::ErrorFC(
                 format!("Function '{}' is not defined", expr_call.name),
                 expr_call.file_coords,
             ));
         }
-        let func_data = func_data.unwrap().clone();
+        let func_decl = func_decl.unwrap().clone();
 
-        if func_data.arg_types.len() != expr_call.args.len() {
+        if func_decl.arg_types.len() != expr_call.args.len() {
             return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Function '{} 'takes {} arguments but {} where given",
-                    func_data.ident,
-                    func_data.arg_types.len(),
+                    expr_call.name,
+                    func_decl.arg_types.len(),
                     expr_call.args.len()
                 ),
                 expr_call.file_coords,
             ));
         }
 
-        for (i, (expected_btype, expr)) in func_data
+        for (i, (expected_btype, expr)) in func_decl
             .arg_types
             .iter()
             .zip(expr_call.args.iter())
@@ -554,34 +471,28 @@ impl<'a> Analyzer<'a> {
             }
         }
 
-        Ok(func_data.ret_type)
+        Ok(func_decl.ret_type.clone())
     }
 
     fn expr_struct_instance(
         &mut self,
         expr_struct_instance: &ExprStructInstance,
     ) -> AnalyzerRetType {
-        let struct_data = self
-            .envs
-            .get(0)
-            .unwrap()
-            .structs
-            .iter()
-            .find(|func| func.ident == expr_struct_instance.ident);
-        if struct_data.is_none() {
+        let struct_decl = self.declarations.structs.get(&expr_struct_instance.ident);
+        if struct_decl.is_none() {
             return Err(AnalyzerError::ErrorFC(
                 format!("Function '{}' is not defined", expr_struct_instance.ident),
                 expr_struct_instance.file_coords,
             ));
         }
-        let struct_data = struct_data.unwrap().clone();
+        let struct_decl = struct_decl.unwrap().clone();
 
-        if struct_data.fields.len() != expr_struct_instance.fields.len() {
+        if struct_decl.fields.len() != expr_struct_instance.fields.len() {
             return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Struct '{} 'takes {} arguments but {} where given",
-                    struct_data.ident,
-                    struct_data.fields.len(),
+                    expr_struct_instance.ident,
+                    struct_decl.fields.len(),
                     expr_struct_instance.fields.len()
                 ),
                 expr_struct_instance.file_coords,
@@ -590,7 +501,7 @@ impl<'a> Analyzer<'a> {
 
         let mut missing_args: Vec<String> = Vec::with_capacity(0);
         let mut mismatched_types: HashMap<String, (BType, BType)> = HashMap::with_capacity(0);
-        for field in struct_data.fields {
+        for field in &struct_decl.fields {
             match expr_struct_instance.fields.get(&field.ident) {
                 Some(expr) => {
                     let expr_btype = self.expr(expr)?;
@@ -609,7 +520,7 @@ impl<'a> Analyzer<'a> {
             return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Missing fields in sturct '{}': {}",
-                    struct_data.ident,
+                    expr_struct_instance.ident,
                     missing_args.join(", ")
                 ),
                 expr_struct_instance.file_coords,
@@ -619,7 +530,7 @@ impl<'a> Analyzer<'a> {
             return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Mismached fields in sturct '{}': {}",
-                    struct_data.ident,
+                    expr_struct_instance.ident,
                     mismatched_types
                         .iter()
                         .map(|entry| format!(
@@ -663,10 +574,10 @@ impl<'a> Analyzer<'a> {
             let var = var.unwrap();
 
             if let BType::Struct(struct_name) = &var.btype {
-                let mut struct_info = self.get_struct_info(&struct_name);
+                let mut struct_decl = self.get_struct_info(&struct_name);
                 let mut btype = BType::None;
                 while let Some(ident) = idents.pop() {
-                    let field_maybe = struct_info
+                    let field_maybe = struct_decl
                         .fields
                         .iter()
                         .filter(|field| field.ident == *ident)
@@ -675,14 +586,14 @@ impl<'a> Analyzer<'a> {
                         return Err(AnalyzerError::ErrorFC(
                             format!(
                                 "'{:?}' does not have a field named '{ident}'",
-                                struct_info.ident
+                                struct_name
                             ),
                             expr_get.file_coords,
                         ));
                     }
                     let field = field_maybe.unwrap();
                     if let BType::Struct(struct_name) = &field.btype {
-                        struct_info = self.get_struct_info(&struct_name);
+                        struct_decl = self.get_struct_info(&struct_name);
                     } else {
                         btype = field.btype.clone();
                         break;
@@ -710,18 +621,11 @@ impl<'a> Analyzer<'a> {
     /// Helper methods
     //////////////////////////////////////////////////////////
 
-    fn get_struct_info(&self, ident: &str) -> &Struct {
-        self.envs
-            .get(0)
-            .unwrap()
-            .structs
-            .iter()
-            .filter(|sturct_data| sturct_data.ident == ident)
-            .next()
-            .expect(&format!(
-                "How did a variable with a non existing struct type {} got created?",
-                ident
-            ))
+    fn get_struct_info(&self, ident: &str) -> &StructDecl {
+        self.declarations.structs.get(ident).expect(&format!(
+            "How did a variable with a non existing struct type {} got created?",
+            ident
+        ))
     }
 }
 

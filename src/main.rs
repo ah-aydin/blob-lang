@@ -37,11 +37,9 @@ fn main() -> Result<(), i32> {
 
     info!("Compiling and running {}...\n", file_name);
 
-    // Parsing phase
     let tokens = scanner::scan(&src);
     let ast = parser::parse(tokens);
     let extracted_declarations = declartions::extract_declarations(&ast);
-
     let contains_main = semantic_analyzer::analyze(&ast, &extracted_declarations);
 
     let file_name = format!("{}.asm", file_name);
