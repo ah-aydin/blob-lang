@@ -6,7 +6,7 @@ use crate::{error, info};
 use crate::ast::{
     btype::BType,
     expr::{
-        Expr, ExprBinaryOp, ExprBool, ExprCall, ExprGet, ExprI32, ExprIdenifier, ExprString,
+        Expr, ExprBinaryOp, ExprBool, ExprCall, ExprGet, ExprI64, ExprIdenifier, ExprString,
         ExprStructInstance, ExprUnaryOp,
     },
     op::OpBTypes,
@@ -90,6 +90,7 @@ struct Analyzer<'a> {
     ast: &'a Ast,
     envs: Vec<Env>,
     current_func_ret_type: BType,
+    contains_main: bool,
 }
 
 impl<'a> Analyzer<'a> {
@@ -98,10 +99,11 @@ impl<'a> Analyzer<'a> {
             ast,
             envs: vec![Env::new()],
             current_func_ret_type: BType::None,
+            contains_main: false,
         }
     }
 
-    fn analyze(&mut self) -> Result<(), ()> {
+    fn analyze(&mut self) -> Result<bool, ()> {
         for stmt in self.ast {
             let result = match stmt {
                 Stmt::FuncDecl(stmt_func_decl) => self.stmt_func_decl(&stmt_func_decl),
@@ -113,7 +115,7 @@ impl<'a> Analyzer<'a> {
                 return Err(());
             }
         }
-        Ok(())
+        Ok(self.contains_main)
     }
 
     fn stmt(&mut self, stmt: &Stmt) -> AnalyzerRetType {
@@ -138,7 +140,7 @@ impl<'a> Analyzer<'a> {
     fn expr(&mut self, expr: &Expr) -> AnalyzerRetType {
         match expr {
             Expr::Bool(expr_bool) => self.expr_bool(expr_bool),
-            Expr::I32(expr_i32) => self.expr_i32(expr_i32),
+            Expr::I64(expr_i64) => self.expr_i64(expr_i64),
             Expr::String(expr_string) => self.expr_string(&expr_string),
             Expr::Identifier(expr_identifier) => self.expr_identifier(expr_identifier),
             Expr::BinaryOp(expr_binary_op) => self.expr_binary_op(expr_binary_op),
@@ -166,6 +168,19 @@ impl<'a> Analyzer<'a> {
                 "Function '{}' is already defined",
                 stmt_func_decl.ident
             )));
+        }
+        if stmt_func_decl.ident == "main" {
+            if stmt_func_decl.args.len() != 0 {
+                return Err(AnalyzerError::Error(
+                    "The 'main' function cannot have arguments".to_string(),
+                ));
+            }
+            if stmt_func_decl.ret_type != BType::I64 {
+                return Err(AnalyzerError::Error(
+                    "The 'main' function can only return type i64".to_string(),
+                ));
+            }
+            self.contains_main = true;
         }
         // Insert func data to the root environment
         (&mut self.envs.get_mut(0).unwrap().funcs).push(Func::new(
@@ -411,8 +426,8 @@ impl<'a> Analyzer<'a> {
         Ok(BType::Bool)
     }
 
-    fn expr_i32(&mut self, _expr_i32: &ExprI32) -> AnalyzerRetType {
-        Ok(BType::I32)
+    fn expr_i64(&mut self, _expr_i64: &ExprI64) -> AnalyzerRetType {
+        Ok(BType::I64)
     }
 
     fn expr_string(&mut self, _expr_string: &ExprString) -> AnalyzerRetType {
@@ -707,15 +722,16 @@ impl<'a> Analyzer<'a> {
     }
 }
 
-pub fn analyze(ast: &Ast) {
+pub fn analyze(ast: &Ast) -> bool {
     info!("Analyzing semantics...");
     match Analyzer::new(ast).analyze() {
         Err(_) => {
             error!("Anaysis failed!");
             std::process::exit(1);
         }
-        _ => {
+        Ok(contains_main) => {
             info!("Analysis complete!");
+            contains_main
         }
     }
 }

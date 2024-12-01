@@ -1,13 +1,13 @@
 use std::{collections::HashMap, fmt::Display};
 
-use crate::{error, info};
 use crate::file_coords::FileCoords;
+use crate::{error, info};
 
 use crate::{
     ast::{
         btype::BType,
         expr::{
-            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprGet, ExprI32, ExprIdenifier, ExprString,
+            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprGet, ExprI64, ExprIdenifier, ExprString,
             ExprStructInstance, ExprUnaryOp,
         },
         op::BinaryOp,
@@ -76,10 +76,10 @@ enum Scope {
 /// expr_call -> IDENTIFIER (("(" expr_arguments? ")")? | expr_get) | expr_primary
 /// expr_get -> ("." IDENTIFIER)*
 /// expr_arguments -> expr ("," expr )*
-/// expr_primary -> expr_struct_instance | I32 |  STRING | TRUE | FALSE | "(" expr ")" | expr_struct
+/// expr_primary -> expr_struct_instance | I64 |  STRING | TRUE | FALSE | "(" expr ")" | expr_struct
 /// expr_struct -> IDENTIFIER expr_struct_instance?
 /// expr_sturct_instance -> "{" (IDENTIFIER: expr ("," IDENTIFIER: expr)*)? "}"
-/// expr_type -> ":" IDENTIFIER | "i32" | "str" | "bool"
+/// expr_type -> ":" IDENTIFIER | "i64" | "str" | "bool"
 /// ```
 struct Parser {
     tokens: Vec<Token>,
@@ -541,8 +541,8 @@ impl Parser {
     fn expr_primary(&mut self) -> ExprResult {
         let token = self.next_token()?.clone();
         match token.token_type {
-            TokenType::I32 => Ok(Expr::I32(ExprI32 {
-                value: token.lexeme.as_ref().unwrap().parse::<i32>().unwrap(),
+            TokenType::I64 => Ok(Expr::I64(ExprI64 {
+                value: token.lexeme.as_ref().unwrap().parse::<i64>().unwrap(),
                 file_coords: token.file_coords,
             })),
             TokenType::Identifier => {
@@ -612,7 +612,7 @@ impl Parser {
         Ok(self
             .consume_any(vec![
                 TokenType::BTypeBool,
-                TokenType::BTypeI32,
+                TokenType::BTypeI64,
                 TokenType::BTypeStr,
                 TokenType::Identifier,
             ])?

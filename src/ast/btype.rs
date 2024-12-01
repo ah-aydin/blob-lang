@@ -2,7 +2,7 @@
 pub enum BType {
     None,
     Bool,
-    I32,
+    I64,
     Str,
     Struct(String),
 }

@@ -4,6 +4,7 @@ mod log;
 mod parser;
 mod scanner;
 mod semantic_analyzer;
+mod simple_compiler;
 mod token;
 
 use std::{env, fs::File, io::Read};
@@ -37,7 +38,10 @@ fn main() -> Result<(), i32> {
 
     let tokens = scanner::scan(&src);
     let ast = parser::parse(tokens);
-    semantic_analyzer::analyze(&ast);
+    let contains_main = semantic_analyzer::analyze(&ast);
+
+    let file_name = format!("{}.asm", file_name);
+    simple_compiler::compile(&ast, contains_main, file_name);
 
     Ok(())
 }
