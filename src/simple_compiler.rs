@@ -2,9 +2,9 @@ use std::{fs::File, io::Write};
 
 use crate::{
     ast::{
-        expr::{Expr, ExprBinaryOp, ExprBool, ExprI64},
-        op::BinaryOp,
-        stmt::{Stmt, StmtBlock, StmtExpr, StmtFuncDecl, StmtReturn},
+        expr::{Expr, ExprBinaryOp, ExprBool, ExprI64, ExprUnaryOp},
+        op::{BinaryOp, UnaryOp},
+        stmt::{Stmt, StmtBlock, StmtExpr, StmtFuncDecl, StmtIf, StmtIfElse, StmtReturn},
         Ast,
     },
     error, info,
@@ -16,8 +16,7 @@ pub fn compile(ast: &Ast, contains_main: bool, file_name: String) {
     let mut instructions = compiler.instructions.join("\n");
 
     if contains_main {
-        instructions = "
-section .text
+        instructions = "section .text
 \tglobal _start
 "
         .to_owned()
@@ -52,6 +51,7 @@ section .text
 struct Compiler<'a> {
     ast: &'a Ast,
     instructions: Vec<String>,
+    label_counter: u64,
 }
 
 impl<'a> Compiler<'a> {
@@ -59,6 +59,7 @@ impl<'a> Compiler<'a> {
         Compiler {
             ast,
             instructions: vec![],
+            label_counter: 0,
         }
     }
 
@@ -77,8 +78,8 @@ impl<'a> Compiler<'a> {
             Stmt::Expr(stmt_expr) => self.stmt_expr(stmt_expr),
             Stmt::Block(stmt_block) => self.stmt_block(stmt_block),
             Stmt::Return(stmt_return) => self.stmt_return(stmt_return),
-            Stmt::If(stmt_if) => todo!(),
-            Stmt::IfElse(stmt_if_else) => todo!(),
+            Stmt::If(stmt_if) => self.stmt_if(stmt_if),
+            Stmt::IfElse(stmt_if_else) => self.stmt_if_else(stmt_if_else),
             Stmt::VarDecl(stmt_var_decl) => todo!(),
             Stmt::Assign(stmt_assign) => todo!(),
             Stmt::While(stmt_while) => todo!(),
@@ -98,7 +99,7 @@ impl<'a> Compiler<'a> {
             Expr::String(expr_string) => todo!(),
             Expr::Identifier(expr_identifier) => todo!(),
             Expr::BinaryOp(expr_binary_op) => self.expr_binary_op(expr_binary_op),
-            Expr::UnaryOp(expr_unary_op) => todo!(),
+            Expr::UnaryOp(expr_unary_op) => self.expr_unary_op(expr_unary_op),
             Expr::Call(expr_call) => todo!(),
             Expr::StructInstance(expr_struct_instance) => todo!(),
             Expr::Get(expr_get_property) => todo!(),
@@ -128,6 +129,30 @@ impl<'a> Compiler<'a> {
         self.add_instruction("ret");
     }
 
+    fn stmt_if(&mut self, stmt_if: &StmtIf) {
+        let if_end_label = self.generate_label("ifEnd");
+
+        self.expr(&stmt_if.condition);
+        self.add_instruction("cmp r8, 1");
+        self.add_instruction(&format!("jne {if_end_label}"));
+        self.stmt(&stmt_if.body);
+        self.add_label(&if_end_label);
+    }
+
+    fn stmt_if_else(&mut self, stmt_if_else: &StmtIfElse) {
+        let if_end_else_start_label = self.generate_label("ifEndElseStart");
+        let if_else_end_label = self.generate_label("ifElseEnd");
+
+        self.expr(&stmt_if_else.condition);
+        self.add_instruction("cmp r8, 1");
+        self.add_instruction(&format!("jne {if_end_else_start_label}"));
+        self.stmt(&stmt_if_else.if_body);
+        self.add_instruction(&format!("jmp {if_else_end_label}"));
+        self.add_label(&if_end_else_start_label);
+        self.stmt(&stmt_if_else.else_body);
+        self.add_label(&if_else_end_label);
+    }
+
     fn expr_bool(&mut self, expr_bool: &ExprBool) {
         let value;
         if expr_bool.value {
@@ -135,7 +160,7 @@ impl<'a> Compiler<'a> {
         } else {
             value = 0;
         }
-        self.add_instruction(&format!("mova r8, {}", value));
+        self.add_instruction(&format!("mov r8, {}", value));
     }
 
     fn expr_i64(&mut self, expr_i64: &ExprI64) {
@@ -160,21 +185,65 @@ impl<'a> Compiler<'a> {
                 self.add_instruction("idiv r8");
                 self.add_instruction("mov r8, rax");
             }
-            BinaryOp::BooleanOr => todo!(),
-            BinaryOp::BooleanAnd => todo!(),
-            BinaryOp::BitwiseOr => todo!(),
-            BinaryOp::BitwiseAnd => todo!(),
-            BinaryOp::Eq => todo!(),
-            BinaryOp::Neq => todo!(),
-            BinaryOp::Gt => todo!(),
-            BinaryOp::Gte => todo!(),
-            BinaryOp::Lt => todo!(),
-            BinaryOp::Lte => todo!(),
+            BinaryOp::BooleanOr => self.add_instruction("or r8, r9"),
+            BinaryOp::BooleanAnd => self.add_instruction("and r8, r9"),
+            BinaryOp::BitwiseOr => self.add_instruction("or r8, r9"),
+            BinaryOp::BitwiseAnd => self.add_instruction("and r8, r9"),
+            BinaryOp::Eq => {
+                self.add_instruction("cmp r9, r8");
+                self.add_instruction("sete al");
+                self.add_instruction("movzx r8, al");
+            }
+            BinaryOp::Neq => {
+                self.add_instruction("cmp r9, r8");
+                self.add_instruction("setne al");
+                self.add_instruction("movzx r8, al");
+            }
+            BinaryOp::Gt => {
+                self.add_instruction("cmp r9, r8");
+                self.add_instruction("setg al");
+                self.add_instruction("movzx r8, al");
+            }
+            BinaryOp::Gte => {
+                self.add_instruction("cmp r9, r8");
+                self.add_instruction("setge al");
+                self.add_instruction("movzx r8, al");
+            }
+            BinaryOp::Lt => {
+                self.add_instruction("cmp r9, r8");
+                self.add_instruction("setl al");
+                self.add_instruction("movzx r8, al");
+            }
+            BinaryOp::Lte => {
+                self.add_instruction("cmp r9, r8");
+                self.add_instruction("setle al");
+                self.add_instruction("movzx r8, al");
+            }
+        }
+    }
+
+    fn expr_unary_op(&mut self, expr_unary_op: &ExprUnaryOp) {
+        // r8 will contain the operand
+        match expr_unary_op.op {
+            UnaryOp::Neg => {
+                self.expr(&expr_unary_op.term);
+                self.add_instruction("neg r8");
+            }
+            UnaryOp::Not => {
+                self.expr(&expr_unary_op.term);
+                self.add_instruction("not r8");
+            }
         }
     }
 
     fn add_label(&mut self, label: &str) {
         self.instructions.push(format!("{}:", label));
+    }
+
+    fn generate_label(&mut self, prefix: &str) -> String {
+        let label = format!("_{}_{}", prefix, self.label_counter);
+        self.label_counter += 1;
+        label
     }
 
     fn add_instruction(&mut self, instruction: &str) {

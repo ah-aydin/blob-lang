@@ -1,3 +1,7 @@
 func main(): i64 {
-  return (8 + 10) / 2;
+  if (!true) {
+  } else {
+    return 9 + 2;
+  }
+  return 20 - (-2);
 }
