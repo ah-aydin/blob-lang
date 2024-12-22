@@ -2,7 +2,12 @@ section .text
 	global _start
 main:
 	mov r8, 1
-	not r8
+	push r8
+	mov r8, 1
+	pop r9
+	cmp r9, r8
+	sete al
+	movzx r8, al
 	cmp r8, 1
 	jne _ifEndElseStart_0
 	jmp _ifElseEnd_1

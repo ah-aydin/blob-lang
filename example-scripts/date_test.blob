@@ -15,8 +15,8 @@ struct DateTime {
 }
 
 struct Person {
-  name: str,
-  age: i64
+  age: i64,
+  height: i64
 }
 
 func gib(): i64 {
@@ -45,7 +45,7 @@ func main(): i64 {
   date = date2;
   a = datetime.date.year + 10 - datetime.time.second + date.month;
 
-  var person = Person { name: "gigel", age: 23 };
+  var person = Person { age: 23, height: 185 };
   a = datetime.date.year + person.age;
   date.year = 123 + 123;
   datetime.date.year = a + b + gib();

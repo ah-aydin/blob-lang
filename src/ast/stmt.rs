@@ -1,4 +1,4 @@
-use super::{btype::BType, expr::Expr};
+use super::{btype::BTypeWrapper, expr::Expr};
 
 #[derive(Debug, Clone)]
 pub struct StmtExpr {
@@ -18,7 +18,7 @@ pub struct StmtReturn {
 #[derive(Debug, Clone)]
 pub struct VarTypeInfo {
     pub ident: String,
-    pub btype: BType,
+    pub btype_wrapper: BTypeWrapper,
 }
 
 #[derive(Debug, Clone)]
@@ -31,7 +31,7 @@ pub struct StmtStructDecl {
 pub struct StmtFuncDecl {
     pub ident: String,
     pub args: Vec<VarTypeInfo>,
-    pub ret_type: BType,
+    pub ret_type: BTypeWrapper,
     pub body: Box<Stmt>,
 }
 
@@ -51,7 +51,7 @@ pub struct StmtIfElse {
 #[derive(Debug, Clone)]
 pub struct StmtVarDecl {
     pub ident: String,
-    pub btype: BType,
+    pub btype_wrapper: BTypeWrapper,
     pub expr: Expr,
 }
 

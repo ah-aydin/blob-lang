@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     ast::{
-        btype::BType,
+        btype::BTypeWrapper,
         stmt::{Stmt, StmtFuncDecl, StmtStructDecl, VarTypeInfo},
         Ast,
     },
@@ -17,8 +17,8 @@ pub struct StructDecl {
 #[derive(Debug)]
 pub struct FuncDecl {
     pub arg_idents: Vec<String>,
-    pub arg_types: Vec<BType>,
-    pub ret_type: BType,
+    pub arg_types: Vec<BTypeWrapper>,
+    pub ret_type: BTypeWrapper,
 }
 
 #[derive(Debug)]
@@ -84,7 +84,7 @@ fn extract_func_declaration(stmt_func_decl: &StmtFuncDecl) -> FuncDecl {
         arg_types: stmt_func_decl
             .args
             .iter()
-            .map(|t| t.btype.clone())
+            .map(|t| t.btype_wrapper.clone())
             .collect(),
         ret_type: stmt_func_decl.ret_type.clone(),
     }

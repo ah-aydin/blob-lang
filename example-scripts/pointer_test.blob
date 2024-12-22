@@ -1,0 +1,34 @@
+struct RefObject {
+  value: i64
+}
+
+struct Person {
+  age: i64,
+  height: i64,
+  ref_number: &i64,
+  ref_object: &RefObject
+}
+
+func main(): i64 {
+  var n: i64 = 10;
+  var n_ref: &i64 = &n;
+  var n_other: i64 = *n_ref;
+
+  var ref_object = RefObject { value: 123 };
+
+  var person = Person {
+    age: 23,
+    height: 185,
+    ref_number: &n,
+    ref_object: &ref_object
+  };
+  var person_ref: &Person = &person;
+  var person_age_ref: &i64 = &person.age;
+
+  *person.ref_number = 10;
+
+  (*person_ref).age = 123;
+  (*person.ref_object).value = 10;
+
+  return *person_age_ref + 123;
+}

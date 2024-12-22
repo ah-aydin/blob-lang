@@ -1,13 +1,14 @@
 use std::{collections::HashMap, fmt::Display};
 
+use crate::ast::btype::BTypeWrapper;
+use crate::ast::expr::{ExprDeref, ExprRef};
 use crate::file_coords::FileCoords;
 use crate::{error, info};
 
 use crate::{
     ast::{
-        btype::BType,
         expr::{
-            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprGet, ExprI64, ExprIdenifier, ExprString,
+            Expr, ExprBinaryOp, ExprBool, ExprCall, ExprGet, ExprI64, ExprIdenifier,
             ExprStructInstance, ExprUnaryOp,
         },
         op::BinaryOp,
@@ -73,13 +74,15 @@ enum Scope {
 /// expr_term -> factor (("+" | "-") expr_factor)*
 /// expr_factor -> unary (("*" | "/") expr_unary)*
 /// expr_unary -> ("!" | "-") expr_unary | expr_call
-/// expr_call -> IDENTIFIER (("(" expr_arguments? ")")? | expr_get) | expr_primary
+/// expr_call -> IDENTIFIER (("(" expr_arguments? ")")? | expr_get) | expr_ref
 /// expr_get -> ("." IDENTIFIER)*
 /// expr_arguments -> expr ("," expr )*
-/// expr_primary -> expr_struct_instance | I64 |  STRING | TRUE | FALSE | "(" expr ")" | expr_struct
+/// expr_ref -> "*"? expr_call | expr_deref
+/// expr_deref ->  "&"? expr_call | expr_primary
+/// expr_primary -> expr_struct_instance | I64 | TRUE | FALSE | "(" expr ")" | expr_struct
 /// expr_struct -> IDENTIFIER expr_struct_instance?
 /// expr_sturct_instance -> "{" (IDENTIFIER: expr ("," IDENTIFIER: expr)*)? "}"
-/// expr_type -> ":" IDENTIFIER | "i64" | "str" | "bool"
+/// expr_type -> ":" "&"? IDENTIFIER | "i64" | "bool"
 /// ```
 struct Parser {
     tokens: Vec<Token>,
@@ -172,8 +175,11 @@ impl Parser {
                 .as_ref()
                 .unwrap()
                 .clone();
-            let btype = self.consume_type()?;
-            args.push(VarTypeInfo { ident, btype });
+            let btype_wrapper = self.consume_type()?;
+            args.push(VarTypeInfo {
+                ident,
+                btype_wrapper,
+            });
             first_iter = false;
         }
 
@@ -181,7 +187,7 @@ impl Parser {
         if self.peek_token()?.token_type == TokenType::Colon {
             ret_type = self.consume_type()?;
         } else {
-            ret_type = BType::None;
+            ret_type = BTypeWrapper::void();
         }
 
         let stmt_func_decl = Stmt::FuncDecl(StmtFuncDecl {
@@ -228,8 +234,11 @@ impl Parser {
                 .as_ref()
                 .unwrap()
                 .clone();
-            let btype = self.consume_type()?;
-            fields.push(VarTypeInfo { ident, btype });
+            let btype_wrapper = self.consume_type()?;
+            fields.push(VarTypeInfo {
+                ident,
+                btype_wrapper,
+            });
             first_iter = false;
         }
 
@@ -280,16 +289,20 @@ impl Parser {
             .as_ref()
             .unwrap()
             .clone();
-        let btype;
+        let btype_wrapper;
         if self.peek_token()?.token_type == TokenType::Colon {
-            btype = self.consume_type()?;
+            btype_wrapper = self.consume_type()?;
         } else {
-            btype = BType::None;
+            btype_wrapper = BTypeWrapper::void();
         }
         self.consume(TokenType::Equal)?;
         let expr = self.expr()?;
         self.consume(TokenType::Semicolon)?;
-        Ok(Stmt::VarDecl(StmtVarDecl { ident, btype, expr }))
+        Ok(Stmt::VarDecl(StmtVarDecl {
+            ident,
+            btype_wrapper,
+            expr,
+        }))
     }
 
     fn stmt_while(&mut self) -> StmtResult {
@@ -485,7 +498,7 @@ impl Parser {
     }
 
     fn expr_call(&mut self) -> ExprResult {
-        let term = self.expr_primary()?;
+        let term = self.expr_ref()?;
         if self.match_exact(TokenType::LeftParen)? {
             if let Expr::Identifier(ExprIdenifier { ident, file_coords }) = term {
                 let args = self.expr_arguments()?;
@@ -538,6 +551,44 @@ impl Parser {
         Ok(args)
     }
 
+    fn expr_ref(&mut self) -> ExprResult {
+        if !self.match_exact(TokenType::Ampersand)? {
+            return self.expr_deref();
+        }
+
+        let file_coords = self.get_prev_file_coords();
+        let term = self.expr_call()?;
+        match term {
+            Expr::Identifier(_) | Expr::Call(_) | Expr::Get(_) => Ok(Expr::Ref(ExprRef {
+                term: Box::new(term),
+                file_coords,
+            })),
+            _ => Err(ParserError::WrongToken(
+                format!("Referencing can only be done on identifiers"),
+                file_coords,
+            )),
+        }
+    }
+
+    fn expr_deref(&mut self) -> ExprResult {
+        if !self.match_exact(TokenType::Star)? {
+            return self.expr_primary();
+        }
+
+        let file_coords = self.get_prev_file_coords();
+        let term = self.expr_call()?;
+        match term {
+            Expr::Identifier(_) | Expr::Call(_) | Expr::Get(_) => Ok(Expr::Deref(ExprDeref {
+                term: Box::new(term),
+                file_coords,
+            })),
+            _ => Err(ParserError::WrongToken(
+                format!("Dereferencing can only be done on identifiers"),
+                file_coords,
+            )),
+        }
+    }
+
     fn expr_primary(&mut self) -> ExprResult {
         let token = self.next_token()?.clone();
         match token.token_type {
@@ -554,10 +605,10 @@ impl Parser {
                     file_coords: token.file_coords,
                 }))
             }
-            TokenType::String => Ok(Expr::String(ExprString {
-                value: token.lexeme.as_ref().unwrap().clone(),
-                file_coords: token.file_coords,
-            })),
+            TokenType::String => Err(ParserError::WrongToken(
+                format!("Strings are not supported yet"),
+                token.file_coords,
+            )),
             TokenType::True => Ok(Expr::Bool(ExprBool {
                 value: true,
                 file_coords: token.file_coords,
@@ -607,16 +658,20 @@ impl Parser {
         }))
     }
 
-    fn consume_type(&mut self) -> Result<BType, ParserError> {
+    fn consume_type(&mut self) -> Result<BTypeWrapper, ParserError> {
         self.consume(TokenType::Colon)?;
-        Ok(self
+        let is_ref = self.match_exact(TokenType::Ampersand)?;
+        let btype = self
             .consume_any(vec![
                 TokenType::BTypeBool,
                 TokenType::BTypeI64,
-                TokenType::BTypeStr,
                 TokenType::Identifier,
             ])?
-            .get_btype())
+            .get_btype();
+        if is_ref {
+            return Ok(BTypeWrapper::new_ref(btype));
+        }
+        Ok(BTypeWrapper::new(btype))
     }
 
     ///////////////////////////////////////////////////////////////////////////

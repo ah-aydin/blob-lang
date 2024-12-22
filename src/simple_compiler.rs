@@ -2,7 +2,7 @@ use std::{fs::File, io::Write};
 
 use crate::{
     ast::{
-        expr::{Expr, ExprBinaryOp, ExprBool, ExprI64, ExprUnaryOp},
+        expr::{Expr, ExprBinaryOp, ExprBool, ExprDeref, ExprI64, ExprRef, ExprUnaryOp},
         op::{BinaryOp, UnaryOp},
         stmt::{Stmt, StmtBlock, StmtExpr, StmtFuncDecl, StmtIf, StmtIfElse, StmtReturn},
         Ast,
@@ -96,10 +96,11 @@ impl<'a> Compiler<'a> {
         match expr {
             Expr::Bool(expr_bool) => self.expr_bool(expr_bool),
             Expr::I64(expr_i64) => self.expr_i64(expr_i64),
-            Expr::String(expr_string) => todo!(),
             Expr::Identifier(expr_identifier) => todo!(),
             Expr::BinaryOp(expr_binary_op) => self.expr_binary_op(expr_binary_op),
             Expr::UnaryOp(expr_unary_op) => self.expr_unary_op(expr_unary_op),
+            Expr::Ref(expr_ref) => self.expr_ref(expr_ref),
+            Expr::Deref(expr_deref) => self.expr_deref(expr_deref),
             Expr::Call(expr_call) => todo!(),
             Expr::StructInstance(expr_struct_instance) => todo!(),
             Expr::Get(expr_get_property) => todo!(),
@@ -234,6 +235,14 @@ impl<'a> Compiler<'a> {
                 self.add_instruction("not r8");
             }
         }
+    }
+
+    fn expr_ref(&mut self, expr_ref: &ExprRef) {
+        todo!()
+    }
+
+    fn expr_deref(&mut self, expr_deref: &ExprDeref) {
+        todo!()
     }
 
     fn add_label(&mut self, label: &str) {

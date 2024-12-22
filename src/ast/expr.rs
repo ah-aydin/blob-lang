@@ -30,12 +30,6 @@ pub struct ExprStructInstance {
 }
 
 #[derive(Debug, Clone)]
-pub struct ExprString {
-    pub value: String,
-    pub file_coords: FileCoords,
-}
-
-#[derive(Debug, Clone)]
 pub struct ExprBinaryOp {
     pub left: Box<Expr>,
     pub op: BinaryOp,
@@ -46,6 +40,18 @@ pub struct ExprBinaryOp {
 #[derive(Debug, Clone)]
 pub struct ExprUnaryOp {
     pub op: UnaryOp,
+    pub term: Box<Expr>,
+    pub file_coords: FileCoords,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExprRef {
+    pub term: Box<Expr>,
+    pub file_coords: FileCoords,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExprDeref {
     pub term: Box<Expr>,
     pub file_coords: FileCoords,
 }
@@ -70,10 +76,12 @@ pub enum Expr {
     I64(ExprI64),
     Identifier(ExprIdenifier),
     StructInstance(ExprStructInstance),
-    String(ExprString),
 
     BinaryOp(ExprBinaryOp),
     UnaryOp(ExprUnaryOp),
+
+    Ref(ExprRef),
+    Deref(ExprDeref),
 
     Call(ExprCall),
 
@@ -87,9 +95,10 @@ impl Expr {
             Expr::I64(expr) => expr.file_coords,
             Expr::Identifier(expr) => expr.file_coords,
             Expr::StructInstance(expr) => expr.file_coords,
-            Expr::String(expr) => expr.file_coords,
             Expr::BinaryOp(expr) => expr.file_coords,
             Expr::UnaryOp(expr) => expr.file_coords,
+            Expr::Ref(expr) => expr.file_coords,
+            Expr::Deref(expr) => expr.file_coords,
             Expr::Call(expr) => expr.file_coords,
             Expr::Get(expr) => expr.file_coords,
         }
@@ -97,7 +106,7 @@ impl Expr {
 
     pub fn is_assignable(&self) -> bool {
         match self {
-            Expr::Identifier(_) | Expr::Get(_) => true,
+            Expr::Identifier(_) | Expr::Get(_) |  Expr::Deref(_) => true,
             _ => false,
         }
     }

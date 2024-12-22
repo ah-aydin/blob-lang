@@ -1,13 +1,14 @@
 use std::{collections::HashMap, fmt::Display};
 
+use crate::ast::btype::{BType, BTypeWrapper};
+use crate::ast::expr::{ExprDeref, ExprRef};
 use crate::declartions::{Declarations, StructDecl};
 use crate::file_coords::FileCoords;
 use crate::{error, info};
 
 use crate::ast::{
-    btype::BType,
     expr::{
-        Expr, ExprBinaryOp, ExprBool, ExprCall, ExprGet, ExprI64, ExprIdenifier, ExprString,
+        Expr, ExprBinaryOp, ExprBool, ExprCall, ExprGet, ExprI64, ExprIdenifier,
         ExprStructInstance, ExprUnaryOp,
     },
     op::OpBTypes,
@@ -50,13 +51,13 @@ impl Env {
     }
 }
 
-type AnalyzerRetType = Result<BType, AnalyzerError>;
+type AnalyzerRetType = Result<BTypeWrapper, AnalyzerError>;
 
 struct Analyzer<'a> {
     ast: &'a Ast,
     declarations: &'a Declarations,
     envs: Vec<Env>,
-    current_func_ret_type: BType,
+    current_func_ret_type_wrapper: BTypeWrapper,
     contains_main: bool,
 }
 
@@ -66,7 +67,7 @@ impl<'a> Analyzer<'a> {
             ast,
             declarations,
             envs: vec![],
-            current_func_ret_type: BType::None,
+            current_func_ret_type_wrapper: BTypeWrapper::void(),
             contains_main: false,
         }
     }
@@ -76,7 +77,9 @@ impl<'a> Analyzer<'a> {
             let result = match stmt {
                 Stmt::FuncDecl(stmt_func_decl) => self.stmt_func_decl(&stmt_func_decl),
                 Stmt::StructDecl(stmt_struct_decl) => self.stmt_struct_decl(&stmt_struct_decl),
-                _ => unreachable!("Did not expect a non function Stmt at the top level"),
+                _ => unreachable!(
+                    "Did not expect a non function or non struct Stmt at the top level"
+                ),
             };
             if result.is_err() {
                 error!("{}", result.err().unwrap());
@@ -109,10 +112,11 @@ impl<'a> Analyzer<'a> {
         match expr {
             Expr::Bool(expr_bool) => self.expr_bool(expr_bool),
             Expr::I64(expr_i64) => self.expr_i64(expr_i64),
-            Expr::String(expr_string) => self.expr_string(&expr_string),
             Expr::Identifier(expr_identifier) => self.expr_identifier(expr_identifier),
             Expr::BinaryOp(expr_binary_op) => self.expr_binary_op(expr_binary_op),
             Expr::UnaryOp(expr_unary_op) => self.expr_unary_op(expr_unary_op),
+            Expr::Ref(expr_ref) => self.expr_ref(expr_ref),
+            Expr::Deref(expr_deref) => self.expr_deref(expr_deref),
             Expr::Call(expr_call) => self.expr_call(expr_call),
             Expr::StructInstance(expr_struct_instance) => {
                 self.expr_struct_instance(expr_struct_instance)
@@ -123,14 +127,14 @@ impl<'a> Analyzer<'a> {
 
     fn stmt_func_decl(&mut self, stmt_func_decl: &StmtFuncDecl) -> AnalyzerRetType {
         let ret_type = stmt_func_decl.ret_type.clone();
-        self.current_func_ret_type = ret_type.clone();
+        self.current_func_ret_type_wrapper = ret_type.clone();
         if stmt_func_decl.ident == "main" {
             if stmt_func_decl.args.len() != 0 {
                 return Err(AnalyzerError::Error(
                     "The 'main' function cannot have arguments".to_string(),
                 ));
             }
-            if stmt_func_decl.ret_type != BType::I64 {
+            if !stmt_func_decl.ret_type.is_type(BType::I64) {
                 return Err(AnalyzerError::Error(
                     "The 'main' function can only return type i64".to_string(),
                 ));
@@ -145,7 +149,7 @@ impl<'a> Analyzer<'a> {
         self.stmt(&stmt_func_decl.body)?;
         self.envs.pop();
 
-        if self.current_func_ret_type != BType::None {
+        if !self.current_func_ret_type_wrapper.is_type(BType::Void) {
             self.check_last_ret_stmt(&stmt_func_decl.body)?;
         }
 
@@ -153,7 +157,7 @@ impl<'a> Analyzer<'a> {
     }
 
     fn stmt_struct_decl(&mut self, _stmt_struct_decl: &StmtStructDecl) -> AnalyzerRetType {
-        Ok(BType::None)
+        Ok(BTypeWrapper::void())
     }
 
     fn check_last_ret_stmt(&mut self, stmt: &Stmt) -> Result<(), AnalyzerError> {
@@ -226,56 +230,56 @@ impl<'a> Analyzer<'a> {
         if errored {
             return Err(error);
         }
-        Ok(BType::None)
+        Ok(BTypeWrapper::void())
     }
 
     fn stmt_return(&mut self, stmt_return: &StmtReturn) -> AnalyzerRetType {
         let expr_maybe = &stmt_return.expr;
-        let expr_type = match expr_maybe {
+        let expr_type_wrapper = match expr_maybe {
             Some(expr) => self.expr(expr)?,
-            None => BType::None,
+            None => BTypeWrapper::void(),
         };
-        if expr_type != self.current_func_ret_type {
+        if expr_type_wrapper != self.current_func_ret_type_wrapper {
             return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Expected return type '{:?}' by got '{:?}'",
-                    self.current_func_ret_type, expr_type
+                    self.current_func_ret_type_wrapper, expr_type_wrapper
                 ),
                 expr_maybe.as_ref().unwrap().get_file_coords(),
             ));
         }
-        Ok(expr_type)
+        Ok(expr_type_wrapper)
     }
 
     fn stmt_if(&mut self, stmt_if: &StmtIf) -> AnalyzerRetType {
-        let condition_btype = self.expr(&stmt_if.condition)?;
-        if condition_btype != BType::Bool {
+        let condition_btype_wrapper = self.expr(&stmt_if.condition)?;
+        if !condition_btype_wrapper.is_type(BType::Bool) {
             return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Expected if condition to have a 'Bool' result but got '{:?}'",
-                    condition_btype
+                    condition_btype_wrapper
                 ),
                 stmt_if.condition.get_file_coords(),
             ));
         }
         self.stmt(&stmt_if.body)?;
-        Ok(BType::None)
+        Ok(BTypeWrapper::void())
     }
 
     fn stmt_if_else(&mut self, stmt_if_else: &StmtIfElse) -> AnalyzerRetType {
-        let condition_btype = self.expr(&stmt_if_else.condition)?;
-        if condition_btype != BType::Bool {
+        let condition_btype_wrapper = self.expr(&stmt_if_else.condition)?;
+        if !condition_btype_wrapper.is_type(BType::Bool) {
             return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Expected if condition to have a 'Bool' result but got '{:?}'",
-                    condition_btype
+                    condition_btype_wrapper
                 ),
                 stmt_if_else.condition.get_file_coords(),
             ));
         }
         self.stmt(&stmt_if_else.if_body)?;
         self.stmt(&stmt_if_else.else_body)?;
-        Ok(BType::None)
+        Ok(BTypeWrapper::void())
     }
 
     fn stmt_var_decl(&mut self, stmt_var_decl: &StmtVarDecl) -> AnalyzerRetType {
@@ -293,14 +297,14 @@ impl<'a> Analyzer<'a> {
             ));
         }
 
-        let var_btype = &stmt_var_decl.btype;
-        let expr_btype = self.expr(&stmt_var_decl.expr)?;
+        let var_btype_wrapper = &stmt_var_decl.btype_wrapper;
+        let expr_btype_wrapper = self.expr(&stmt_var_decl.expr)?;
 
-        if *var_btype != BType::None && *var_btype != expr_btype {
+        if !var_btype_wrapper.is_type(BType::Void) && *var_btype_wrapper != expr_btype_wrapper {
             return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Var has type '{:?}' but right expression has '{:?}'",
-                    var_btype, expr_btype
+                    var_btype_wrapper, expr_btype_wrapper
                 ),
                 stmt_var_decl.expr.get_file_coords(),
             ));
@@ -308,10 +312,10 @@ impl<'a> Analyzer<'a> {
 
         (&mut self.envs.last_mut().unwrap().vars).push(VarTypeInfo {
             ident: stmt_var_decl.ident.clone(),
-            btype: expr_btype,
+            btype_wrapper: expr_btype_wrapper,
         });
 
-        Ok(BType::None)
+        Ok(BTypeWrapper::void())
     }
 
     fn stmt_assign(&mut self, stmt_assign: &StmtAssign) -> AnalyzerRetType {
@@ -330,34 +334,30 @@ impl<'a> Analyzer<'a> {
             ));
         }
 
-        Ok(BType::None)
+        Ok(BTypeWrapper::void())
     }
 
     fn stmt_while(&mut self, stmt_while: &StmtWhile) -> AnalyzerRetType {
-        let condition_btype = self.expr(&stmt_while.condition)?;
-        if condition_btype != BType::Bool {
+        let condition_btype_wrapper = self.expr(&stmt_while.condition)?;
+        if !condition_btype_wrapper.is_type(BType::Bool) {
             return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Expected while condition to have a 'Bool' result but got '{:?}'",
-                    condition_btype
+                    condition_btype_wrapper
                 ),
                 stmt_while.condition.get_file_coords(),
             ));
         }
         self.stmt(&stmt_while.body)?;
-        Ok(BType::None)
+        Ok(BTypeWrapper::void())
     }
 
     fn expr_bool(&mut self, _expr_bool: &ExprBool) -> AnalyzerRetType {
-        Ok(BType::Bool)
+        Ok(BTypeWrapper::new(BType::Bool))
     }
 
     fn expr_i64(&mut self, _expr_i64: &ExprI64) -> AnalyzerRetType {
-        Ok(BType::I64)
-    }
-
-    fn expr_string(&mut self, _expr_string: &ExprString) -> AnalyzerRetType {
-        Ok(BType::Str)
+        Ok(BTypeWrapper::new(BType::I64))
     }
 
     fn expr_identifier(&mut self, expr_identifier: &ExprIdenifier) -> AnalyzerRetType {
@@ -365,7 +365,7 @@ impl<'a> Analyzer<'a> {
         for env in self.envs.iter().rev() {
             let var_maybe = env.vars.iter().filter(|var| var.ident == *ident).last();
             if let Some(var) = var_maybe {
-                return Ok(var.btype.clone());
+                return Ok(var.btype_wrapper.clone());
             }
         }
 
@@ -376,46 +376,46 @@ impl<'a> Analyzer<'a> {
     }
 
     fn expr_binary_op(&mut self, expr_binary_op: &ExprBinaryOp) -> AnalyzerRetType {
-        let left_btype = self.expr(&expr_binary_op.left)?;
-        let right_btype = self.expr(&expr_binary_op.right)?;
+        let left_btype_wrapper = self.expr(&expr_binary_op.left)?;
+        let right_btype_wrapper = self.expr(&expr_binary_op.right)?;
 
-        let supported_btypes = expr_binary_op.op.get_supported_btypes();
-        if !supported_btypes.contains(&left_btype) {
+        let supported_btype_wrappers = expr_binary_op.op.get_supported_btype_wrappers();
+        if !supported_btype_wrappers.contains(&left_btype_wrapper) {
             return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Op '{:?}' expects '{:?}' types but it got '{:?}' in the left term",
-                    expr_binary_op.op, supported_btypes, left_btype
+                    expr_binary_op.op, supported_btype_wrappers, left_btype_wrapper
                 ),
                 expr_binary_op.file_coords,
             ));
         }
-        if !supported_btypes.contains(&right_btype) {
+        if !supported_btype_wrappers.contains(&right_btype_wrapper) {
             return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Op '{:?}' expects '{:?}' types but it got '{:?}' in the right term",
-                    expr_binary_op.op, supported_btypes, right_btype
+                    expr_binary_op.op, supported_btype_wrappers, right_btype_wrapper
                 ),
                 expr_binary_op.file_coords,
             ));
         }
 
-        if left_btype != right_btype {
+        if left_btype_wrapper != right_btype_wrapper {
             return Err(AnalyzerError::ErrorFC(
                 format!(
                     "Mismatched types '{:?}' and '{:?}'",
-                    left_btype, right_btype
+                    left_btype_wrapper, right_btype_wrapper
                 ),
                 expr_binary_op.file_coords,
             ));
         }
 
-        Ok(expr_binary_op.op.get_result_btype())
+        Ok(expr_binary_op.op.get_result_btype_wrapper())
     }
 
     fn expr_unary_op(&mut self, expr_unary_op: &ExprUnaryOp) -> AnalyzerRetType {
         let btype = self.expr(&expr_unary_op.term)?;
 
-        let supported_btypes = expr_unary_op.op.get_supported_btypes();
+        let supported_btypes = expr_unary_op.op.get_supported_btype_wrappers();
         if !supported_btypes.contains(&btype) {
             return Err(AnalyzerError::ErrorFC(
                 format!(
@@ -426,7 +426,17 @@ impl<'a> Analyzer<'a> {
             ));
         }
 
-        Ok(expr_unary_op.op.get_result_btype())
+        Ok(expr_unary_op.op.get_result_btype_wrapper())
+    }
+
+    fn expr_ref(&mut self, expr_ref: &ExprRef) -> AnalyzerRetType {
+        let term_btype_wrapper = self.expr(&expr_ref.term)?;
+        Ok(term_btype_wrapper.into_ref())
+    }
+
+    fn expr_deref(&mut self, expr_deref: &ExprDeref) -> AnalyzerRetType {
+        let term_btype_wrapper = self.expr(&expr_deref.term)?;
+        Ok(term_btype_wrapper.into_deref())
     }
 
     fn expr_call(&mut self, expr_call: &ExprCall) -> AnalyzerRetType {
@@ -437,7 +447,7 @@ impl<'a> Analyzer<'a> {
                 expr_call.file_coords,
             ));
         }
-        let func_decl = func_decl.unwrap().clone();
+        let func_decl = func_decl.unwrap();
 
         if func_decl.arg_types.len() != expr_call.args.len() {
             return Err(AnalyzerError::ErrorFC(
@@ -485,7 +495,7 @@ impl<'a> Analyzer<'a> {
                 expr_struct_instance.file_coords,
             ));
         }
-        let struct_decl = struct_decl.unwrap().clone();
+        let struct_decl = struct_decl.unwrap();
 
         if struct_decl.fields.len() != expr_struct_instance.fields.len() {
             return Err(AnalyzerError::ErrorFC(
@@ -500,15 +510,16 @@ impl<'a> Analyzer<'a> {
         }
 
         let mut missing_args: Vec<String> = Vec::with_capacity(0);
-        let mut mismatched_types: HashMap<String, (BType, BType)> = HashMap::with_capacity(0);
+        let mut mismatched_types: HashMap<String, (BTypeWrapper, BTypeWrapper)> =
+            HashMap::with_capacity(0);
         for field in &struct_decl.fields {
             match expr_struct_instance.fields.get(&field.ident) {
                 Some(expr) => {
                     let expr_btype = self.expr(expr)?;
-                    if expr_btype != field.btype {
+                    if expr_btype != field.btype_wrapper {
                         mismatched_types.insert(
                             field.ident.clone(),
-                            (field.btype.clone(), expr_btype.clone()),
+                            (field.btype_wrapper.clone(), expr_btype.clone()),
                         );
                     }
                 }
@@ -544,16 +555,24 @@ impl<'a> Analyzer<'a> {
             ));
         }
 
-        Ok(BType::Struct(expr_struct_instance.ident.clone()))
+        Ok(BTypeWrapper::new(BType::Struct(
+            expr_struct_instance.ident.clone(),
+        )))
     }
 
     fn expr_get(&mut self, expr_get: &ExprGet) -> AnalyzerRetType {
-        fn get_idents(expr: &Expr) -> Vec<String> {
+        // Returns list of identifiers and if the identifier in question is getting dereferenced or not
+        fn get_idents(expr: &Expr) -> Vec<(String, bool)> {
             match expr {
-                Expr::Identifier(expr_identifier) => vec![expr_identifier.ident.clone()],
+                Expr::Identifier(expr_identifier) => vec![(expr_identifier.ident.clone(), false)],
                 Expr::Get(expr_get) => {
-                    let mut v: Vec<String> = vec![expr_get.property.clone()];
+                    let mut v: Vec<(String, bool)> = vec![(expr_get.property.clone(), false)];
                     v.append(&mut get_idents(&expr_get.ident));
+                    v
+                }
+                Expr::Deref(expr_deref) => {
+                    let mut v = get_idents(&expr_deref.term);
+                    v.first_mut().unwrap().1 = true;
                     v
                 }
                 _ => unreachable!(
@@ -567,42 +586,66 @@ impl<'a> Analyzer<'a> {
         let ident = idents.pop().unwrap();
 
         for env in self.envs.iter().rev() {
-            let var = env.vars.iter().filter(|var| var.ident == *ident).last();
+            let var = env.vars.iter().filter(|var| var.ident == *ident.0).last();
             if var.is_none() {
                 continue;
             }
             let var = var.unwrap();
 
-            if let BType::Struct(struct_name) = &var.btype {
+            if let BType::Struct(struct_name) = &var.btype_wrapper.btype {
+                if var.btype_wrapper.is_ref && !ident.1 {
+                    return Err(AnalyzerError::ErrorFC(
+                        format!(
+                            "Try dereferncing struct instance '{}' to access it's contents",
+                            ident.0
+                        ),
+                        expr_get.file_coords,
+                    ));
+                }
+
                 let mut struct_decl = self.get_struct_info(&struct_name);
-                let mut btype = BType::None;
+                let mut btype_wrapper = BTypeWrapper::void();
                 while let Some(ident) = idents.pop() {
                     let field_maybe = struct_decl
                         .fields
                         .iter()
-                        .filter(|field| field.ident == *ident)
+                        .filter(|field| field.ident == *ident.0)
                         .last();
                     if field_maybe.is_none() {
                         return Err(AnalyzerError::ErrorFC(
                             format!(
-                                "'{:?}' does not have a field named '{ident}'",
-                                struct_name
+                                "'{:?}' does not have a field named '{}'",
+                                struct_name, ident.0
                             ),
                             expr_get.file_coords,
                         ));
                     }
+
                     let field = field_maybe.unwrap();
-                    if let BType::Struct(struct_name) = &field.btype {
+                    if let BType::Struct(struct_name) = &field.btype_wrapper.btype {
+                        if field.btype_wrapper.is_ref && !ident.1 {
+                            return Err(AnalyzerError::ErrorFC(
+                                format!(
+                                    "Try dereferncing struct instance '{}' to access it's contents",
+                                    ident.0
+                                ),
+                                expr_get.file_coords,
+                            ));
+                        }
                         struct_decl = self.get_struct_info(&struct_name);
                     } else {
-                        btype = field.btype.clone();
+                        btype_wrapper = field.btype_wrapper.clone();
                         break;
                     }
                 }
                 if !idents.is_empty() {
-                    return Err(AnalyzerError::ErrorFC(format!("Cannot get properties from basic data types. Trying to get a property from '{:?}'", btype), expr_get.file_coords));
+                    return Err(AnalyzerError::ErrorFC(format!("Cannot get properties from basic data types. Trying to get a property from '{:?}'", btype_wrapper), expr_get.file_coords));
                 }
-                return Ok(btype);
+                println!(
+                    "Get expr type: {:?} - {}",
+                    btype_wrapper, expr_get.file_coords
+                );
+                return Ok(btype_wrapper);
             } else {
                 return Err(AnalyzerError::ErrorFC(
                     format!("'{:?}' is not a struct", ident),

@@ -58,7 +58,6 @@ pub enum TokenType {
     // Types
     BTypeBool,
     BTypeI64,
-    BTypeStr,
 
     EOF,
 }
@@ -152,7 +151,6 @@ impl Token {
         match self.token_type {
             TokenType::BTypeBool => BType::Bool,
             TokenType::BTypeI64 => BType::I64,
-            TokenType::BTypeStr => BType::Str,
             TokenType::Identifier => BType::Struct(self.lexeme.as_ref().unwrap().clone()),
             _ => unreachable!("{:?} does not have a BType", self.token_type),
         }

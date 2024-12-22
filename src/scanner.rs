@@ -11,7 +11,6 @@ lazy_static! {
 
         map.insert("bool", TokenType::BTypeBool);
         map.insert("i64", TokenType::BTypeI64);
-        map.insert("str", TokenType::BTypeStr);
 
         map.insert("else", TokenType::Else);
         map.insert("false", TokenType::False);
