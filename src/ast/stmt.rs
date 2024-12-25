@@ -80,3 +80,19 @@ pub enum Stmt {
     Assign(StmtAssign),
     While(StmtWhile),
 }
+
+impl Stmt {
+    pub fn is_block(&self) -> bool {
+        match self {
+            Stmt::Block(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn get_block_body(&self) -> Vec<Stmt> {
+        match self {
+            Stmt::Block(stmt_block) => stmt_block.stmts.clone(),
+            _ => unreachable!("{:#?}", self),
+        }
+    }
+}

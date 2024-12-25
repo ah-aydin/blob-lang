@@ -202,7 +202,7 @@ impl<'a> Analyzer<'a> {
                 unreachable!("Did not expect a function declaration inside another function")
             }
             Stmt::StructDecl(_) => {
-                unreachable!("Did not expect a struct declaration inside another function")
+                unreachable!("Did not expect a struct declaration inside a function")
             }
         }
     }
@@ -641,10 +641,6 @@ impl<'a> Analyzer<'a> {
                 if !idents.is_empty() {
                     return Err(AnalyzerError::ErrorFC(format!("Cannot get properties from basic data types. Trying to get a property from '{:?}'", btype_wrapper), expr_get.file_coords));
                 }
-                println!(
-                    "Get expr type: {:?} - {}",
-                    btype_wrapper, expr_get.file_coords
-                );
                 return Ok(btype_wrapper);
             } else {
                 return Err(AnalyzerError::ErrorFC(

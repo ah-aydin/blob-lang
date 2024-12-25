@@ -1,11 +1,11 @@
 mod ast;
+mod cfg;
 mod declartions;
 mod file_coords;
 mod log;
 mod parser;
 mod scanner;
 mod semantic_analyzer;
-mod simple_compiler;
 mod token;
 
 use std::{env, fs::File, io::Read};
@@ -35,15 +35,46 @@ fn main() -> Result<(), i32> {
         }
     }?;
 
-    info!("Compiling and running {}...\n", file_name);
+    info!("Compiling and running {}...", file_name);
 
     let tokens = scanner::scan(&src);
     let ast = parser::parse(tokens);
     let extracted_declarations = declartions::extract_declarations(&ast);
-    let contains_main = semantic_analyzer::analyze(&ast, &extracted_declarations);
+    let _contains_main = semantic_analyzer::analyze(&ast, &extracted_declarations);
 
-    let file_name = format!("{}.asm", file_name);
-    simple_compiler::compile(&ast, contains_main, file_name);
+    let cfgs = cfg::build_cfgs(ast);
+    for (func, cfg) in &cfgs {
+        println!("Blocks for function '{func}'");
+        let mut i = 0;
+        for block in &cfg.blocks {
+            match block {
+                cfg::CfgBlock::Start(cfg_block_start) => {
+                    println!(
+                        "{i}: Start - successor {} - {:?}",
+                        cfg_block_start.successor,
+                        cfg_block_start.args.first()
+                    )
+                }
+                cfg::CfgBlock::Basic(cfg_block_basic) => {
+                    println!(
+                        "{i}: Basic - successor {} - {:?}",
+                        cfg_block_basic.successor,
+                        cfg_block_basic.stmts.first()
+                    )
+                }
+                cfg::CfgBlock::Condition(cfg_block_condition) => {
+                    println!(
+                        "{i}: Condition - true successor {} - false successor {} - {:?}",
+                        cfg_block_condition.true_successor,
+                        cfg_block_condition.false_successor,
+                        cfg_block_condition.condition
+                    )
+                }
+            }
+            i += 1;
+        }
+        println!();
+    }
 
     Ok(())
 }

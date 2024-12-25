@@ -261,11 +261,19 @@ impl Parser {
                     if_body: Box::new(body),
                     else_body: Box::new(self.stmt_block()?),
                 })),
-                TokenType::If => Ok(Stmt::IfElse(StmtIfElse {
-                    condition,
-                    if_body: Box::new(body),
-                    else_body: Box::new(self.stmt_if_else()?),
-                })),
+                TokenType::If => {
+                    let mut else_body = self.stmt_if_else()?;
+                    if !else_body.is_block() {
+                        else_body = Stmt::Block(StmtBlock {
+                            stmts: vec![else_body],
+                        });
+                    }
+                    Ok(Stmt::IfElse(StmtIfElse {
+                        condition,
+                        if_body: Box::new(body),
+                        else_body: Box::new(else_body),
+                    }))
+                }
                 _ => Err(ParserError::WrongToken(
                     "Expected 'if' or '{' after 'else'".to_string(),
                     self.get_prev_file_coords(),
