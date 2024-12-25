@@ -15,7 +15,7 @@ func foo(a: i64, b: bool): i64 {
     } else if (false) {
         return 2;
     }
-    return 1 + 123 + e;
+    #return 1 + 123 + e;
   }
   return a + 10;
 }

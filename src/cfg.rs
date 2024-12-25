@@ -213,7 +213,25 @@ fn build_cfg_helper(cfg: &mut Cfg, stmts: Vec<Stmt>, mut current_block_index: us
 
                 current_block_index = merge_block_index;
             }
-            Stmt::While(stmt_while) => todo!(),
+            Stmt::While(stmt_while) => {
+                let condition_block_index =
+                    cfg.add_condition_block(CfgBlockCondition::new(stmt_while.condition));
+                cfg.set_successor(current_block_index, condition_block_index);
+
+                let while_body = stmt_while.body.get_block_body();
+                let while_body_index = cfg.add_block(CfgBlock::Basic(
+                    CfgBlockBasic::with_capacity(while_body.len()),
+                ));
+                cfg.set_true_successor(condition_block_index, while_body_index);
+                let last_block_in_while_index = build_cfg_helper(cfg, while_body, while_body_index);
+
+                let merge_block_index = cfg.add_block(CfgBlock::Basic(CfgBlockBasic::new()));
+
+                cfg.set_false_successor(condition_block_index, merge_block_index);
+                cfg.set_successor(last_block_in_while_index, condition_block_index);
+
+                current_block_index = merge_block_index;
+            }
 
             Stmt::StructDecl(_) => {
                 unreachable!("Did not expect a struct declartion inside a function")
