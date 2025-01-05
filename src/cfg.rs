@@ -53,6 +53,7 @@ impl Cfg {
             CfgBlock::Condition(cfg_block_condition) => {
                 cfg_block_condition.true_successor = successor_index
             }
+            CfgBlock::Exit => unreachable!("Canot set successor for Exit block"),
         }
     }
 
@@ -101,6 +102,13 @@ impl CfgBlockBasic {
             successor: 0,
         }
     }
+
+    fn contains_return(&self) -> bool {
+        self.stmts.iter().any(|stmt| match stmt {
+            Stmt::Return(_) => true,
+            _ => false,
+        })
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -125,6 +133,18 @@ pub enum CfgBlock {
     Start(CfgBlockStart),
     Basic(CfgBlockBasic),
     Condition(CfgBlockCondition),
+    Exit,
+}
+
+impl CfgBlock {
+    fn is_empty(&self) -> bool {
+        match self {
+            CfgBlock::Start(_cfg_block_start) => false,
+            CfgBlock::Basic(cfg_block_basic) => cfg_block_basic.stmts.len() == 0,
+            CfgBlock::Condition(_cfg_block_condition) => false,
+            CfgBlock::Exit => false,
+        }
+    }
 }
 
 pub fn build_cfgs(ast: Ast) -> HashMap<String, Cfg> {
@@ -153,7 +173,8 @@ fn build_cfg(stmt_func_decl: StmtFuncDecl) -> Cfg {
     cfg.set_successor(starter_block_index, current_block_index);
 
     build_cfg_helper(&mut cfg, stmts, current_block_index);
-
+    cleanup_empty_blocks(&mut cfg);
+    add_exit_block(&mut cfg);
     cfg
 }
 
@@ -243,4 +264,60 @@ fn build_cfg_helper(cfg: &mut Cfg, stmts: Vec<Stmt>, mut current_block_index: us
     }
 
     current_block_index
+}
+
+fn cleanup_empty_blocks(cfg: &mut Cfg) {
+    let mut shifting_per_block = vec![0usize; cfg.blocks.len()];
+    let mut empty_blocks = Vec::with_capacity(cfg.blocks.len());
+
+    // Mark empty blocks and calculate the amount of shifting that will take place for each block after the removals
+    let mut current_shifting = 0usize;
+    for (i, block) in cfg.blocks.iter().enumerate() {
+        shifting_per_block[i] = current_shifting;
+        if block.is_empty() {
+            current_shifting += 1;
+            empty_blocks.push(i);
+        }
+    }
+    println!("{:?}", shifting_per_block);
+
+    // Update successor indexes with the shiftings
+    cfg.blocks.iter_mut().for_each(|block| match block {
+        CfgBlock::Start(cfg_block_start) => {
+            cfg_block_start.successor -= shifting_per_block[cfg_block_start.successor]
+        }
+        CfgBlock::Basic(cfg_block_basic) => {
+            cfg_block_basic.successor -= shifting_per_block[cfg_block_basic.successor]
+        }
+        CfgBlock::Condition(cfg_block_condition) => {
+            cfg_block_condition.true_successor -=
+                shifting_per_block[cfg_block_condition.true_successor];
+            cfg_block_condition.false_successor -=
+                shifting_per_block[cfg_block_condition.false_successor];
+        }
+        CfgBlock::Exit => {}
+    });
+
+    // Remove empty blocks
+    empty_blocks.iter().rev().for_each(|empty_block| {
+        cfg.blocks.remove(*empty_block);
+    });
+}
+
+fn add_exit_block(cfg: &mut Cfg) {
+    let exit_block_index = cfg.add_block(CfgBlock::Exit);
+    cfg.blocks.iter_mut().for_each(|block| match block {
+        CfgBlock::Start(cfg_block_start) => {
+            if cfg_block_start.successor == 0 {
+                cfg_block_start.successor = exit_block_index;
+            }
+        }
+        CfgBlock::Basic(cfg_block_basic) => {
+            if cfg_block_basic.contains_return() {
+                cfg_block_basic.successor = exit_block_index;
+            }
+        }
+        CfgBlock::Condition(_cfg_block_condition) => {}
+        CfgBlock::Exit => {}
+    });
 }

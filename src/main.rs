@@ -41,6 +41,7 @@ fn main() -> Result<(), i32> {
     let ast = parser::parse(tokens);
     let extracted_declarations = declartions::extract_declarations(&ast);
     let _contains_main = semantic_analyzer::analyze(&ast, &extracted_declarations);
+    // TODO add some optimizations that can be done on an AST
 
     let cfgs = cfg::build_cfgs(ast);
     for (func, cfg) in &cfgs {
@@ -69,6 +70,9 @@ fn main() -> Result<(), i32> {
                         cfg_block_condition.false_successor,
                         cfg_block_condition.condition
                     )
+                }
+                cfg::CfgBlock::Exit => {
+                    println!("{i}: Exit")
                 }
             }
             i += 1;
