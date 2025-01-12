@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::cfg::{Cfg, CfgBlock};
+use crate::cfg::Cfg;
 
 pub fn cfgs_to_ssa(cfgs: HashMap<String, Cfg>) {
     for (func, cfg) in cfgs {
@@ -11,13 +11,13 @@ pub fn cfgs_to_ssa(cfgs: HashMap<String, Cfg>) {
     }
 }
 
-fn cfg_to_ssa(cfg: Cfg) {
-    compute_dominators(&cfg);
+fn cfg_to_ssa(mut cfg: Cfg) {
+    compute_dominators(&mut cfg);
 }
 
-fn compute_dominators(cfg: &Cfg) -> Vec<HashSet<usize>> {
+fn compute_dominators(cfg: &mut Cfg) -> Vec<HashSet<usize>> {
     let block_count = cfg.blocks.len();
-    let predecessors_per_block = compute_predecessors(cfg);
+    //let predecessors_per_block = compute_predecessors(cfg);
 
     let mut dominators_per_block = vec![(0..block_count).collect(); block_count];
     dominators_per_block[0] = HashSet::from([0]);
@@ -32,7 +32,7 @@ fn compute_dominators(cfg: &Cfg) -> Vec<HashSet<usize>> {
             }
 
             let mut new_dominators: Option<HashSet<usize>> = None;
-            for predecessor in &predecessors_per_block[block_index] {
+            for predecessor in &cfg.predecessors()[block_index] {
                 if new_dominators.is_none() {
                     new_dominators = Some(dominators_per_block[*predecessor].clone());
                     continue;
@@ -60,24 +60,4 @@ fn compute_dominators(cfg: &Cfg) -> Vec<HashSet<usize>> {
     }
 
     dominators_per_block
-}
-
-fn compute_predecessors(cfg: &Cfg) -> Vec<HashSet<usize>> {
-    let mut predecessors = vec![HashSet::new(); cfg.blocks.len()];
-    for (index, block) in cfg.blocks.iter().enumerate() {
-        match block {
-            CfgBlock::Start(cfg_block_start) => {
-                predecessors[cfg_block_start.successor].insert(index);
-            }
-            CfgBlock::Basic(cfg_block_basic) => {
-                predecessors[cfg_block_basic.successor].insert(index);
-            }
-            CfgBlock::Condition(cfg_block_condition) => {
-                predecessors[cfg_block_condition.true_successor].insert(index);
-                predecessors[cfg_block_condition.false_successor].insert(index);
-            }
-            CfgBlock::Exit => {}
-        };
-    }
-    predecessors
 }

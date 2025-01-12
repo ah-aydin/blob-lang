@@ -10,11 +10,15 @@ use crate::ast::{
 #[derive(Debug, Clone)]
 pub struct Cfg {
     pub blocks: Vec<CfgBlock>,
+    predecessors: Option<Vec<Vec<usize>>>,
 }
 
 impl Cfg {
     fn new() -> Cfg {
-        Cfg { blocks: Vec::new() }
+        Cfg {
+            blocks: Vec::new(),
+            predecessors: None,
+        }
     }
 
     fn add_block(&mut self, cfg_block: CfgBlock) -> usize {
@@ -73,6 +77,29 @@ impl Cfg {
             }
             _ => unreachable!("Expected a block with a false successor"),
         }
+    }
+
+    pub fn predecessors(&mut self) -> &Vec<Vec<usize>> {
+        if self.predecessors.is_none() {
+            let mut predecessors = vec![Vec::new(); self.blocks.len()];
+            for (index, block) in self.blocks.iter().enumerate() {
+                match block {
+                    CfgBlock::Start(cfg_block_start) => {
+                        predecessors[cfg_block_start.successor].push(index);
+                    }
+                    CfgBlock::Basic(cfg_block_basic) => {
+                        predecessors[cfg_block_basic.successor].push(index);
+                    }
+                    CfgBlock::Condition(cfg_block_condition) => {
+                        predecessors[cfg_block_condition.true_successor].push(index);
+                        predecessors[cfg_block_condition.false_successor].push(index);
+                    }
+                    CfgBlock::Exit => {}
+                };
+            }
+            self.predecessors = Some(predecessors);
+        }
+        self.predecessors.as_ref().unwrap()
     }
 
     #[allow(dead_code)]
