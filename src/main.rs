@@ -6,6 +6,7 @@ mod log;
 mod parser;
 mod scanner;
 mod semantic_analyzer;
+mod ssa;
 mod token;
 
 use std::{env, fs::File, io::Read};
@@ -44,41 +45,9 @@ fn main() -> Result<(), i32> {
     // TODO add some optimizations that can be done on an AST
 
     let cfgs = cfg::build_cfgs(ast);
-    for (func, cfg) in &cfgs {
-        println!("Blocks for function '{func}'");
-        let mut i = 0;
-        for block in &cfg.blocks {
-            match block {
-                cfg::CfgBlock::Start(cfg_block_start) => {
-                    println!(
-                        "{i}: Start - successor {} - {:?}",
-                        cfg_block_start.successor,
-                        cfg_block_start.args.first()
-                    )
-                }
-                cfg::CfgBlock::Basic(cfg_block_basic) => {
-                    println!(
-                        "{i}: Basic - successor {} - {:?}",
-                        cfg_block_basic.successor,
-                        cfg_block_basic.stmts.first()
-                    )
-                }
-                cfg::CfgBlock::Condition(cfg_block_condition) => {
-                    println!(
-                        "{i}: Condition - true successor {} - false successor {} - {:?}",
-                        cfg_block_condition.true_successor,
-                        cfg_block_condition.false_successor,
-                        cfg_block_condition.condition
-                    )
-                }
-                cfg::CfgBlock::Exit => {
-                    println!("{i}: Exit")
-                }
-            }
-            i += 1;
-        }
-        println!();
-    }
+    // TODO make optimizations that can be done before making it into SSA form
+
+    ssa::cfgs_to_ssa(cfgs);
 
     Ok(())
 }

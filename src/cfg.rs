@@ -74,6 +74,41 @@ impl Cfg {
             _ => unreachable!("Expected a block with a false successor"),
         }
     }
+
+    #[allow(dead_code)]
+    pub fn print(&self) {
+        let mut i = 0;
+        for block in &self.blocks {
+            match block {
+                CfgBlock::Start(cfg_block_start) => {
+                    println!(
+                        "{i}: Start - successor {} - {:?}",
+                        cfg_block_start.successor,
+                        cfg_block_start.args.first()
+                    )
+                }
+                CfgBlock::Basic(cfg_block_basic) => {
+                    println!(
+                        "{i}: Basic - successor {} - {:?}",
+                        cfg_block_basic.successor,
+                        cfg_block_basic.stmts.first()
+                    )
+                }
+                CfgBlock::Condition(cfg_block_condition) => {
+                    println!(
+                        "{i}: Condition - true successor {} - false successor {} - {:?}",
+                        cfg_block_condition.true_successor,
+                        cfg_block_condition.false_successor,
+                        cfg_block_condition.condition
+                    )
+                }
+                CfgBlock::Exit => {
+                    println!("{i}: Exit")
+                }
+            }
+            i += 1;
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -279,7 +314,6 @@ fn cleanup_empty_blocks(cfg: &mut Cfg) {
             empty_blocks.push(i);
         }
     }
-    println!("{:?}", shifting_per_block);
 
     // Update successor indexes with the shiftings
     cfg.blocks.iter_mut().for_each(|block| match block {

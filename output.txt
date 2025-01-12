@@ -7,21 +7,3 @@
 [INFO] Analysis complete!
 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2]
 [0, 0]
-Blocks for function 'foo'
-0: Start - successor 1 - Some(VarTypeInfo { ident: "a", btype_wrapper: I64 })
-1: Basic - successor 2 - Some(VarDecl(StmtVarDecl { ident: "c", btype_wrapper: Void, expr: I64(ExprI64 { value: 10, file_coords: (2, 11) }) }))
-2: Condition - true successor 3 - false successor 4 - BinaryOp(ExprBinaryOp { left: Identifier(ExprIdenifier { ident: "c", file_coords: (8, 7) }), op: Eq, right: I64(ExprI64 { value: 10, file_coords: (8, 12) }), file_coords: (8, 9) })
-3: Basic - successor 10 - Some(VarDecl(StmtVarDecl { ident: "d", btype_wrapper: Void, expr: BinaryOp(ExprBinaryOp { left: Identifier(ExprIdenifier { ident: "c", file_coords: (9, 13) }), op: Add, right: I64(ExprI64 { value: 10, file_coords: (9, 17) }), file_coords: (9, 15) }) }))
-4: Basic - successor 5 - Some(VarDecl(StmtVarDecl { ident: "e", btype_wrapper: Void, expr: I64(ExprI64 { value: 10, file_coords: (12, 13) }) }))
-5: Condition - true successor 6 - false successor 7 - Bool(ExprBool { value: true, file_coords: (13, 9) })
-6: Basic - successor 10 - Some(Return(StmtReturn { expr: Some(I64(ExprI64 { value: 1, file_coords: (14, 14) })) }))
-7: Condition - true successor 8 - false successor 9 - Bool(ExprBool { value: false, file_coords: (15, 16) })
-8: Basic - successor 9 - Some(VarDecl(StmtVarDecl { ident: "a", btype_wrapper: Void, expr: I64(ExprI64 { value: 10, file_coords: (17, 15) }) }))
-9: Basic - successor 10 - Some(Return(StmtReturn { expr: Some(BinaryOp(ExprBinaryOp { left: Identifier(ExprIdenifier { ident: "a", file_coords: (21, 10) }), op: Add, right: I64(ExprI64 { value: 10, file_coords: (21, 14) }), file_coords: (21, 12) })) }))
-10: Exit
-
-Blocks for function 'main'
-0: Start - successor 1 - None
-1: Basic - successor 2 - Some(Return(StmtReturn { expr: Some(I64(ExprI64 { value: 0, file_coords: (25, 10) })) }))
-2: Exit
-
