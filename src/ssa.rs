@@ -82,7 +82,7 @@ fn compute_immediate_dominators(cfg: &mut Cfg, dominators: &Vec<HashSet<usize>>)
             } else if dominators[dominator2].contains(&dominator1) {
                 block_dominators.push(dominator2);
             } else {
-                unreachable!("Malformed formed CFG");
+                unreachable!("Malformed CFG");
             }
         }
 
