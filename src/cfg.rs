@@ -102,6 +102,13 @@ impl Cfg {
         self.predecessors.as_ref().unwrap()
     }
 
+    pub fn get_block_successors(&self, block_index: usize) -> Vec<usize> {
+        self.blocks
+            .get(block_index)
+            .expect(&format!("Block index {} does not exist", block_index))
+            .get_successors()
+    }
+
     #[allow(dead_code)]
     pub fn print(&self) {
         let mut i = 0;
@@ -205,6 +212,18 @@ impl CfgBlock {
             CfgBlock::Basic(cfg_block_basic) => cfg_block_basic.stmts.len() == 0,
             CfgBlock::Condition(_cfg_block_condition) => false,
             CfgBlock::Exit => false,
+        }
+    }
+
+    fn get_successors(&self) -> Vec<usize> {
+        match self {
+            CfgBlock::Start(cfg_block_start) => vec![cfg_block_start.successor],
+            CfgBlock::Basic(cfg_block_basic) => vec![cfg_block_basic.successor],
+            CfgBlock::Condition(cfg_block_condition) => vec![
+                cfg_block_condition.true_successor,
+                cfg_block_condition.false_successor,
+            ],
+            CfgBlock::Exit => vec![],
         }
     }
 }

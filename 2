@@ -40,10 +40,9 @@ pub fn cfgs_to_ssa(cfgs: HashMap<String, Cfg>) {
 fn cfg_to_ssa(mut cfg: Cfg) {
     let dominators = compute_dominators(&mut cfg);
     let idom_nodes = compute_immediate_dominator_tree(&mut cfg, &dominators);
+    idom_nodes.iter().for_each(|node| node.print());
     let dominance_frontiers = compute_dominance_frontiers(&mut cfg, &idom_nodes);
-    for (i, df) in dominance_frontiers.iter().enumerate() {
-        println!("{i}: {:?}", df);
-    }
+    println!("{:#?}", dominance_frontiers);
 }
 
 fn compute_dominators(cfg: &mut Cfg) -> Vec<HashSet<usize>> {
@@ -148,17 +147,32 @@ fn compute_immediate_dominator_tree(
 fn compute_dominance_frontiers(cfg: &mut Cfg, idom_nodes: &Vec<IDomNode>) -> Vec<HashSet<usize>> {
     let block_count = cfg.blocks.len();
 
+    let mut traversal: Vec<usize> = Vec::with_capacity(block_count);
+    let mut process_queue: Vec<usize> = Vec::with_capacity(block_count);
+    process_queue.push(0);
+    while !process_queue.is_empty() {
+        let node_index = process_queue.pop().unwrap();
+        traversal.push(node_index);
+        idom_nodes[node_index]
+            .children_indicies
+            .iter()
+            .for_each(|kid_index| process_queue.push(*kid_index));
+    }
+    drop(process_queue);
+
     let mut dominance_frontiers = vec![HashSet::new(); block_count];
-    for block_index in 0..block_count {
-        let predecessors = &cfg.predecessors()[block_index];
-        if predecessors.len() < 2 {
-            continue;
+    for block_index in traversal.iter().rev() {
+        for successor_index in cfg.get_block_successors(*block_index) {
+            if idom_nodes[successor_index].parent_index != *block_index {
+                dominance_frontiers[*block_index].insert(successor_index);
+            }
         }
-        for predecessor in predecessors {
-            let mut runner = *predecessor;
-            while runner != idom_nodes[block_index].parent_index {
-                dominance_frontiers[runner].insert(block_index);
-                runner = idom_nodes[runner].parent_index;
+
+        for child_index in &idom_nodes[*block_index].children_indicies {
+            for dm in dominance_frontiers[*child_index].clone() {
+                if idom_nodes[dm].parent_index == *block_index {
+                    dominance_frontiers[*block_index].insert(dm);
+                }
             }
         }
     }
